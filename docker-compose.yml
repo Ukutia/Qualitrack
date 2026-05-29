@@ -1,0 +1,62 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: qualitrack-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qualitrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qualitrack}
+      POSTGRES_DB: ${POSTGRES_DB:-qualitrack}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # Puerto del host 5433 -> 5432 del contenedor (evita choque con un
+      # PostgreSQL local). El backend se conecta internamente como db:5432.
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qualitrack} -d ${POSTGRES_DB:-qualitrack}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: qualitrack-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://qualitrack:qualitrack@db:5432/qualitrack?schema=public}
+      PORT: ${PORT:-4000}
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto-en-produccion}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-10}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@qualitrack.cl}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      ADMIN_NAME: ${ADMIN_NAME:-Encargado de Aseguramiento de Calidad}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:4000/api/cloud/google/callback}
+    volumes:
+      - filedata:/app/data
+    ports:
+      - "4000:4000"
+
+  frontend:
+    build: ./frontend
+    container_name: qualitrack-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      # El proxy de Vite reenvía /api al backend dentro de la red de compose.
+      VITE_API_PROXY_TARGET: http://backend:4000
+    ports:
+      # Puerto del host configurable (default 5173) por si está ocupado.
+      - "${FRONTEND_PORT:-5173}:5173"
+
+volumes:
+  pgdata:
+  filedata:
