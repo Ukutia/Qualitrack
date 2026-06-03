@@ -1,5 +1,7 @@
 // HU03 — Estructura oficial del informe CNA (ver / versionar) y consulta del criterio.
 import { prisma } from '../config/prisma.js';
+import { formatFromName } from '../middleware/upload.js';
+import { extractSections, diffSections } from '../services/structureExtraction.service.js';
 
 const CRITERION_CODE = '9';
 
@@ -36,6 +38,47 @@ export async function getReportStructure(req, res) {
 }
 
 /**
+ * POST /report-structure/extract — detecta las secciones de un archivo PDF/DOCX
+ * SIN guardarlas. Devuelve las secciones detectadas y, si existe una versión
+ * activa, la diferencia (agregadas / eliminadas / renombradas) para que el
+ * usuario confirme la carga o el reemplazo.
+ * Body: multipart con campo "file".
+ */
+export async function extractReportStructure(req, res) {
+  if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo.' });
+
+  const format = formatFromName(req.file.originalname);
+  if (format !== 'pdf' && format !== 'docx') {
+    return res.status(400).json({
+      error: 'Solo se aceptan archivos PDF o DOCX para detectar la estructura del informe.',
+    });
+  }
+
+  const sections = await extractSections(req.file.buffer, format);
+  if (sections.length === 0) {
+    return res.json({
+      sections: [],
+      diff: [],
+      hasPrevious: false,
+      message: 'No se encontraron secciones en el archivo.',
+    });
+  }
+
+  const prev = await prisma.reportStructureVersion.findFirst({
+    where: { active: true },
+    include: { sections: { orderBy: { order: 'asc' } } },
+  });
+  const diff = prev ? diffSections(prev.sections, sections) : [];
+
+  return res.json({
+    sections,
+    diff,
+    hasPrevious: Boolean(prev),
+    message: `Se detectaron ${sections.length} sección(es) en el archivo.`,
+  });
+}
+
+/**
  * POST /report-structure — sube una nueva versión de la plantilla (JSON).
  * Body: { sections: [{ code, name, description?, required? }] }
  * Marca ADDED / REMOVED / RENAMED respecto de la versión activa anterior.
@@ -44,14 +87,27 @@ export async function uploadReportStructure(req, res) {
   const { sections } = req.body || {};
   if (!Array.isArray(sections) || sections.length === 0) {
     return res.status(400).json({
-      error: 'Debe enviar "sections": un arreglo con al menos una sección { code, name }.',
+      error: 'Debes tener al menos una sección con número y nombre antes de guardar.',
     });
   }
   for (const s of sections) {
-    if (!s.code || !s.name) {
-      return res.status(400).json({ error: 'Cada sección requiere "code" y "name".' });
+    if (!s.code || !s.name || !String(s.code).trim() || !String(s.name).trim()) {
+      return res.status(400).json({
+        error: 'Hay secciones sin nombre ni número. Completa todos los campos antes de guardar.',
+      });
     }
   }
+  // El código de sección solo acepta números enteros positivos.
+  for (const s of sections) {
+    if (!/^\d+$/.test(String(s.code).trim()) || Number(s.code) < 1) {
+      return res.status(400).json({
+        error: 'El número de sección debe ser un número entero positivo (1, 2, 3…).',
+      });
+    }
+  }
+
+  // Ordena automáticamente de menor a mayor por número de sección.
+  sections.sort((a, b) => Number(a.code) - Number(b.code));
 
   const prev = await prisma.reportStructureVersion.findFirst({
     where: { active: true },
