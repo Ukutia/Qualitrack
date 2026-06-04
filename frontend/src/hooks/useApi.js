@@ -47,12 +47,7 @@ export function useAssociationAction() {
   return useMutation({
     mutationFn: async ({ associationId, action }) =>
       (await api.post(`/associations/${associationId}/${action}`)).data,
-    onSuccess: (_d, { docId }) => {
-      // Refresca el detalle del documento (estado + historial) sin recargar.
-      if (docId != null) {
-        qc.invalidateQueries({ queryKey: ['document', String(docId)] });
-        qc.invalidateQueries({ queryKey: ['document', docId] });
-      }
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['compliance'] });
       qc.invalidateQueries({ queryKey: ['documents'] });
     },
@@ -80,17 +75,6 @@ export function useUploadStructure() {
   return useMutation({
     mutationFn: async (sections) => (await api.post('/report-structure', { sections })).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['report-structure'] }),
-  });
-}
-
-// Detecta secciones de un PDF/DOCX sin guardarlas (para confirmar carga/reemplazo).
-export function useExtractStructure() {
-  return useMutation({
-    mutationFn: async (file) => {
-      const form = new FormData();
-      form.append('file', file);
-      return (await api.post('/report-structure/extract', form)).data;
-    },
   });
 }
 

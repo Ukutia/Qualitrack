@@ -3,7 +3,7 @@ import { useDocument, useClassify, useAssociationAction } from '../hooks/useApi.
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
 const ACTION_LABEL = { PROPOSED: 'Propuesta generada', VALIDATED: 'Validada', REJECTED: 'Descartada' };
-const STATUS_LABEL = { PROPOSED: 'Sin validar', VALIDATED: 'Validada', NOT_VALIDATED: 'Descartada' };
+const STATUS_LABEL = { PROPOSED: 'Propuesta', VALIDATED: 'Validada', NOT_VALIDATED: 'Descartada' };
 
 export default function DocumentDetail() {
   const { id } = useParams();
@@ -72,48 +72,24 @@ export default function DocumentDetail() {
                     {a.confidence ? ` · confianza ${Math.round(a.confidence * 100)}%` : ''}
                   </p>
                 </div>
-                {(() => {
-                  // Mientras la acción de ESTA asociación está en curso, sus
-                  // botones se deshabilitan para evitar clics múltiples.
-                  const busy = action.isPending && action.variables?.associationId === a.id;
-                  const validate = () =>
-                    action.mutate({ associationId: a.id, action: 'validate', docId: id });
-                  const reject = () =>
-                    action.mutate({ associationId: a.id, action: 'reject', docId: id });
-
-                  if (a.status === 'VALIDATED') {
-                    return (
-                      <div className="flex gap-2 shrink-0">
-                        <button
-                          onClick={validate}
-                          disabled={busy}
-                          className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 text-xs font-medium disabled:opacity-60"
-                        >
-                          Re-validar
-                        </button>
-                        <button
-                          onClick={reject}
-                          disabled={busy}
-                          className="rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 text-xs font-medium disabled:opacity-60"
-                        >
-                          Descartar
-                        </button>
-                      </div>
-                    );
-                  }
-                  // Sin estado (PROPOSED): solo "Validar".
-                  return (
-                    <div className="flex gap-2 shrink-0">
-                      <button
-                        onClick={validate}
-                        disabled={busy}
-                        className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 text-xs font-medium disabled:opacity-60"
-                      >
-                        Validar
-                      </button>
-                    </div>
-                  );
-                })()}
+                {a.status === 'PROPOSED' && (
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => action.mutate({ associationId: a.id, action: 'validate' })}
+                      disabled={action.isPending}
+                      className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 text-xs font-medium"
+                    >
+                      Validar
+                    </button>
+                    <button
+                      onClick={() => action.mutate({ associationId: a.id, action: 'reject' })}
+                      disabled={action.isPending}
+                      className="rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 text-xs font-medium"
+                    >
+                      Descartar
+                    </button>
+                  </div>
+                )}
               </div>
 
               {a.justification && (
