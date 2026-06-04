@@ -18,7 +18,6 @@ import { getCompliance } from '../controllers/compliance.controller.js';
 import {
   getCriterion,
   getReportStructure,
-  extractReportStructure,
   uploadReportStructure,
 } from '../controllers/criteria.controller.js';
 import * as cloud from '../controllers/cloud.controller.js';
@@ -55,7 +54,6 @@ router.get('/compliance', getCompliance);
 // Criterio y estructura del informe (HU03)
 router.get('/criteria', getCriterion);
 router.get('/report-structure', getReportStructure);
-router.post('/report-structure/extract', upload.single('file'), extractReportStructure);
 router.post('/report-structure', uploadReportStructure);
 
 // Google Drive (HU09)

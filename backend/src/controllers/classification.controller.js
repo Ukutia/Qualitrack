@@ -93,10 +93,7 @@ export async function validateAssociation(req, res) {
   return res.json({ id: updated.id, status: updated.status, validatedAt: updated.validatedAt });
 }
 
-/**
- * POST /associations/:id/reject — descarta la validación: la asociación vuelve a
- * quedar "sin estado" (PROPOSED). Conserva la propuesta original en el historial.
- */
+/** POST /associations/:id/reject — conserva la propuesta original en el historial. */
 export async function rejectAssociation(req, res) {
   const id = Number(req.params.id);
   const assoc = await prisma.association.findUnique({ where: { id } });
@@ -104,7 +101,7 @@ export async function rejectAssociation(req, res) {
 
   const updated = await prisma.association.update({
     where: { id },
-    data: { status: 'PROPOSED', validatedById: null, validatedAt: null },
+    data: { status: 'NOT_VALIDATED', validatedById: null, validatedAt: null },
   });
   await prisma.associationHistory.create({
     data: {
