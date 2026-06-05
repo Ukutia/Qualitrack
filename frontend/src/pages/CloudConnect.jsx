@@ -57,7 +57,7 @@ export default function CloudConnect() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-slate-800">Google Drive</h1>
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">Google Drive</h1>
         <p className="text-slate-500 mt-1">
           Importe evidencias directamente desde su almacenamiento en la nube.
         </p>

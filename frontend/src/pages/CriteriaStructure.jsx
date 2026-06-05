@@ -180,7 +180,7 @@ export default function CriteriaStructure() {
 
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Estructura oficial del informe CNA</h1>
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">Estructura oficial del informe CNA</h1>
           <p className="text-slate-500 mt-1">Versión activa: {data.version ?? '—'}</p>
         </div>
         {!draft && !parseResult && (

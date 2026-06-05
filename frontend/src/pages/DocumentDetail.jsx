@@ -23,7 +23,7 @@ export default function DocumentDetail() {
       </Link>
 
       <header className="bg-white rounded-xl shadow-sm p-6">
-        <h1 className="text-xl font-bold text-slate-800 break-all">{doc.name}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink-900 break-all">{doc.name}</h1>
         <div className="grid sm:grid-cols-2 gap-x-8 gap-y-1 mt-3 text-sm text-slate-600">
           <p>Formato: <span className="uppercase">{doc.format}</span></p>
           <p>Tamaño: {(doc.sizeBytes / 1024).toFixed(0)} KB</p>

@@ -12,6 +12,7 @@ export default function Upload() {
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState(null); // {type, text}
   const [duplicate, setDuplicate] = useState(null); // info del doc existente
+  const [dragOver, setDragOver] = useState(false);
 
   function pick(f) {
     setMessage(null);
@@ -52,20 +53,26 @@ export default function Upload() {
   return (
     <div className="space-y-6 max-w-2xl">
       <header>
-        <h1 className="text-2xl font-bold text-slate-800">Cargar evidencia</h1>
-        <p className="text-slate-500 mt-1">
-          Formatos aceptados: PDF, DOCX, XLSX · Tamaño máximo: {MAX_MB}MB.
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">Cargar evidencia</h1>
+        <p className="text-stone-500 mt-1">
+          Formatos aceptados: PDF, DOCX, XLSX · Tamaño máximo: <span className="tnum">{MAX_MB}</span>MB.
         </p>
       </header>
 
       <div
-        onDragOver={(e) => e.preventDefault()}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
           e.preventDefault();
+          setDragOver(false);
           pick(e.dataTransfer.files?.[0]);
         }}
         onClick={() => inputRef.current?.click()}
-        className="bg-white border-2 border-dashed border-slate-300 rounded-xl p-10 text-center cursor-pointer hover:border-brand-500"
+        className={`group flex flex-col items-center justify-center gap-3 rounded-xl2 border-2 border-dashed p-12 text-center cursor-pointer transition-all duration-200 ${
+          dragOver
+            ? 'bg-brand-50 border-brand-500 scale-[1.01]'
+            : 'bg-white border-stone-300 hover:border-brand-400 hover:bg-brand-50/40'
+        }`}
       >
         <input
           ref={inputRef}
@@ -74,19 +81,35 @@ export default function Upload() {
           className="hidden"
           onChange={(e) => pick(e.target.files?.[0])}
         />
+        <span
+          className={`grid h-14 w-14 place-items-center rounded-2xl ring-1 transition-colors ${
+            file ? 'bg-emerald-50 ring-emerald-200' : 'bg-brand-50 ring-brand-100'
+          }`}
+        >
+          <svg viewBox="0 0 24 24" className={`h-7 w-7 ${file ? 'text-emerald-600' : 'text-brand-500'}`} fill="none" stroke="currentColor" strokeWidth="1.6">
+            {file ? (
+              <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+            ) : (
+              <>
+                <path d="M12 16V4m0 0L8 8m4-4l4 4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeLinecap="round" strokeLinejoin="round" />
+              </>
+            )}
+          </svg>
+        </span>
         {file ? (
-          <p className="text-slate-700 font-medium">{file.name}</p>
+          <p className="font-medium text-ink-900">{file.name}</p>
         ) : (
-          <p className="text-slate-500">
-            Arrastre un archivo aquí o <span className="text-brand-600 font-medium">haga clic</span> para
-            seleccionar.
+          <p className="text-stone-500">
+            Arrastra un archivo aquí o{' '}
+            <span className="font-medium text-brand-600">haz clic</span> para seleccionar.
           </p>
         )}
       </div>
 
       {message && (
         <div
-          className={`rounded-lg px-4 py-3 text-sm ${
+          className={`alert-in rounded-lg px-4 py-3 text-sm ${
             message.type === 'error'
               ? 'bg-rose-50 text-rose-700'
               : 'bg-emerald-50 text-emerald-700'
@@ -106,19 +129,19 @@ export default function Upload() {
           <div className="flex gap-3">
             <button
               onClick={() => send('replace')}
-              className="rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-sm font-medium"
+              className="btn rounded-lg bg-rose-600 hover:bg-rose-700 transition-colors duration-150 text-white px-4 py-2 text-sm font-medium"
             >
               Reemplazar
             </button>
             <button
               onClick={() => send('keep')}
-              className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm font-medium"
+              className="btn rounded-lg bg-brand-600 hover:bg-brand-700 transition-colors duration-150 text-white px-4 py-2 text-sm font-medium"
             >
               Conservar ambos
             </button>
             <button
               onClick={() => setDuplicate(null)}
-              className="rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 text-sm"
+              className="btn rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors duration-150 text-slate-700 px-4 py-2 text-sm"
             >
               Cancelar
             </button>
@@ -128,7 +151,7 @@ export default function Upload() {
         <button
           onClick={() => send()}
           disabled={!file || upload.isPending}
-          className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 font-medium disabled:opacity-50"
+          className="btn rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 font-medium shadow-soft hover:shadow-lift disabled:opacity-50 disabled:shadow-none"
         >
           {upload.isPending ? 'Cargando…' : 'Cargar documento'}
         </button>
