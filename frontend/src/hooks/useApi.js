@@ -78,6 +78,34 @@ export function useUploadStructure() {
   });
 }
 
+export function useParseStructureDoc() {
+  return useMutation({
+    mutationFn: async (file) => {
+      const form = new FormData();
+      form.append('file', file);
+      return (await api.post('/report-structure/parse', form)).data;
+    },
+  });
+}
+
+export function useStructureHistory() {
+  return useQuery({
+    queryKey: ['report-structure-history'],
+    queryFn: async () => (await api.get('/report-structure/history')).data,
+  });
+}
+
+export function useRestoreStructure() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (version) => (await api.post(`/report-structure/${version}/restore`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['report-structure'] });
+      qc.invalidateQueries({ queryKey: ['report-structure-history'] });
+    },
+  });
+}
+
 // ── Google Drive (HU09) ─────────────────────────────────────────────
 export function useCloudStatus() {
   return useQuery({

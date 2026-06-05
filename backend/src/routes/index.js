@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
+import { upload, structureUpload } from '../middleware/upload.js';
 
 import { login, me } from '../controllers/auth.controller.js';
 import {
@@ -19,6 +19,9 @@ import {
   getCriterion,
   getReportStructure,
   uploadReportStructure,
+  parseStructureDocument,
+  getStructureHistory,
+  restoreStructureVersion,
 } from '../controllers/criteria.controller.js';
 import * as cloud from '../controllers/cloud.controller.js';
 
@@ -54,7 +57,10 @@ router.get('/compliance', getCompliance);
 // Criterio y estructura del informe (HU03)
 router.get('/criteria', getCriterion);
 router.get('/report-structure', getReportStructure);
+router.get('/report-structure/history', getStructureHistory);
 router.post('/report-structure', uploadReportStructure);
+router.post('/report-structure/parse', structureUpload.single('file'), parseStructureDocument);
+router.post('/report-structure/:version/restore', restoreStructureVersion);
 
 // Google Drive (HU09)
 router.get('/cloud/google/status', cloud.status);

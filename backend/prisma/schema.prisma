@@ -40,10 +40,11 @@ model User {
   role         String   @default("admin")
   createdAt    DateTime @default(now())
 
-  documents       Document[]
-  validatedAssocs Association[]        @relation("ValidatedBy")
-  history         AssociationHistory[]
-  cloudConns      CloudConnection[]
+  documents          Document[]
+  validatedAssocs    Association[]           @relation("ValidatedBy")
+  history            AssociationHistory[]
+  cloudConns         CloudConnection[]
+  structureVersions  ReportStructureVersion[]
 }
 
 model Criterion {
@@ -75,7 +76,11 @@ model ReportStructureVersion {
   version    Int             @unique
   uploadedAt DateTime        @default(now())
   active     Boolean         @default(false)
+  note       String?         // ej. "Restaurada desde versión 3"
   sections   ReportSection[]
+
+  uploadedBy   User? @relation(fields: [uploadedById], references: [id])
+  uploadedById Int?
 }
 
 model ReportSection {
