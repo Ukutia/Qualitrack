@@ -1,5 +1,17 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDocuments } from '../hooks/useApi.js';
+
+async function openFile(docId) {
+  const token = localStorage.getItem('qualitrack_token');
+  const res = await fetch(`/api/documents/${docId}/file`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return;
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
 
 const fmtSize = (b) => `${(b / 1024).toFixed(0)} KB`;
 const fmtDate = (d) => new Date(d).toLocaleString('es-CL');
@@ -10,6 +22,30 @@ const STATUS_STYLE = {
   Descartada: 'bg-stone-200 text-stone-600 ring-stone-300',
   'Sin clasificar': 'bg-stone-100 text-stone-500 ring-stone-200',
 };
+
+function OpenFileButton({ docId }) {
+  const [loading, setLoading] = useState(false);
+
+  async function handle() {
+    setLoading(true);
+    await openFile(docId);
+    setLoading(false);
+  }
+
+  return (
+    <button
+      onClick={handle}
+      disabled={loading}
+      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-brand-600 hover:text-brand-700 hover:bg-brand-50 ring-1 ring-stone-200 hover:ring-brand-200 transition-colors disabled:opacity-50"
+    >
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7Z" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {loading ? 'Abriendo…' : 'Ver archivo'}
+    </button>
+  );
+}
 
 export default function Documents() {
   const { data: docs, isLoading } = useDocuments();
@@ -36,7 +72,7 @@ export default function Documents() {
           <table className="w-full text-sm">
             <thead className="bg-stone-50/80 text-stone-500 text-left">
               <tr>
-                {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación'].map(h => (
+                {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación',''].map(h => (
                   <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -50,11 +86,12 @@ export default function Documents() {
                   <td className="px-5 py-4"><div className="skeleton h-4 w-24" /></td>
                   <td className="px-5 py-4"><div className="skeleton h-4 w-32" /></td>
                   <td className="px-5 py-4"><div className="skeleton h-5 w-20 rounded-full" /></td>
+                  <td className="px-5 py-4"><div className="skeleton h-6 w-20 rounded-md" /></td>
                 </tr>
               ))}
             </tbody>
           </table>
-        ) : docs.length === 0 ? (
+        ) : docs?.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-50 ring-1 ring-brand-100">
               <svg viewBox="0 0 24 24" className="h-7 w-7 text-brand-500" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -77,7 +114,7 @@ export default function Documents() {
           <table className="w-full text-sm">
             <thead className="bg-stone-50/80 text-stone-500 text-left">
               <tr>
-                {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación'].map((h) => (
+                {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación',''].map((h) => (
                   <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -105,6 +142,9 @@ export default function Documents() {
                       {d.associationStatus}
                       {d.subcriterion ? ` · ${d.subcriterion}` : ''}
                     </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <OpenFileButton docId={d.id} />
                   </td>
                 </tr>
               ))}

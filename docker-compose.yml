@@ -40,6 +40,8 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:4000/api/cloud/google/callback}
     volumes:
+      - ./backend:/app          # hot-reload: código fuente del host
+      - /app/node_modules       # preserva node_modules del contenedor
       - filedata:/app/data
     ports:
       - "4000:4000"
@@ -53,6 +55,9 @@ services:
     environment:
       # El proxy de Vite reenvía /api al backend dentro de la red de compose.
       VITE_API_PROXY_TARGET: http://backend:4000
+    volumes:
+      - ./frontend:/app         # hot-reload: código fuente del host
+      - /app/node_modules       # preserva node_modules del contenedor
     ports:
       # Puerto del host configurable (default 5173) por si está ocupado.
       - "${FRONTEND_PORT:-5173}:5173"

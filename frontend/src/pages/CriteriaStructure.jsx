@@ -42,6 +42,9 @@ export default function CriteriaStructure() {
   const [feedback, setFeedback] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
   const [confirmRestore, setConfirmRestore] = useState(null); // version number
+  const [restoreInput, setRestoreInput] = useState('');
+  const [dragIndex, setDragIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
 
   // ── Carga de documento ───────────────────────────────────────────────
   function triggerFilePicker() {
@@ -125,6 +128,42 @@ export default function CriteriaStructure() {
     });
   }
 
+  function handleDragStart(e, i) {
+    setDragIndex(i);
+    e.dataTransfer.effectAllowed = 'move';
+    // imagen fantasma transparente para que el handle muestre el cursor correcto
+    const ghost = document.createElement('div');
+    ghost.style.position = 'absolute';
+    ghost.style.top = '-9999px';
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 0, 0);
+    setTimeout(() => document.body.removeChild(ghost), 0);
+  }
+  function handleDragOver(e, i) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (i !== dragOverIndex) setDragOverIndex(i);
+  }
+  function handleDrop(i) {
+    if (dragIndex === null || dragIndex === i) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+    setDraft((d) => {
+      const copy = [...d];
+      const [moved] = copy.splice(dragIndex, 1);
+      copy.splice(i, 0, moved);
+      return copy;
+    });
+    setDragIndex(null);
+    setDragOverIndex(null);
+  }
+  function handleDragEnd() {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  }
+
   async function save() {
     setFeedback(null);
     for (const s of draft) {
@@ -154,9 +193,19 @@ export default function CriteriaStructure() {
     }
   }
 
+  function openRestoreDialog(version) {
+    setConfirmRestore(version);
+    setRestoreInput('');
+  }
+
+  function closeRestoreDialog() {
+    setConfirmRestore(null);
+    setRestoreInput('');
+  }
+
   async function handleRestore(version) {
     setFeedback(null);
-    setConfirmRestore(null);
+    closeRestoreDialog();
     try {
       const res = await restoreStructure.mutateAsync(version);
       setFeedback({ type: 'success', text: res.message });
@@ -168,6 +217,148 @@ export default function CriteriaStructure() {
   if (isLoading) return <p className="text-slate-500">Cargando estructura…</p>;
 
   return (
+    <>
+    {/* ── Drawer historial ─────────────────────────────────────────────── */}
+    {showHistory && (
+      <div className="fixed inset-0 z-40 flex justify-end" role="dialog" aria-modal="true">
+        {/* backdrop */}
+        <div
+          className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"
+          onClick={() => { setShowHistory(false); closeRestoreDialog(); }}
+        />
+
+        {/* panel */}
+        <div className="relative z-50 w-full max-w-md bg-white shadow-xl flex flex-col h-full animate-slide-in-right">
+          {/* header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+            <div>
+              <h2 className="text-base font-semibold text-slate-800">Historial de versiones</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Versión activa: {data.version ?? '—'}</p>
+            </div>
+            <button
+              onClick={() => { setShowHistory(false); closeRestoreDialog(); }}
+              className="rounded-md p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              aria-label="Cerrar historial"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* contenido */}
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            {!history || history.length === 0 ? (
+              <p className="text-sm text-slate-400">No hay versiones registradas.</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {history.map((v) => (
+                  <div key={v.version} className="py-4 space-y-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-slate-800">
+                            Versión {v.version}
+                          </span>
+                          {v.active && (
+                            <span className="rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-0.5">
+                              Activa
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {formatDate(v.uploadedAt)}
+                          {' · '}{v.sectionCount} secciones
+                          {v.uploadedBy && (
+                            <> · <span className="text-slate-700 font-medium">{v.uploadedBy.name}</span></>
+                          )}
+                        </p>
+                        {v.note && (
+                          <p className="text-xs text-amber-600 italic">{v.note}</p>
+                        )}
+                      </div>
+
+                      {!v.active && (
+                        <button
+                          onClick={() => openRestoreDialog(v.version)}
+                          className="shrink-0 rounded-md border border-slate-300 hover:bg-slate-50 text-slate-600 text-xs px-3 py-1.5 font-medium transition-colors"
+                        >
+                          Restaurar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* ── Dialog confirmación restaurar ───────────────────────────────── */}
+    {confirmRestore !== null && (
+      <div
+        className="fixed inset-0 flex items-center justify-center p-4"
+        style={{ zIndex: 100 }}
+      >
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeRestoreDialog} />
+        <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-5">
+          {/* icono */}
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 mx-auto">
+            <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+
+          {/* texto */}
+          <div className="text-center space-y-1">
+            <h3 className="text-base font-semibold text-slate-800">
+              Restaurar versión {confirmRestore}
+            </h3>
+            <p className="text-sm text-slate-500">
+              Esto creará una nueva versión activa copiando el contenido de la versión {confirmRestore}. Esta acción no se puede deshacer directamente.
+            </p>
+          </div>
+
+          {/* input de confirmación */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-slate-600">
+              Escribe <span className="font-mono font-semibold text-slate-800">restaurar</span> para confirmar
+            </label>
+            <input
+              type="text"
+              value={restoreInput}
+              onChange={(e) => setRestoreInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && restoreInput === 'restaurar') handleRestore(confirmRestore);
+              }}
+              placeholder="restaurar"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 placeholder:text-slate-300"
+              autoFocus
+            />
+          </div>
+
+          {/* botones */}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={closeRestoreDialog}
+              className="flex-1 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-600 text-sm px-4 py-2 font-medium transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => handleRestore(confirmRestore)}
+              disabled={restoreInput !== 'restaurar' || restoreStructure.isPending}
+              className="flex-1 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm px-4 py-2 font-medium transition-colors disabled:cursor-not-allowed"
+            >
+              {restoreStructure.isPending ? 'Restaurando…' : 'Restaurar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <div className="space-y-6">
       {/* Input oculto para selección de archivo */}
       <input
@@ -314,8 +505,38 @@ export default function CriteriaStructure() {
 
           <div className="space-y-2">
             {draft.map((row, i) => (
-              <div key={i} className="border border-slate-200 rounded-lg p-3">
+              <div
+                key={i}
+                draggable
+                onDragStart={(e) => handleDragStart(e, i)}
+                onDragOver={(e) => handleDragOver(e, i)}
+                onDrop={() => handleDrop(i)}
+                onDragEnd={handleDragEnd}
+                className={[
+                  'border rounded-lg p-3 transition-all duration-150',
+                  dragIndex === i
+                    ? 'opacity-40 scale-[0.98] border-slate-300 bg-slate-50'
+                    : dragOverIndex === i && dragIndex !== null
+                    ? 'border-brand-500 border-2 bg-brand-50/30 shadow-md'
+                    : 'border-slate-200 bg-white',
+                ].join(' ')}
+              >
                 <div className="flex items-start gap-2">
+                  {/* drag handle */}
+                  <div
+                    title="Arrastrar para reordenar"
+                    className="shrink-0 mt-1.5 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 transition-colors px-0.5"
+                  >
+                    <svg viewBox="0 0 10 16" className="w-3.5 h-3.5 fill-current" aria-hidden="true">
+                      <circle cx="2.5" cy="2" r="1.5" />
+                      <circle cx="7.5" cy="2" r="1.5" />
+                      <circle cx="2.5" cy="8" r="1.5" />
+                      <circle cx="7.5" cy="8" r="1.5" />
+                      <circle cx="2.5" cy="14" r="1.5" />
+                      <circle cx="7.5" cy="14" r="1.5" />
+                    </svg>
+                  </div>
+
                   <input
                     value={row.code}
                     onChange={(e) => updateRow(i, 'code', e.target.value)}
@@ -436,75 +657,7 @@ export default function CriteriaStructure() {
         </div>
       )}
 
-      {/* ── Historial de versiones ────────────────────────────────────── */}
-      {showHistory && !draft && !parseResult && (
-        <div className="bg-white rounded-xl shadow-sm p-5 space-y-3">
-          <h2 className="text-base font-semibold text-slate-800">Historial de versiones</h2>
-
-          {!history || history.length === 0 ? (
-            <p className="text-sm text-slate-400">No hay versiones registradas.</p>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {history.map((v) => (
-                <div key={v.version} className="py-3 flex items-start justify-between gap-4">
-                  <div className="space-y-0.5 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-slate-800">
-                        Versión {v.version}
-                      </span>
-                      {v.active && (
-                        <span className="rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-0.5">
-                          Activa
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500">
-                      {formatDate(v.uploadedAt)}
-                      {' · '}{v.sectionCount} secciones
-                      {v.uploadedBy && (
-                        <> · <span className="text-slate-700 font-medium">{v.uploadedBy.name}</span></>
-                      )}
-                    </p>
-                    {v.note && (
-                      <p className="text-xs text-amber-600 italic">{v.note}</p>
-                    )}
-                  </div>
-
-                  {!v.active && (
-                    <div className="shrink-0">
-                      {confirmRestore === v.version ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500">¿Confirmar restauración?</span>
-                          <button
-                            onClick={() => handleRestore(v.version)}
-                            disabled={restoreStructure.isPending}
-                            className="rounded-md bg-brand-600 hover:bg-brand-700 text-white text-xs px-3 py-1.5 font-medium disabled:opacity-60"
-                          >
-                            {restoreStructure.isPending ? 'Restaurando…' : 'Sí, restaurar'}
-                          </button>
-                          <button
-                            onClick={() => setConfirmRestore(null)}
-                            className="rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs px-2 py-1.5"
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmRestore(v.version)}
-                          className="rounded-md border border-slate-300 hover:bg-slate-50 text-slate-600 text-xs px-3 py-1.5 font-medium"
-                        >
-                          Restaurar
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
+    </>
   );
 }

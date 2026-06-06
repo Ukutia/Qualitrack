@@ -46,6 +46,18 @@ export default {
       borderRadius: {
         xl2: '1.15rem',
       },
+      zIndex: {
+        60: '60',
+      },
+      keyframes: {
+        'slide-in-right': {
+          from: { transform: 'translateX(100%)' },
+          to:   { transform: 'translateX(0)' },
+        },
+      },
+      animation: {
+        'slide-in-right': 'slide-in-right 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+      },
     },
   },
   plugins: [],

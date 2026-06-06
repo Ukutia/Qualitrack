@@ -7,6 +7,7 @@ import {
   uploadDocument,
   listDocuments,
   getDocument,
+  serveFile,
   updateDocumentDate,
 } from '../controllers/documents.controller.js';
 import {
@@ -44,6 +45,7 @@ router.use(requireAuth);
 router.post('/documents', upload.single('file'), uploadDocument);
 router.get('/documents', listDocuments);
 router.get('/documents/:id', getDocument);
+router.get('/documents/:id/file', serveFile);
 router.patch('/documents/:id/date', updateDocumentDate);
 
 // Clasificación (HU01)

@@ -1,8 +1,14 @@
 // HU07 — Carga y gestión de documentos de evidencia.
 import { prisma } from '../config/prisma.js';
-import { saveFile, deleteFile } from '../services/storage.service.js';
+import { saveFile, readFile, deleteFile } from '../services/storage.service.js';
 import { extractText } from '../services/textExtraction.service.js';
 import { formatFromName } from '../middleware/upload.js';
+
+const MIME = {
+  pdf:  'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
 
 /**
  * Ingesta común usada por la carga directa (HU07) y por la importación desde
@@ -173,6 +179,27 @@ export async function getDocument(req, res) {
       })),
     })),
   });
+}
+
+/** Sirve el archivo binario almacenado para visualización o descarga. */
+export async function serveFile(req, res) {
+  const id = Number(req.params.id);
+  const doc = await prisma.document.findUnique({ where: { id } });
+  if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
+
+  let buffer;
+  try {
+    buffer = await readFile(doc.storagePath);
+  } catch {
+    return res.status(404).json({ error: 'Archivo no encontrado en el almacenamiento.' });
+  }
+
+  const mime = MIME[doc.format] || 'application/octet-stream';
+  const disposition = doc.format === 'pdf' ? 'inline' : 'attachment';
+  res.setHeader('Content-Type', mime);
+  res.setHeader('Content-Disposition', `${disposition}; filename="${encodeURIComponent(doc.originalName)}"`);
+  res.setHeader('Content-Length', buffer.length);
+  return res.send(buffer);
 }
 
 /** Permite ajustar la fecha del documento (base de antigüedad para HU02). */

@@ -7,6 +7,7 @@ export const ALLOWED = {
   '.pdf': 'pdf',
   '.doc': 'docx', // tratado igual que docx (mammoth lo soporta)
   '.docx': 'docx',
+  '.xls': 'xlsx', // formato legacy de Excel; xlsx lo lee sin conversión
   '.xlsx': 'xlsx',
 };
 
@@ -14,6 +15,7 @@ const ALLOWED_MIME = new Set([
   'application/pdf',
   'application/msword', // doc
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+  'application/vnd.ms-excel', // xls
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
 ]);
 
