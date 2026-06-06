@@ -1,4 +1,5 @@
 // HU07 — Carga y gestión de documentos de evidencia.
+import path from 'path';
 import { prisma } from '../config/prisma.js';
 import { saveFile, deleteFile } from '../services/storage.service.js';
 import { extractText } from '../services/textExtraction.service.js';
@@ -185,4 +186,38 @@ export async function updateDocumentDate(req, res) {
     data: { documentDate: new Date(documentDate) },
   });
   return res.json({ id: doc.id, documentDate: doc.documentDate });
+}
+
+export async function serveDocumentFile(req, res) {
+  const id = Number(req.params.id);
+  const doc = await prisma.document.findUnique({ where: { id } });
+  if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
+
+  let contentType = 'application/octet-stream';
+  if (doc.format === 'pdf') contentType = 'application/pdf';
+  else if (doc.format === 'txt') contentType = 'text/plain';
+  else if (doc.format === 'csv') contentType = 'text/csv';
+  else if (doc.format === 'jpg' || doc.format === 'jpeg') contentType = 'image/jpeg';
+  else if (doc.format === 'png') contentType = 'image/png';
+  else if (doc.format === 'gif') contentType = 'image/gif';
+  else if (doc.format === 'webp') contentType = 'image/webp';
+  else if (doc.format === 'svg') contentType = 'image/svg+xml';
+  else if (doc.format === 'xlsx') contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  else if (doc.format === 'docx' || doc.format === 'doc') contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+  const isDownload = req.query.download === '1' || req.query.download === 'true';
+  const disposition = isDownload ? 'attachment' : 'inline';
+
+  res.sendFile(path.resolve(doc.storagePath), {
+    headers: {
+      'Content-Type': contentType,
+      'Content-Disposition': `${disposition}; filename="${encodeURIComponent(doc.originalName)}"`
+    }
+  }, (err) => {
+    if (err) {
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Error al enviar el archivo.' });
+      }
+    }
+  });
 }

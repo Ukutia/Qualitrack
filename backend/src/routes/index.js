@@ -8,6 +8,7 @@ import {
   listDocuments,
   getDocument,
   updateDocumentDate,
+  serveDocumentFile,
 } from '../controllers/documents.controller.js';
 import {
   classifyDocument,
@@ -41,6 +42,7 @@ router.use(requireAuth);
 router.post('/documents', upload.single('file'), uploadDocument);
 router.get('/documents', listDocuments);
 router.get('/documents/:id', getDocument);
+router.get('/documents/:id/file', serveDocumentFile);
 router.patch('/documents/:id/date', updateDocumentDate);
 
 // Clasificación (HU01)
