@@ -34,6 +34,9 @@ router.get('/auth/me', requireAuth, me);
 // Google OAuth callback es público (Google redirige sin token; usa "state").
 router.get('/cloud/google/callback', cloud.callback);
 
+// Dropbox callback público
+router.get('/cloud/dropbox/callback', cloud.dropboxCallback);
+
 // A partir de aquí, todo requiere autenticación.
 router.use(requireAuth);
 
@@ -61,5 +64,13 @@ router.get('/cloud/google/status', cloud.status);
 router.get('/cloud/google/auth-url', cloud.authUrl);
 router.get('/cloud/google/files', cloud.listFiles);
 router.post('/cloud/google/import', cloud.importFile);
+
+// Dropbox (HU09)
+router.get('/cloud/dropbox/status',   cloud.dropboxStatus);
+router.get('/cloud/dropbox/auth-url', cloud.dropboxAuthUrl);
+router.get('/cloud/dropbox/files',    cloud.dropboxListFiles);
+router.post('/cloud/dropbox/import',  cloud.dropboxImportFile);
+
+router.delete('/cloud/:provider/disconnect', cloud.disconnect);
 
 export default router;
