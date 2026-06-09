@@ -9,9 +9,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
-    // En Docker se usa 5173 (mapeado al host); herramientas externas pueden
-    // asignar otro puerto vía la variable PORT.
     port: Number(process.env.PORT) || 5173,
+    // Windows + Docker no tiene inotify confiable; polling garantiza HMR.
+    watch: { usePolling: true },
     proxy: {
       '/api': {
         target,

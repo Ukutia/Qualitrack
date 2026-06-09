@@ -1,5 +1,5 @@
-import { useParams, Link } from 'react-router-dom';
-import { useDocument, useClassify, useAssociationAction } from '../hooks/useApi.js';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useDocument, useClassify, useAssociationAction, useTrashDocument } from '../hooks/useApi.js';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
 const ACTION_LABEL = { PROPOSED: 'Propuesta generada', VALIDATED: 'Validada', REJECTED: 'Descartada' };
@@ -7,23 +7,44 @@ const STATUS_LABEL = { PROPOSED: 'Propuesta', VALIDATED: 'Validada', NOT_VALIDAT
 
 export default function DocumentDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data: doc, isLoading } = useDocument(id);
   const classify = useClassify();
   const action = useAssociationAction();
+  const trash = useTrashDocument();
 
   if (isLoading) return <p className="text-slate-500">Cargando documento…</p>;
   if (!doc) return <p className="text-rose-600">Documento no encontrado.</p>;
 
   const classifyResult = classify.data;
+  const hasValidated = doc.associations.some((a) => a.status === 'VALIDATED');
+
+  async function handleTrash() {
+    if (!confirm('¿Mover este documento a la papelera? Podrás restaurarlo después.')) return;
+    await trash.mutateAsync(id);
+    navigate('/documents');
+  }
 
   return (
     <div className="space-y-6">
-      <Link to="/documents" className="text-sm text-brand-600 hover:underline">
-        ← Volver al repositorio
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link to="/documents" className="text-sm text-brand-600 hover:underline">
+          ← Volver al repositorio
+        </Link>
+        <button
+          onClick={handleTrash}
+          disabled={trash.isPending}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+        >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {trash.isPending ? 'Moviendo…' : 'Mover a papelera'}
+        </button>
+      </div>
 
       <header className="bg-white rounded-xl shadow-sm p-6">
-        <h1 className="text-xl font-bold text-slate-800 break-all">{doc.name}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink-900 break-all">{doc.name}</h1>
         <div className="grid sm:grid-cols-2 gap-x-8 gap-y-1 mt-3 text-sm text-slate-600">
           <p>Formato: <span className="uppercase">{doc.format}</span></p>
           <p>Tamaño: {(doc.sizeBytes / 1024).toFixed(0)} KB</p>
@@ -38,13 +59,15 @@ export default function DocumentDetail() {
       <section className="bg-white rounded-xl shadow-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-slate-800">Asociación al Criterio 9</h2>
-          <button
-            onClick={() => classify.mutate(id)}
-            disabled={classify.isPending}
-            className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-60"
-          >
-            {classify.isPending ? 'Analizando…' : 'Clasificar con propuesta automática'}
-          </button>
+          {!hasValidated && (
+            <button
+              onClick={() => classify.mutate(id)}
+              disabled={classify.isPending}
+              className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-60"
+            >
+              {classify.isPending ? 'Analizando…' : 'Clasificar con propuesta automática'}
+            </button>
+          )}
         </div>
 
         {classifyResult && !classifyResult.relevant && (

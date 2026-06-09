@@ -1,0 +1,247 @@
+{
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\railway.json": {
+    "mtime": 1780088331.5069687,
+    "ast_hash": "45ddc86c8070e21704353ef2f4721ee2",
+    "semantic_hash": "45ddc86c8070e21704353ef2f4721ee2"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\.claude\\launch.json": {
+    "mtime": 1780087335.3536322,
+    "ast_hash": "8cab64ce0a6c2056cc04769bbdd8a2ce",
+    "semantic_hash": "8cab64ce0a6c2056cc04769bbdd8a2ce"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\.claude\\settings.local.json": {
+    "mtime": 1780442252.138358,
+    "ast_hash": "dca5e4ff7510d760966b33a0a96957a3",
+    "semantic_hash": "dca5e4ff7510d760966b33a0a96957a3"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\package.json": {
+    "mtime": 1780085404.7780504,
+    "ast_hash": "1460f9756de12e6706fb36d02af6f325",
+    "semantic_hash": "1460f9756de12e6706fb36d02af6f325"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\prisma\\seed.js": {
+    "mtime": 1780085043.9368472,
+    "ast_hash": "15deda242e2a06c6a7e53207c317b83b",
+    "semantic_hash": "15deda242e2a06c6a7e53207c317b83b"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\app.js": {
+    "mtime": 1780088310.982244,
+    "ast_hash": "72a086f14bc6ca31c95b1011c9d13bd4",
+    "semantic_hash": "72a086f14bc6ca31c95b1011c9d13bd4"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\server.js": {
+    "mtime": 1780085335.752017,
+    "ast_hash": "dfd12d718ba479a7329c8e9ec45232f7",
+    "semantic_hash": "dfd12d718ba479a7329c8e9ec45232f7"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\config\\env.js": {
+    "mtime": 1780085070.554857,
+    "ast_hash": "f76361c3a7a0733e827aac9261dcfadc",
+    "semantic_hash": "f76361c3a7a0733e827aac9261dcfadc"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\config\\prisma.js": {
+    "mtime": 1780085074.234601,
+    "ast_hash": "d8c0ab838c40f2061bc956d27edb2997",
+    "semantic_hash": "d8c0ab838c40f2061bc956d27edb2997"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\controllers\\auth.controller.js": {
+    "mtime": 1780085212.8150635,
+    "ast_hash": "6a6957af2a0c28d08575d6128e09310d",
+    "semantic_hash": "6a6957af2a0c28d08575d6128e09310d"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\controllers\\classification.controller.js": {
+    "mtime": 1780583588.2794871,
+    "ast_hash": "78841c83639bd86d981961c0015f8029",
+    "semantic_hash": "78841c83639bd86d981961c0015f8029"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\controllers\\cloud.controller.js": {
+    "mtime": 1780085318.0802045,
+    "ast_hash": "02394e064709875e6077aa986235d457",
+    "semantic_hash": "02394e064709875e6077aa986235d457"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\controllers\\compliance.controller.js": {
+    "mtime": 1780085259.8888662,
+    "ast_hash": "7da871bd8b7193fbf92bb888bf3733e8",
+    "semantic_hash": "7da871bd8b7193fbf92bb888bf3733e8"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\controllers\\criteria.controller.js": {
+    "mtime": 1780622970.3961546,
+    "ast_hash": "ad11f69d8f6961ea5250bffe8fb32fb0",
+    "semantic_hash": "ad11f69d8f6961ea5250bffe8fb32fb0"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\controllers\\documents.controller.js": {
+    "mtime": 1780085237.8625493,
+    "ast_hash": "460a41a7af273e7c03c97add8eed281b",
+    "semantic_hash": "460a41a7af273e7c03c97add8eed281b"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\middleware\\auth.js": {
+    "mtime": 1780085181.3189633,
+    "ast_hash": "de04fd7fb2f30f33eef53fd78701d69d",
+    "semantic_hash": "de04fd7fb2f30f33eef53fd78701d69d"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\middleware\\errorHandler.js": {
+    "mtime": 1780085188.8595076,
+    "ast_hash": "b269ef0821383ed377fa9c670b23ad96",
+    "semantic_hash": "b269ef0821383ed377fa9c670b23ad96"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\middleware\\upload.js": {
+    "mtime": 1780622550.9174712,
+    "ast_hash": "75ca9d0e6382828f87f940ee0aabe576",
+    "semantic_hash": "75ca9d0e6382828f87f940ee0aabe576"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\routes\\index.js": {
+    "mtime": 1780622582.91679,
+    "ast_hash": "e267d105b8c2d164d4be1a54b12e57d8",
+    "semantic_hash": "e267d105b8c2d164d4be1a54b12e57d8"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\services\\classifier.service.js": {
+    "mtime": 1780085120.247231,
+    "ast_hash": "67905a8873fd2b7954b5c0c76b96ea50",
+    "semantic_hash": "67905a8873fd2b7954b5c0c76b96ea50"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\services\\compliance.service.js": {
+    "mtime": 1780085093.0417228,
+    "ast_hash": "e75a94336419c15d8ca34e16da2736a0",
+    "semantic_hash": "e75a94336419c15d8ca34e16da2736a0"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\services\\googleDrive.service.js": {
+    "mtime": 1780085312.795609,
+    "ast_hash": "3df3fcd7b48ed642e9eb4457e923e8c0",
+    "semantic_hash": "3df3fcd7b48ed642e9eb4457e923e8c0"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\services\\storage.service.js": {
+    "mtime": 1780085157.7913587,
+    "ast_hash": "79505c98ff4c88eba5b66551de64bd57",
+    "semantic_hash": "79505c98ff4c88eba5b66551de64bd57"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\services\\structureParser.service.js": {
+    "mtime": 1780622531.3283217,
+    "ast_hash": "ac77ceec1d9b420f42962bdf36a36a2a",
+    "semantic_hash": "ac77ceec1d9b420f42962bdf36a36a2a"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\src\\services\\textExtraction.service.js": {
+    "mtime": 1780085101.64579,
+    "ast_hash": "33059502ea8151095e4a76559cd5d021",
+    "semantic_hash": "33059502ea8151095e4a76559cd5d021"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\backend\\test\\compliance.test.js": {
+    "mtime": 1780085361.6304371,
+    "ast_hash": "5787af63d6aa6bc8e49f6893c1a91b53",
+    "semantic_hash": "5787af63d6aa6bc8e49f6893c1a91b53"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\package.json": {
+    "mtime": 1780084965.265639,
+    "ast_hash": "48b105c17df590abcfea91e0b8b886d1",
+    "semantic_hash": "48b105c17df590abcfea91e0b8b886d1"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\postcss.config.js": {
+    "mtime": 1780084982.0943031,
+    "ast_hash": "c735540bb63936a123bc867d950c9f69",
+    "semantic_hash": "c735540bb63936a123bc867d950c9f69"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\tailwind.config.js": {
+    "mtime": 1780084978.4064255,
+    "ast_hash": "6e8a27465a9746881fc4aa1c964c4e89",
+    "semantic_hash": "6e8a27465a9746881fc4aa1c964c4e89"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\vite.config.js": {
+    "mtime": 1780086313.468004,
+    "ast_hash": "7bc408fdfa29be1a15e9955fedcafecb",
+    "semantic_hash": "7bc408fdfa29be1a15e9955fedcafecb"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\App.jsx": {
+    "mtime": 1780085503.4134717,
+    "ast_hash": "fa9e7df32c99eec9282e0369b0510a8c",
+    "semantic_hash": "fa9e7df32c99eec9282e0369b0510a8c"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\main.jsx": {
+    "mtime": 1780085497.020839,
+    "ast_hash": "880857bb70d34030983b6795df4da408",
+    "semantic_hash": "880857bb70d34030983b6795df4da408"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\components\\Layout.jsx": {
+    "mtime": 1780583588.2804875,
+    "ast_hash": "8a6d74baf00338144745bc8d8150a4d5",
+    "semantic_hash": "8a6d74baf00338144745bc8d8150a4d5"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\components\\ProtectedRoute.jsx": {
+    "mtime": 1780085471.8195865,
+    "ast_hash": "28f17dbe3d4e2378b7e0c00a5cda8483",
+    "semantic_hash": "28f17dbe3d4e2378b7e0c00a5cda8483"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\components\\TrafficLight.jsx": {
+    "mtime": 1780085477.087572,
+    "ast_hash": "8961df2a016d5a6bbcf8832544f9439d",
+    "semantic_hash": "8961df2a016d5a6bbcf8832544f9439d"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\context\\AuthContext.jsx": {
+    "mtime": 1780085451.7323632,
+    "ast_hash": "895b0915863e1203f895a625fd519504",
+    "semantic_hash": "895b0915863e1203f895a625fd519504"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\hooks\\useApi.js": {
+    "mtime": 1780622589.7316928,
+    "ast_hash": "369517e69c808d71868b8a8e529777a9",
+    "semantic_hash": "369517e69c808d71868b8a8e529777a9"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\lib\\api.js": {
+    "mtime": 1780085441.4610977,
+    "ast_hash": "dd81ee04f71f563b9e1681da980dc2ef",
+    "semantic_hash": "dd81ee04f71f563b9e1681da980dc2ef"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\lib\\queryClient.js": {
+    "mtime": 1780085445.2116246,
+    "ast_hash": "203f384bc4fee02bdb090525ca452507",
+    "semantic_hash": "203f384bc4fee02bdb090525ca452507"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\pages\\CloudConnect.jsx": {
+    "mtime": 1780085631.0104256,
+    "ast_hash": "c794aeb2e294d36bc11012bb654d861c",
+    "semantic_hash": "c794aeb2e294d36bc11012bb654d861c"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\pages\\CriteriaStructure.jsx": {
+    "mtime": 1780622647.156972,
+    "ast_hash": "d4bf9978d81bcab0d266569edf92945b",
+    "semantic_hash": "d4bf9978d81bcab0d266569edf92945b"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\pages\\Dashboard.jsx": {
+    "mtime": 1780085529.0764015,
+    "ast_hash": "abd60140cdedf2454fd8489639289ec2",
+    "semantic_hash": "abd60140cdedf2454fd8489639289ec2"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\pages\\DocumentDetail.jsx": {
+    "mtime": 1780583588.2814882,
+    "ast_hash": "0b1442c459154fca19c22b07ff78d6d8",
+    "semantic_hash": "0b1442c459154fca19c22b07ff78d6d8"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\pages\\Documents.jsx": {
+    "mtime": 1780085543.1069138,
+    "ast_hash": "9b2da0a117a8696b2bfdbedd14a8a6db",
+    "semantic_hash": "9b2da0a117a8696b2bfdbedd14a8a6db"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\pages\\Login.jsx": {
+    "mtime": 1780086458.325295,
+    "ast_hash": "232e96647608d0f4786b37698764637d",
+    "semantic_hash": "232e96647608d0f4786b37698764637d"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\src\\pages\\Upload.jsx": {
+    "mtime": 1780085587.209226,
+    "ast_hash": "4dc041217d4048093a8f0f7b42d803e4",
+    "semantic_hash": "4dc041217d4048093a8f0f7b42d803e4"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\docker-compose.yml": {
+    "mtime": 1780085892.5200496,
+    "ast_hash": "2a08897ecb318edf5a90f4571f7b033e",
+    "semantic_hash": "2a08897ecb318edf5a90f4571f7b033e"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\README.md": {
+    "mtime": 1780085703.2390869,
+    "ast_hash": "301728c6390279a8f95573d517158ddd",
+    "semantic_hash": "301728c6390279a8f95573d517158ddd"
+  },
+  "C:\\Users\\benja\\Documentos\\GitHub\\Qualitrack\\frontend\\index.html": {
+    "mtime": 1780084985.9671285,
+    "ast_hash": "9aab04aac4a87043224c2059eed8c807",
+    "semantic_hash": "9aab04aac4a87043224c2059eed8c807"
+  }
+}

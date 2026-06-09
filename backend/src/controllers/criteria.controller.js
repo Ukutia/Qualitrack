@@ -1,5 +1,8 @@
 // HU03 — Estructura oficial del informe CNA (ver / versionar) y consulta del criterio.
 import { prisma } from '../config/prisma.js';
+import { extractText } from '../services/textExtraction.service.js';
+import { parseStructureSections } from '../services/structureParser.service.js';
+import { formatFromName } from '../middleware/upload.js';
 
 const CRITERION_CODE = '9';
 
@@ -32,6 +35,44 @@ export async function getReportStructure(req, res) {
       required: s.required,
       changeType: s.changeType,
     })),
+  });
+}
+
+/**
+ * POST /report-structure/parse — recibe un archivo PDF/DOC/DOCX y devuelve
+ * las secciones detectadas sin guardarlas en la base de datos.
+ * Multipart: campo "file".
+ */
+export async function parseStructureDocument(req, res) {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Se requiere un archivo PDF, DOC o DOCX.' });
+  }
+
+  const format = formatFromName(req.file.originalname);
+  if (!format || format === 'xlsx') {
+    return res.status(400).json({ error: 'Solo se aceptan archivos PDF, DOC o DOCX.' });
+  }
+
+  const text = await extractText(req.file.buffer, format);
+  if (!text || text.trim().length === 0) {
+    return res.status(422).json({
+      error: 'No se pudo extraer texto del documento. Verifique que el archivo no esté protegido o dañado.',
+    });
+  }
+
+  const sections = parseStructureSections(text);
+  if (sections.length === 0) {
+    return res.status(422).json({
+      error:
+        'No se encontraron secciones numeradas en el documento. ' +
+        'Asegúrese de que el documento utilice numeración decimal (ej. 1., 1.1., 2.3.).',
+    });
+  }
+
+  return res.json({
+    filename: req.file.originalname,
+    totalSections: sections.length,
+    sections,
   });
 }
 
@@ -91,7 +132,7 @@ export async function uploadReportStructure(req, res) {
   const created = await prisma.$transaction(async (tx) => {
     if (prev) await tx.reportStructureVersion.update({ where: { id: prev.id }, data: { active: false } });
     const version = await tx.reportStructureVersion.create({
-      data: { version: nextVersion, active: true },
+      data: { version: nextVersion, active: true, uploadedById: req.user?.id ?? null },
     });
     await tx.reportSection.createMany({
       data: toCreate.map((s) => ({ ...s, versionId: version.id })),
@@ -109,5 +150,86 @@ export async function uploadReportStructure(req, res) {
     changes,
     message: `Estructura actualizada a la versión ${created.version}. ` +
       `Se detectaron ${toCreate.length} secciones y ${changes.length} cambio(s).`,
+  });
+}
+
+/** GET /report-structure/history — todas las versiones, de más reciente a más antigua. */
+export async function getStructureHistory(req, res) {
+  const versions = await prisma.reportStructureVersion.findMany({
+    orderBy: { version: 'desc' },
+    include: {
+      uploadedBy: { select: { id: true, name: true, email: true } },
+      sections: { select: { id: true } },
+    },
+  });
+
+  return res.json(
+    versions.map((v) => ({
+      version: v.version,
+      uploadedAt: v.uploadedAt,
+      active: v.active,
+      note: v.note,
+      sectionCount: v.sections.length,
+      uploadedBy: v.uploadedBy
+        ? { id: v.uploadedBy.id, name: v.uploadedBy.name, email: v.uploadedBy.email }
+        : null,
+    }))
+  );
+}
+
+/**
+ * POST /report-structure/:version/restore
+ * Crea una nueva versión copiando todas las secciones de la versión indicada.
+ */
+export async function restoreStructureVersion(req, res) {
+  const targetVersion = parseInt(req.params.version, 10);
+  if (Number.isNaN(targetVersion)) {
+    return res.status(400).json({ error: 'Versión inválida.' });
+  }
+
+  const target = await prisma.reportStructureVersion.findUnique({
+    where: { version: targetVersion },
+    include: { sections: { orderBy: { order: 'asc' } } },
+  });
+  if (!target) {
+    return res.status(404).json({ error: `Versión ${targetVersion} no encontrada.` });
+  }
+  if (target.active) {
+    return res.status(409).json({ error: 'Esta versión ya es la activa.' });
+  }
+
+  const prev = await prisma.reportStructureVersion.findFirst({ where: { active: true } });
+  const lastVersion = await prisma.reportStructureVersion.findFirst({ orderBy: { version: 'desc' } });
+  const nextVersion = (lastVersion?.version || 0) + 1;
+
+  const created = await prisma.$transaction(async (tx) => {
+    if (prev) await tx.reportStructureVersion.update({ where: { id: prev.id }, data: { active: false } });
+    const version = await tx.reportStructureVersion.create({
+      data: {
+        version: nextVersion,
+        active: true,
+        note: `Restaurada desde versión ${targetVersion}`,
+        uploadedById: req.user?.id ?? null,
+      },
+    });
+    await tx.reportSection.createMany({
+      data: target.sections.map((s) => ({
+        code: s.code,
+        name: s.name,
+        description: s.description,
+        required: s.required,
+        order: s.order,
+        changeType: 'NONE',
+        versionId: version.id,
+      })),
+    });
+    return version;
+  });
+
+  return res.status(201).json({
+    version: created.version,
+    restoredFrom: targetVersion,
+    sectionCount: target.sections.length,
+    message: `Versión ${created.version} creada restaurando la estructura de la versión ${targetVersion}.`,
   });
 }

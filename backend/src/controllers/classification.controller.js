@@ -14,7 +14,7 @@ export async function classifyDocument(req, res) {
     where: { criterion: { code: CRITERION_CODE } },
   });
 
-  const result = classifyText(doc.extractedText || '', subcriteria);
+  const result = await classifyText(doc.extractedText || '', subcriteria);
 
   if (!result.relevant) {
     return res.json({
