@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useDocuments } from '../hooks/useApi.js';
+import { useDocuments, useTrashDocument } from '../hooks/useApi.js';
 
 async function openFile(docId) {
   const token = localStorage.getItem('qualitrack_token');
@@ -49,6 +49,12 @@ function OpenFileButton({ docId }) {
 
 export default function Documents() {
   const { data: docs, isLoading } = useDocuments();
+  const trash = useTrashDocument();
+
+  async function handleTrash(id, name) {
+    if (!confirm(`¿Mover "${name}" a la papelera?`)) return;
+    await trash.mutateAsync(id);
+  }
 
   return (
     <div className="space-y-6">
@@ -59,12 +65,20 @@ export default function Documents() {
           </h1>
           <p className="text-stone-500 mt-1">Documentos cargados para el Criterio 9.</p>
         </div>
-        <Link
-          to="/upload"
-          className="btn rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 text-sm font-medium shadow-soft hover:shadow-lift"
-        >
-          Cargar evidencia
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/trash"
+            className="rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-500 px-4 py-2.5 text-sm font-medium"
+          >
+            🗑 Papelera
+          </Link>
+          <Link
+            to="/upload"
+            className="btn rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 text-sm font-medium shadow-soft hover:shadow-lift"
+          >
+            Cargar evidencia
+          </Link>
+        </div>
       </header>
 
       <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-stone-200/60 overflow-hidden">
@@ -144,7 +158,19 @@ export default function Documents() {
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
-                    <OpenFileButton docId={d.id} />
+                    <div className="flex items-center gap-2">
+                      {/* <OpenFileButton docId={d.id} /> */}
+                      <button
+                        onClick={() => handleTrash(d.id, d.name)}
+                        disabled={trash.isPending}
+                        title="Mover a papelera"
+                        className="inline-flex items-center rounded-md px-2 py-1 text-xs text-stone-400 hover:text-rose-500 hover:bg-rose-50 ring-1 ring-stone-200 hover:ring-rose-200 transition-colors disabled:opacity-50"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -30,6 +30,45 @@ export function useUploadDocument() {
   });
 }
 
+export function useTrashDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => (await api.post(`/documents/${id}/trash`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['trash'] });
+      qc.invalidateQueries({ queryKey: ['compliance'] });
+    },
+  });
+}
+
+export function useTrash() {
+  return useQuery({
+    queryKey: ['trash'],
+    queryFn: async () => (await api.get('/documents/trash')).data,
+  });
+}
+
+export function useRestoreDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => (await api.post(`/documents/${id}/restore`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['trash'] });
+      qc.invalidateQueries({ queryKey: ['compliance'] });
+    },
+  });
+}
+
+export function useDestroyDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => (await api.delete(`/documents/${id}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['trash'] }),
+  });
+}
+
 // ── Clasificación (HU01) ────────────────────────────────────────────
 export function useClassify() {
   const qc = useQueryClient();
@@ -45,11 +84,15 @@ export function useClassify() {
 export function useAssociationAction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ associationId, action }) =>
+    mutationFn: async ({ associationId, action, documentId }) =>
       (await api.post(`/associations/${associationId}/${action}`)).data,
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['compliance'] });
       qc.invalidateQueries({ queryKey: ['documents'] });
+      if (variables.documentId) {
+        qc.invalidateQueries({ queryKey: ['document', String(variables.documentId)] });
+        qc.invalidateQueries({ queryKey: ['document', variables.documentId] });
+      }
     },
   });
 }
@@ -126,8 +169,38 @@ export function useCloudFiles(folderId, enabled) {
 export function useImportCloudFile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ fileId, location }) =>
-      (await api.post('/cloud/google/import', { fileId, location })).data,
+    mutationFn: async ({ fileId, location, onDuplicate }) => {
+      const q = onDuplicate ? `?onDuplicate=${onDuplicate}` : '';
+      return (await api.post(`/cloud/google/import${q}`, { fileId, location })).data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+  });
+}
+
+// ── Dropbox (HU10) ──────────────────────────────────────────────────
+export function useDropboxStatus() {
+  return useQuery({
+    queryKey: ['dropbox-status'],
+    queryFn: async () => (await api.get('/cloud/dropbox/status')).data,
+  });
+}
+
+export function useDropboxFiles(folderPath, enabled) {
+  return useQuery({
+    queryKey: ['dropbox-files', folderPath || ''],
+    queryFn: async () =>
+      (await api.get('/cloud/dropbox/files', { params: { folderPath } })).data,
+    enabled,
+  });
+}
+
+export function useImportDropboxFile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ fileId, location, onDuplicate }) => {
+      const q = onDuplicate ? `?onDuplicate=${onDuplicate}` : '';
+      return (await api.post(`/cloud/dropbox/import${q}`, { fileId, location })).data;
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
   });
 }

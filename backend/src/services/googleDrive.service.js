@@ -15,6 +15,22 @@ function oauthClient() {
   );
 }
 
+/** Obtiene solo el nombre y mimeType sin descargar el archivo. */
+export async function getFileMeta(userId, fileId) {
+  const client = await authedClientFor(userId);
+  if (!client) return null;
+  const drive = google.drive({ version: 'v3', auth: client });
+  const meta = await drive.files.get({ fileId, fields: 'name, mimeType' });
+  const { name, mimeType } = meta.data;
+  // Si es Google Doc nativo, ajustar el nombre con la extensión exportada
+  const exportFormat = GOOGLE_EXPORT_MAP[mimeType];
+  return {
+    name: exportFormat && !name.endsWith(exportFormat.ext) ? name + exportFormat.ext : name,
+    mimeType,
+  };
+}
+
+
 export function getAuthUrl(state) {
   const client = oauthClient();
   return client.generateAuthUrl({
@@ -93,7 +109,8 @@ export async function listFiles(userId, folderId = 'root') {
   return { connected: true, files };
 }
 
-/** Descarga un archivo de Drive como buffer (+ su nombre y mimeType). */
+
+
 export async function downloadFile(userId, fileId) {
   const client = await authedClientFor(userId);
   if (!client) throw new Error('NOT_CONNECTED');

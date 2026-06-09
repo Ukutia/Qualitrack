@@ -11,6 +11,7 @@ datasource db {
 enum DocumentSource {
   UPLOAD
   GOOGLE_DRIVE
+  DROPBOX
 }
 
 enum AssociationStatus {
@@ -115,6 +116,8 @@ model Document {
 
   uploadedBy   User @relation(fields: [uploadedById], references: [id])
   uploadedById Int
+
+  deletedAt    DateTime?      // null = activo, fecha = en papelera
 
   associations Association[]
 }

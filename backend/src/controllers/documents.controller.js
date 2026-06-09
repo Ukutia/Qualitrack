@@ -103,6 +103,7 @@ export async function uploadDocument(req, res) {
 
 export async function listDocuments(req, res) {
   const docs = await prisma.document.findMany({
+    where: { deletedAt: null },
     orderBy: { uploadedAt: 'desc' },
     include: {
       associations: { include: { subcriterion: true } },
@@ -212,4 +213,60 @@ export async function updateDocumentDate(req, res) {
     data: { documentDate: new Date(documentDate) },
   });
   return res.json({ id: doc.id, documentDate: doc.documentDate });
+}
+
+/** Mueve un documento a la papelera (soft delete). */
+export async function trashDocument(req, res) {
+  const id = Number(req.params.id);
+  const doc = await prisma.document.findUnique({ where: { id } });
+  if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
+  if (doc.deletedAt) return res.status(409).json({ error: 'El documento ya está en la papelera.' });
+
+  await prisma.document.update({ where: { id }, data: { deletedAt: new Date() } });
+  return res.json({ id, message: 'Documento movido a la papelera.' });
+}
+
+/** Lista los documentos en la papelera. */
+export async function listTrash(req, res) {
+  const docs = await prisma.document.findMany({
+    where: { deletedAt: { not: null } },
+    orderBy: { deletedAt: 'desc' },
+    include: { uploadedBy: { select: { name: true } } },
+  });
+  return res.json(
+    docs.map((d) => ({
+      id: d.id,
+      name: d.originalName,
+      format: d.format,
+      sizeBytes: d.sizeBytes,
+      uploadedAt: d.uploadedAt,
+      deletedAt: d.deletedAt,
+      uploadedBy: d.uploadedBy?.name,
+    }))
+  );
+}
+
+/** Restaura un documento desde la papelera al repositorio. */
+export async function restoreDocument(req, res) {
+  const id = Number(req.params.id);
+  const doc = await prisma.document.findUnique({ where: { id } });
+  if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
+  if (!doc.deletedAt) return res.status(409).json({ error: 'El documento no está en la papelera.' });
+
+  await prisma.document.update({ where: { id }, data: { deletedAt: null } });
+  return res.json({ id, message: 'Documento restaurado al repositorio.' });
+}
+
+/** Elimina definitivamente un documento de la papelera. */
+export async function destroyDocument(req, res) {
+  const id = Number(req.params.id);
+  const doc = await prisma.document.findUnique({ where: { id } });
+  if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
+  if (!doc.deletedAt) {
+    return res.status(409).json({ error: 'Mueva el documento a la papelera antes de eliminarlo definitivamente.' });
+  }
+
+  await deleteFile(doc.storagePath);
+  await prisma.document.delete({ where: { id } });
+  return res.json({ id, message: 'Documento eliminado definitivamente.' });
 }

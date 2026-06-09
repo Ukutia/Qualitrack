@@ -8,6 +8,7 @@ import DocumentDetail from './pages/DocumentDetail.jsx';
 import Upload from './pages/Upload.jsx';
 import CriteriaStructure from './pages/CriteriaStructure.jsx';
 import CloudConnect from './pages/CloudConnect.jsx';
+import Trash from './pages/Trash.jsx';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/upload" element={<Upload />} />
         <Route path="/structure" element={<CriteriaStructure />} />
         <Route path="/cloud" element={<CloudConnect />} />
+        <Route path="/trash" element={<Trash />} />
       </Route>
     </Routes>
   );

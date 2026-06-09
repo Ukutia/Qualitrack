@@ -10,6 +10,56 @@ const STATUS_COLOR = {
   red: 'text-rose-600',
 };
 
+function yearsAgo(dateStr) {
+  if (!dateStr) return null;
+  const ms = Date.now() - new Date(dateStr).getTime();
+  return ms / (1000 * 60 * 60 * 24 * 365.25);
+}
+
+function AgeBar({ documentDate, name, current }) {
+  const years = yearsAgo(documentDate);
+  if (years === null) return null;
+
+  const pct = Math.min((years / 3) * 100, 100);
+  const barColor =
+    years < 1 ? 'bg-emerald-400' :
+    years < 2 ? 'bg-amber-400' :
+    years < 3 ? 'bg-orange-400' :
+               'bg-rose-500';
+
+  const label =
+    years < 1
+      ? `${Math.round(years * 12)} meses`
+      : `${years.toFixed(1)} años`;
+
+  return (
+    <li className="space-y-1">
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="truncate text-stone-600 max-w-[55%]" title={name}>{name}</span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className={`tnum font-medium ${current ? 'text-stone-500' : 'text-rose-500'}`}>
+            {fmtDate(documentDate)}
+          </span>
+          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+            current
+              ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+              : 'bg-rose-50 text-rose-600 ring-1 ring-rose-200'
+          }`}>
+            {current ? label : 'Vencido'}
+          </span>
+        </div>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-stone-100 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${barColor}`}
+          style={{ width: `${pct}%` }}
+          title={`${years.toFixed(1)} años de antigüedad (límite: 3 años)`}
+        />
+      </div>
+    </li>
+  );
+}
+
 function HealthRing({ pct }) {
   const r = 52;
   const circ = 2 * Math.PI * r;
