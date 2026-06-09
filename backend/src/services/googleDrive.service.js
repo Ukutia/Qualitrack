@@ -15,6 +15,21 @@ function oauthClient() {
   );
 }
 
+/** Obtiene solo el nombre y mimeType sin descargar el archivo. */
+export async function getFileMeta(userId, fileId) {
+  const client = await authedClientFor(userId);
+  if (!client) return null;
+  const drive = google.drive({ version: 'v3', auth: client });
+  const meta = await drive.files.get({ fileId, fields: 'name, mimeType' });
+  const { name, mimeType } = meta.data;
+  // Si es Google Doc nativo, ajustar el nombre con la extensión exportada
+  const exportFormat = GOOGLE_EXPORT_MAP[mimeType];
+  return {
+    name: exportFormat && !name.endsWith(exportFormat.ext) ? name + exportFormat.ext : name,
+    mimeType,
+  };
+}
+
 export function getAuthUrl(state) {
   const client = oauthClient();
   return client.generateAuthUrl({
@@ -93,6 +108,13 @@ export async function listFiles(userId, folderId = 'root') {
   return { connected: true, files };
 }
 
+// Archivos nativos de Google → formato de exportación y extensión
+const GOOGLE_EXPORT_MAP = {
+  'application/vnd.google-apps.document':     { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: '.docx' },
+  'application/vnd.google-apps.spreadsheet':  { mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ext: '.xlsx' },
+  'application/vnd.google-apps.presentation': { mime: 'application/pdf', ext: '.pdf' },
+};
+
 /** Descarga un archivo de Drive como buffer (+ su nombre y mimeType). */
 export async function downloadFile(userId, fileId) {
   const client = await authedClientFor(userId);
@@ -100,13 +122,32 @@ export async function downloadFile(userId, fileId) {
 
   const drive = google.drive({ version: 'v3', auth: client });
   const meta = await drive.files.get({ fileId, fields: 'name, mimeType' });
+  const { name, mimeType } = meta.data;
+
+  const exportFormat = GOOGLE_EXPORT_MAP[mimeType];
+
+  if (exportFormat) {
+    // Archivo nativo de Google → exportar al formato equivalente
+    const res = await drive.files.export(
+      { fileId, mimeType: exportFormat.mime },
+      { responseType: 'arraybuffer' }
+    );
+    const exportedName = name.endsWith(exportFormat.ext) ? name : name + exportFormat.ext;
+    return {
+      name: exportedName,
+      mimeType: exportFormat.mime,
+      buffer: Buffer.from(res.data),
+    };
+  }
+
+  // Archivo binario normal (PDF, DOCX, XLSX subido directamente)
   const res = await drive.files.get(
     { fileId, alt: 'media' },
     { responseType: 'arraybuffer' }
   );
   return {
-    name: meta.data.name,
-    mimeType: meta.data.mimeType,
+    name,
+    mimeType,
     buffer: Buffer.from(res.data),
   };
 }
