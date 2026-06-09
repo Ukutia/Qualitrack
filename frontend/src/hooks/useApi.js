@@ -50,6 +50,7 @@ export function useAssociationAction() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['compliance'] });
       qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['document'] });
     },
   });
 }
