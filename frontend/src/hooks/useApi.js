@@ -169,8 +169,10 @@ export function useCloudFiles(folderId, enabled) {
 export function useImportCloudFile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ fileId, location }) =>
-      (await api.post('/cloud/google/import', { fileId, location })).data,
+    mutationFn: async ({ fileId, location, onDuplicate }) => {
+      const q = onDuplicate ? `?onDuplicate=${onDuplicate}` : '';
+      return (await api.post(`/cloud/google/import${q}`, { fileId, location })).data;
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
   });
 }

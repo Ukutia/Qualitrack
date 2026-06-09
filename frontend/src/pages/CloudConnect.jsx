@@ -168,17 +168,18 @@ function GoogleDriveTab({ initialFeedback }) {
     setTypeFilter('');
   }
 
-  async function doImport(file) {
+  async function doImport(file, onDuplicate) {
     setFeedback(null);
     try {
-      const res = await importFile.mutateAsync({ fileId: file.id, location: file.location });
+      const res = await importFile.mutateAsync({ fileId: file.id, location: file.location, onDuplicate });
+      setDuplicate(null);
       setFeedback({ type: 'success', text: res.message });
     } catch (err) {
-      setFeedback({ type: 'error', text: err.response?.data?.error || 'Error al importar.' });
+      const data = err.response?.data;
+      if (data?.code === 'DUPLICATE_NAME') { setDuplicate({ file, existing: data.existing }); return; }
+      setFeedback({ type: 'error', text: data?.error || 'Error al importar.' });
     }
   }
-
-  if (isLoading) return <p className="text-slate-500">Cargando…</p>;
 
   return (
     <div className="space-y-4">
