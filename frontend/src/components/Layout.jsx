@@ -44,10 +44,10 @@ export default function Layout() {
     .toUpperCase();
 
   return (
-    <div className="min-h-full flex">
+    <div className="h-screen flex overflow-hidden">
       <aside
         className="relative w-64 shrink-0 flex flex-col text-stone-300
-                   bg-ink-900 bg-gradient-to-b from-ink-800 to-ink-900"
+                   bg-ink-900 bg-gradient-to-b from-ink-800 to-ink-900 overflow-y-auto"
       >
         {/* Hairline dorado que separa el lienzo institucional del contenido */}
         <span className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-gold-500/40 to-transparent" />

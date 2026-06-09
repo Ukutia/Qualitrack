@@ -144,7 +144,7 @@ export default function Documents() {
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
-                    <OpenFileButton docId={d.id} />
+                    {/* <OpenFileButton docId={d.id} /> */}
                   </td>
                 </tr>
               ))}
