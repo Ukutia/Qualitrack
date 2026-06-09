@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useDocuments, useTrashDocument } from '../hooks/useApi.js';
+import { useDocuments } from '../hooks/useApi.js';
 
 async function openFile(docId) {
   const token = localStorage.getItem('qualitrack_token');
@@ -42,19 +42,13 @@ function OpenFileButton({ docId }) {
         <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7Z" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      {/* {loading ? 'Abriendo…' : 'Ver archivo'} */}
+      {loading ? 'Abriendo…' : 'Ver archivo'}
     </button>
   );
 }
 
 export default function Documents() {
   const { data: docs, isLoading } = useDocuments();
-  const trash = useTrashDocument();
-
-  async function handleTrash(id, name) {
-    if (!confirm(`¿Mover "${name}" a la papelera?`)) return;
-    await trash.mutateAsync(id);
-  }
 
   return (
     <div className="space-y-6">
@@ -65,20 +59,12 @@ export default function Documents() {
           </h1>
           <p className="text-stone-500 mt-1">Documentos cargados para el Criterio 9.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/trash"
-            className="rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-500 px-4 py-2.5 text-sm font-medium"
-          >
-            🗑 Papelera
-          </Link>
-          <Link
-            to="/upload"
-            className="btn rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 text-sm font-medium shadow-soft hover:shadow-lift"
-          >
-            Cargar evidencia
-          </Link>
-        </div>
+        <Link
+          to="/upload"
+          className="btn rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 text-sm font-medium shadow-soft hover:shadow-lift"
+        >
+          Cargar evidencia
+        </Link>
       </header>
 
       <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-stone-200/60 overflow-hidden">
@@ -158,19 +144,7 @@ export default function Documents() {
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <OpenFileButton docId={d.id} />
-                      <button
-                        onClick={() => handleTrash(d.id, d.name)}
-                        disabled={trash.isPending}
-                        title="Mover a papelera"
-                        className="inline-flex items-center rounded-md px-2 py-1 text-xs text-stone-400 hover:text-rose-500 hover:bg-rose-50 ring-1 ring-stone-200 hover:ring-rose-200 transition-colors disabled:opacity-50"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
-                    </div>
+                    {/* <OpenFileButton docId={d.id} /> */}
                   </td>
                 </tr>
               ))}
