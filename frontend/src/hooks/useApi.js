@@ -98,8 +98,49 @@ export function useCloudFiles(folderId, enabled) {
 export function useImportCloudFile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ fileId, location }) =>
-      (await api.post('/cloud/google/import', { fileId, location })).data,
+    mutationFn: async ({ fileId, location, onDuplicate }) => {
+      const q = onDuplicate ? `?onDuplicate=${onDuplicate}` : '';
+      return (await api.post(`/cloud/google/import${q}`, { fileId, location })).data;
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+  });
+}
+
+export function useDropboxStatus() {
+  return useQuery({
+    queryKey: ['cloud-status-dropbox'],
+    queryFn: async () => (await api.get('/cloud/dropbox/status')).data,
+  });
+}
+
+export function useDropboxFiles(folderPath, enabled) {
+  return useQuery({
+    queryKey: ['dropbox-files', folderPath || ''],
+    queryFn: async () =>
+      (await api.get('/cloud/dropbox/files', { params: { folderPath } })).data,
+    enabled,
+  });
+}
+
+export function useImportDropboxFile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ fileId, location, onDuplicate }) => {
+      const q = onDuplicate ? `?onDuplicate=${onDuplicate}` : '';
+      return (await api.post(`/cloud/dropbox/import${q}`, { fileId, location })).data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+  });
+}
+
+export function useDisconnectCloud() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (provider) =>
+      (await api.delete(`/cloud/${provider}/disconnect`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cloud-status'] });
+      qc.invalidateQueries({ queryKey: ['cloud-status-dropbox'] });
+    },
   });
 }
