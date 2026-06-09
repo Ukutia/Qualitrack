@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Env
+.env
+*.local
+
+# Build output
+dist/
+build/
+
+# Uploaded files (local storage volume)
+data/
+backend/data/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Prisma
+backend/prisma/*.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local tooling / machine-specific config
+.claude/
+
+# Test/coverage
+coverage/
+
+# Misc extraction helper
+_qualitrack_extract.txt

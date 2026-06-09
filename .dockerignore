@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+backend/data
+data
+.env
+.git
+.claude
+_smoke

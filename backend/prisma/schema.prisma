@@ -1,0 +1,168 @@
+// Qualitrack — esquema de datos (MVP, Criterio 9 CNA)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DocumentSource {
+  UPLOAD
+  GOOGLE_DRIVE
+}
+
+enum AssociationStatus {
+  PROPOSED
+  VALIDATED
+  NOT_VALIDATED
+}
+
+enum HistoryAction {
+  PROPOSED
+  VALIDATED
+  REJECTED
+}
+
+enum SectionChange {
+  NONE
+  ADDED
+  REMOVED
+  RENAMED
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+
+  documents          Document[]
+  validatedAssocs    Association[]           @relation("ValidatedBy")
+  history            AssociationHistory[]
+  cloudConns         CloudConnection[]
+  structureVersions  ReportStructureVersion[]
+}
+
+model Criterion {
+  id          Int            @id @default(autoincrement())
+  code        String         @unique // "9"
+  name        String
+  description String?
+  subcriteria Subcriterion[]
+}
+
+model Subcriterion {
+  id                    Int      @id @default(autoincrement())
+  criterion             Criterion @relation(fields: [criterionId], references: [id])
+  criterionId           Int
+  code                  String   // "9.1"
+  name                  String
+  description           String?
+  required              Boolean  @default(true)
+  keywords              String[] // alimenta el clasificador mock (HU01)
+  acceptedEvidenceTypes String[] // tipos de evidencia aceptados (detalle HU02)
+
+  associations Association[]
+
+  @@unique([criterionId, code])
+}
+
+model ReportStructureVersion {
+  id         Int             @id @default(autoincrement())
+  version    Int             @unique
+  uploadedAt DateTime        @default(now())
+  active     Boolean         @default(false)
+  note       String?         // ej. "Restaurada desde versión 3"
+  sections   ReportSection[]
+
+  uploadedBy   User? @relation(fields: [uploadedById], references: [id])
+  uploadedById Int?
+}
+
+model ReportSection {
+  id          Int                    @id @default(autoincrement())
+  version     ReportStructureVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  versionId   Int
+  code        String
+  name        String
+  description String?
+  required    Boolean                @default(true)
+  order       Int                    @default(0)
+  changeType  SectionChange          @default(NONE)
+
+  parent   ReportSection?  @relation("SectionChildren", fields: [parentId], references: [id])
+  parentId Int?
+  children ReportSection[] @relation("SectionChildren")
+}
+
+model Document {
+  id            Int            @id @default(autoincrement())
+  originalName  String
+  storedName    String         @unique
+  format        String // pdf | docx | xlsx
+  sizeBytes     Int
+  storagePath   String
+  source        DocumentSource @default(UPLOAD)
+  cloudFileId   String?
+  cloudLocation String?
+  documentDate  DateTime       @default(now()) // base para antigüedad (HU02)
+  extractedText String?        @db.Text
+  uploadedAt    DateTime       @default(now())
+
+  uploadedBy   User @relation(fields: [uploadedById], references: [id])
+  uploadedById Int
+
+  deletedAt    DateTime?      // null = activo, fecha = en papelera
+
+  associations Association[]
+}
+
+model Association {
+  id              Int               @id @default(autoincrement())
+  document        Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId      Int
+  subcriterion    Subcriterion      @relation(fields: [subcriterionId], references: [id])
+  subcriterionId  Int
+  status          AssociationStatus @default(PROPOSED)
+  justification   String?           @db.Text
+  evidenceFragment String?          @db.Text
+  confidence      Float             @default(0)
+  createdAt       DateTime          @default(now())
+
+  validatedBy   User?     @relation("ValidatedBy", fields: [validatedById], references: [id])
+  validatedById Int?
+  validatedAt   DateTime?
+
+  history AssociationHistory[]
+
+  @@unique([documentId, subcriterionId])
+}
+
+model AssociationHistory {
+  id            Int           @id @default(autoincrement())
+  association   Association   @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  associationId Int
+  action        HistoryAction
+  user          User          @relation(fields: [userId], references: [id])
+  userId        Int
+  createdAt     DateTime      @default(now())
+  snapshot      Json?
+}
+
+model CloudConnection {
+  id           Int       @id @default(autoincrement())
+  user         User      @relation(fields: [userId], references: [id])
+  userId       Int
+  provider     String // "google"
+  accessToken  String?   @db.Text
+  refreshToken String?   @db.Text
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([userId, provider])
+}
