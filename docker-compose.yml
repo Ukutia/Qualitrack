@@ -27,6 +27,9 @@ services:
       db:
         condition: service_healthy
     environment:
+      DROPBOX_APP_KEY: ${DROPBOX_APP_KEY:-}
+      DROPBOX_APP_SECRET: ${DROPBOX_APP_SECRET:-}
+      DROPBOX_REDIRECT_URI: ${DROPBOX_REDIRECT_URI:-http://localhost:4000/api/cloud/dropbox/callback}
       DATABASE_URL: ${DATABASE_URL:-postgresql://qualitrack:qualitrack@db:5432/qualitrack?schema=public}
       PORT: ${PORT:-4000}
       NODE_ENV: ${NODE_ENV:-development}
