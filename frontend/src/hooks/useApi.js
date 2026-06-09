@@ -131,3 +131,31 @@ export function useImportCloudFile() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
   });
 }
+
+// ── Dropbox (HU10) ──────────────────────────────────────────────────
+export function useDropboxStatus() {
+  return useQuery({
+    queryKey: ['dropbox-status'],
+    queryFn: async () => (await api.get('/cloud/dropbox/status')).data,
+  });
+}
+
+export function useDropboxFiles(folderPath, enabled) {
+  return useQuery({
+    queryKey: ['dropbox-files', folderPath || ''],
+    queryFn: async () =>
+      (await api.get('/cloud/dropbox/files', { params: { folderPath } })).data,
+    enabled,
+  });
+}
+
+export function useImportDropboxFile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ fileId, location, onDuplicate }) => {
+      const q = onDuplicate ? `?onDuplicate=${onDuplicate}` : '';
+      return (await api.post(`/cloud/dropbox/import${q}`, { fileId, location })).data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+  });
+}
