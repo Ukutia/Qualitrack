@@ -30,6 +30,45 @@ export function useUploadDocument() {
   });
 }
 
+export function useTrashDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => (await api.post(`/documents/${id}/trash`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['trash'] });
+      qc.invalidateQueries({ queryKey: ['compliance'] });
+    },
+  });
+}
+
+export function useTrash() {
+  return useQuery({
+    queryKey: ['trash'],
+    queryFn: async () => (await api.get('/documents/trash')).data,
+  });
+}
+
+export function useRestoreDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => (await api.post(`/documents/${id}/restore`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['trash'] });
+      qc.invalidateQueries({ queryKey: ['compliance'] });
+    },
+  });
+}
+
+export function useDestroyDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => (await api.delete(`/documents/${id}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['trash'] }),
+  });
+}
+
 // ── Clasificación (HU01) ────────────────────────────────────────────
 export function useClassify() {
   const qc = useQueryClient();
@@ -45,12 +84,15 @@ export function useClassify() {
 export function useAssociationAction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ associationId, action }) =>
+    mutationFn: async ({ associationId, action, documentId }) =>
       (await api.post(`/associations/${associationId}/${action}`)).data,
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['compliance'] });
       qc.invalidateQueries({ queryKey: ['documents'] });
-      qc.invalidateQueries({ queryKey: ['document'] });
+      if (variables.documentId) {
+        qc.invalidateQueries({ queryKey: ['document', String(variables.documentId)] });
+        qc.invalidateQueries({ queryKey: ['document', variables.documentId] });
+      }
     },
   });
 }

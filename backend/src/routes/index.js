@@ -9,6 +9,10 @@ import {
   getDocument,
   serveFile,
   updateDocumentDate,
+  trashDocument,
+  listTrash,
+  restoreDocument,
+  destroyDocument,
 } from '../controllers/documents.controller.js';
 import {
   classifyDocument,
@@ -47,9 +51,13 @@ router.use(requireAuth);
 // Documentos (HU07)
 router.post('/documents', upload.single('file'), uploadDocument);
 router.get('/documents', listDocuments);
+router.get('/documents/trash', listTrash);
 router.get('/documents/:id', getDocument);
 router.get('/documents/:id/file', serveFile);
 router.patch('/documents/:id/date', updateDocumentDate);
+router.post('/documents/:id/trash', trashDocument);
+router.post('/documents/:id/restore', restoreDocument);
+router.delete('/documents/:id', destroyDocument);
 
 // Clasificación (HU01)
 router.post('/documents/:id/classify', classifyDocument);

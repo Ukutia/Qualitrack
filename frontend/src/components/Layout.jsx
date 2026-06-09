@@ -7,6 +7,7 @@ const NAV = [
   { to: '/upload', label: 'Cargar evidencia' },
   { to: '/structure', label: 'Estructura informe' },
   { to: '/cloud', label: 'Google Drive' },
+  { to: '/trash', label: 'Papelera' },
 ];
 
 function Logo() {
@@ -44,10 +45,10 @@ export default function Layout() {
     .toUpperCase();
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="min-h-full flex">
       <aside
         className="relative w-64 shrink-0 flex flex-col text-stone-300
-                   bg-ink-900 bg-gradient-to-b from-ink-800 to-ink-900 overflow-y-auto"
+                   bg-ink-900 bg-gradient-to-b from-ink-800 to-ink-900"
       >
         {/* Hairline dorado que separa el lienzo institucional del contenido */}
         <span className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-gold-500/40 to-transparent" />
