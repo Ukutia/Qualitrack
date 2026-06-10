@@ -3,6 +3,10 @@ services:
     image: postgres:16-alpine
     container_name: qualitrack-db
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-qualitrack}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qualitrack}
@@ -23,13 +27,14 @@ services:
     build: ./backend
     container_name: qualitrack-backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DROPBOX_APP_KEY: ${DROPBOX_APP_KEY:-}
-      DROPBOX_APP_SECRET: ${DROPBOX_APP_SECRET:-}
-      DROPBOX_REDIRECT_URI: ${DROPBOX_REDIRECT_URI:-http://localhost:4000/api/cloud/dropbox/callback}
       DATABASE_URL: ${DATABASE_URL:-postgresql://qualitrack:qualitrack@db:5432/qualitrack?schema=public}
       PORT: ${PORT:-4000}
       NODE_ENV: ${NODE_ENV:-development}
@@ -42,6 +47,7 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:4000/api/cloud/google/callback}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     volumes:
       - ./backend:/app          # hot-reload: código fuente del host
       - /app/node_modules       # preserva node_modules del contenedor
@@ -53,6 +59,10 @@ services:
     build: ./frontend
     container_name: qualitrack-frontend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     depends_on:
       - backend
     environment:
