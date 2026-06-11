@@ -121,12 +121,28 @@ export default function Upload() {
 
       {duplicate ? (
         <div className="rounded-xl bg-amber-50 border border-amber-200 p-5 space-y-3">
-          <p className="text-sm text-amber-800">
-            Ya existe <strong>{duplicate.name}</strong> (creado el{' '}
-            {new Date(duplicate.creationDate).toLocaleDateString('es-CL')}, subido el{' '}
-            {new Date(duplicate.uploadDate).toLocaleString('es-CL')}). ¿Qué desea hacer?
-          </p>
-          <div className="flex gap-3">
+          {duplicate.inTrash ? (
+            <p className="text-sm text-amber-800">
+              <strong>{duplicate.name}</strong> ya existe, pero está en la{' '}
+              <span className="font-medium">papelera</span> (eliminado el{' '}
+              {new Date(duplicate.deletedAt).toLocaleString('es-CL')}). ¿Qué desea hacer?
+            </p>
+          ) : (
+            <p className="text-sm text-amber-800">
+              Ya existe <strong>{duplicate.name}</strong> (creado el{' '}
+              {new Date(duplicate.creationDate).toLocaleDateString('es-CL')}, subido el{' '}
+              {new Date(duplicate.uploadDate).toLocaleString('es-CL')}). ¿Qué desea hacer?
+            </p>
+          )}
+          <div className="flex flex-wrap gap-3">
+            {duplicate.inTrash && (
+              <button
+                onClick={() => send('restore')}
+                className="btn rounded-lg bg-emerald-600 hover:bg-emerald-700 transition-colors duration-150 text-white px-4 py-2 text-sm font-medium"
+              >
+                Restaurar el existente
+              </button>
+            )}
             <button
               onClick={() => send('replace')}
               className="btn rounded-lg bg-rose-600 hover:bg-rose-700 transition-colors duration-150 text-white px-4 py-2 text-sm font-medium"

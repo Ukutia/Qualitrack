@@ -2,6 +2,7 @@
 import { prisma } from '../config/prisma.js';
 import { saveFile, readFile, deleteFile } from '../services/storage.service.js';
 import { extractText } from '../services/textExtraction.service.js';
+import { extractDocumentDate } from '../services/dateExtraction.service.js';
 import { formatFromName } from '../middleware/upload.js';
 
 const MIME = {
@@ -26,6 +27,9 @@ export async function ingestDocument({
   const { storedName, storagePath } = await saveFile(buffer, originalName);
   const extractedText = await extractText(buffer, format);
 
+  // Detectar la fecha de emisión real del documento desde su contenido
+  const documentDate = extractDocumentDate(extractedText, originalName) ?? new Date();
+
   return prisma.document.create({
     data: {
       originalName,
@@ -37,6 +41,7 @@ export async function ingestDocument({
       cloudFileId,
       cloudLocation,
       extractedText,
+      documentDate,
       uploadedById: userId,
     },
   });
@@ -47,7 +52,7 @@ export async function uploadDocument(req, res) {
     return res.status(400).json({ error: 'No se recibió ningún archivo.' });
   }
   const originalName = req.file.originalname;
-  const onDuplicate = (req.query.onDuplicate || '').toLowerCase(); // '', 'replace', 'keep'
+  const onDuplicate = (req.query.onDuplicate || '').toLowerCase(); // '', 'replace', 'keep', 'restore'
 
   // Manejo de duplicados por nombre (HU07).
   const existing = await prisma.document.findFirst({
@@ -56,19 +61,39 @@ export async function uploadDocument(req, res) {
   });
 
   if (existing && !onDuplicate) {
+    const inTrash = !!existing.deletedAt;
     return res.status(409).json({
       code: 'DUPLICATE_NAME',
-      error: 'Ya existe un documento con el mismo nombre.',
+      error: inTrash
+        ? 'Ya existe un documento con el mismo nombre en la papelera.'
+        : 'Ya existe un documento con el mismo nombre.',
       existing: {
         id: existing.id,
         name: existing.originalName,
         creationDate: existing.documentDate,
         uploadDate: existing.uploadedAt,
+        inTrash,
+        deletedAt: existing.deletedAt,
       },
-      message:
-        `Ya existe "${originalName}" (subido el ` +
-        `${new Date(existing.uploadedAt).toLocaleString('es-CL')}). ` +
-        '¿Desea reemplazarlo o conservar ambos?',
+      message: inTrash
+        ? `Ya existe "${originalName}" en la papelera (eliminado el ` +
+          `${new Date(existing.deletedAt).toLocaleString('es-CL')}). ` +
+          '¿Desea reemplazarlo definitivamente, restaurarlo o conservar ambos?'
+        : `Ya existe "${originalName}" (subido el ` +
+          `${new Date(existing.uploadedAt).toLocaleString('es-CL')}). ` +
+          '¿Desea reemplazarlo o conservar ambos?',
+    });
+  }
+
+  if (existing && onDuplicate === 'restore') {
+    await prisma.document.update({ where: { id: existing.id }, data: { deletedAt: null } });
+    return res.status(200).json({
+      id: existing.id,
+      name: existing.originalName,
+      format: existing.format,
+      sizeBytes: existing.sizeBytes,
+      uploadedAt: existing.uploadedAt,
+      message: 'Documento restaurado desde la papelera. No se cargó un nuevo archivo.',
     });
   }
 

@@ -49,7 +49,13 @@ export default function DocumentDetail() {
           <p>Formato: <span className="uppercase">{doc.format}</span></p>
           <p>Tamaño: {(doc.sizeBytes / 1024).toFixed(0)} KB</p>
           <p>Origen: {doc.source === 'GOOGLE_DRIVE' ? 'Google Drive' : 'Carga directa'}</p>
-          <p>Fecha del documento: {fmtDate(doc.documentDate)}</p>
+          <p>Fecha del documento: {fmtDate(doc.documentDate)}
+            {doc.documentDate && (
+              <span className="ml-1.5 text-[10px] rounded-full px-1.5 py-0.5 bg-stone-100 text-stone-400 font-medium">
+                detectada automáticamente
+              </span>
+            )}
+          </p>
           <p>Ingreso: {fmtDate(doc.uploadedAt)}</p>
           <p>Cargado por: {doc.uploadedBy}</p>
         </div>

@@ -10,12 +10,17 @@ const STATUS_COLOR = {
   red: 'text-rose-600',
 };
 
+/** Devuelve cuántos años tiene un documento (con decimales). */
 function yearsAgo(dateStr) {
   if (!dateStr) return null;
   const ms = Date.now() - new Date(dateStr).getTime();
   return ms / (1000 * 60 * 60 * 24 * 365.25);
 }
 
+/**
+ * Barra de antigüedad: verde < 1 año, amarilla 1-2 años, naranja 2-3 años, roja > 3 años.
+ * El ancho representa qué tan cerca está del límite de 3 años (máximo).
+ */
 function AgeBar({ documentDate, name, current }) {
   const years = yearsAgo(documentDate);
   if (years === null) return null;
@@ -70,9 +75,7 @@ function HealthRing({ pct }) {
       <circle cx="60" cy="60" r={r} fill="none" stroke="#e7e2d6" strokeWidth="10" />
       <circle
         className="ring-progress"
-        cx="60"
-        cy="60"
-        r={r}
+        cx="60" cy="60" r={r}
         fill="none"
         stroke={stroke}
         strokeWidth="10"
@@ -82,8 +85,7 @@ function HealthRing({ pct }) {
         style={{ '--ring-circ': circ, transition: 'stroke-dashoffset 1s var(--ease-out)' }}
       />
       <text
-        x="60"
-        y="58"
+        x="60" y="58"
         transform="rotate(90 60 60)"
         textAnchor="middle"
         className="tnum fill-ink-900 font-display"
@@ -92,8 +94,7 @@ function HealthRing({ pct }) {
         {pct}%
       </text>
       <text
-        x="60"
-        y="76"
+        x="60" y="76"
         transform="rotate(90 60 60)"
         textAnchor="middle"
         className="fill-stone-400"
@@ -152,10 +153,7 @@ export default function Dashboard() {
     );
 
   const items = data.items || [];
-  const counts = items.reduce(
-    (a, it) => ((a[it.color] = (a[it.color] || 0) + 1), a),
-    {},
-  );
+  const counts = items.reduce((a, it) => ((a[it.color] = (a[it.color] || 0) + 1), a), {});
   const green = counts.green || 0;
   const yellow = counts.yellow || 0;
   const red = counts.red || 0;
@@ -183,7 +181,7 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          {/* Hero de salud — el foco vivo del tablero */}
+          {/* Hero de salud */}
           <section className="relative overflow-hidden rounded-xl2 bg-white shadow-soft ring-1 ring-stone-200/60">
             <span className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-500/[0.06] blur-2xl" />
             <div className="relative flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:gap-10">
@@ -204,7 +202,6 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-            {/* Barra de proporción */}
             <div className="flex h-1.5 w-full overflow-hidden">
               {green > 0 && <span style={{ flex: green }} className="bg-emerald-500" />}
               {yellow > 0 && <span style={{ flex: yellow }} className="bg-amber-400" />}
@@ -234,22 +231,34 @@ export default function Dashboard() {
                   Estado:{' '}
                   <span className={STATUS_COLOR[item.color] || 'text-rose-600'}>{item.status}</span>
                 </p>
-                <p className="text-xs text-stone-400">
+                <p className="text-xs text-stone-400 mb-3">
                   <span className="tnum">{item.validatedCount}</span> documento(s) validado(s)
                 </p>
 
+                {/* Antigüedad de documentos con barra visual */}
                 {item.documents.length > 0 && (
-                  <ul className="mt-3 space-y-1 text-xs text-stone-600">
-                    {item.documents.map((d) => (
-                      <li key={d.id} className="flex justify-between gap-2">
-                        <span className="truncate">{d.name}</span>
-                        <span className={`tnum shrink-0 ${d.current ? 'text-stone-400' : 'text-rose-500'}`}>
-                          {fmtDate(d.documentDate)}
-                          {!d.current && ' (vencido)'}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="border-t border-stone-100 pt-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-400 mb-2">
+                      Antigüedad de documentos
+                    </p>
+                    <ul className="space-y-2.5">
+                      {item.documents.map((d) => (
+                        <AgeBar
+                          key={d.id}
+                          documentDate={d.documentDate}
+                          name={d.name}
+                          current={d.current}
+                        />
+                      ))}
+                    </ul>
+                    {/* Leyenda de colores */}
+                    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-stone-400">
+                      <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-full bg-emerald-400"/>&lt;1 año</span>
+                      <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-full bg-amber-400"/>1-2 años</span>
+                      <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-full bg-orange-400"/>2-3 años</span>
+                      <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-full bg-rose-500"/>&gt;3 años</span>
+                    </div>
+                  </div>
                 )}
 
                 {item.acceptedEvidenceTypes && item.acceptedEvidenceTypes.length > 0 && (
