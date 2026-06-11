@@ -98,14 +98,14 @@ export default function DocumentDetail() {
                 {a.status === 'PROPOSED' && (
                   <div className="flex gap-2 shrink-0">
                     <button
-                      onClick={() => action.mutate({ associationId: a.id, action: 'validate' })}
+                      onClick={() => action.mutate({ associationId: a.id, action: 'validate', documentId: id })}
                       disabled={action.isPending}
                       className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 text-xs font-medium"
                     >
                       Validar
                     </button>
                     <button
-                      onClick={() => action.mutate({ associationId: a.id, action: 'reject' })}
+                      onClick={() => action.mutate({ associationId: a.id, action: 'reject', documentId: id })}
                       disabled={action.isPending}
                       className="rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 text-xs font-medium"
                     >
