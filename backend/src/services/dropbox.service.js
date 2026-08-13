@@ -130,7 +130,8 @@ export async function getFileMeta(userId, filePath) {
     body: JSON.stringify({ path: filePath }),
   });
   const data = await res.json();
-  return { name: data.name, mimeType: 'file' };
+  if (data.error_summary) throw new Error(data.error_summary);
+  return { name: data.name, mimeType: 'file', sizeBytes: data.size ?? null };
 }
 
 export async function downloadFile(userId, filePath) {

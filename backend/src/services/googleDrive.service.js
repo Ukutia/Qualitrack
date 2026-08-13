@@ -7,6 +7,25 @@ import { prisma } from '../config/prisma.js';
 
 const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 
+/**
+ * Documentos nativos de Google (Docs/Sheets/Slides) no se descargan con alt=media:
+ * hay que exportarlos a un formato aceptado por el repositorio (PDF/DOCX/XLSX).
+ */
+const GOOGLE_EXPORT_MAP = {
+  'application/vnd.google-apps.document': {
+    ext: '.docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  },
+  'application/vnd.google-apps.spreadsheet': {
+    ext: '.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  },
+  'application/vnd.google-apps.presentation': {
+    ext: '.pdf',
+    mimeType: 'application/pdf',
+  },
+};
+
 function oauthClient() {
   return new google.auth.OAuth2(
     config.google.clientId,
@@ -20,13 +39,14 @@ export async function getFileMeta(userId, fileId) {
   const client = await authedClientFor(userId);
   if (!client) return null;
   const drive = google.drive({ version: 'v3', auth: client });
-  const meta = await drive.files.get({ fileId, fields: 'name, mimeType' });
-  const { name, mimeType } = meta.data;
+  const meta = await drive.files.get({ fileId, fields: 'name, mimeType, size' });
+  const { name, mimeType, size } = meta.data;
   // Si es Google Doc nativo, ajustar el nombre con la extensión exportada
   const exportFormat = GOOGLE_EXPORT_MAP[mimeType];
   return {
     name: exportFormat && !name.endsWith(exportFormat.ext) ? name + exportFormat.ext : name,
     mimeType,
+    sizeBytes: size ? Number(size) : null, // los nativos de Google no informan tamaño
   };
 }
 
@@ -117,13 +137,29 @@ export async function downloadFile(userId, fileId) {
 
   const drive = google.drive({ version: 'v3', auth: client });
   const meta = await drive.files.get({ fileId, fields: 'name, mimeType' });
+  const { name, mimeType } = meta.data;
+
+  // Google Docs/Sheets/Slides: exportar en lugar de descargar el binario.
+  const exportFormat = GOOGLE_EXPORT_MAP[mimeType];
+  if (exportFormat) {
+    const exported = await drive.files.export(
+      { fileId, mimeType: exportFormat.mimeType },
+      { responseType: 'arraybuffer' }
+    );
+    return {
+      name: name.endsWith(exportFormat.ext) ? name : name + exportFormat.ext,
+      mimeType: exportFormat.mimeType,
+      buffer: Buffer.from(exported.data),
+    };
+  }
+
   const res = await drive.files.get(
     { fileId, alt: 'media' },
     { responseType: 'arraybuffer' }
   );
   return {
-    name: meta.data.name,
-    mimeType: meta.data.mimeType,
+    name,
+    mimeType,
     buffer: Buffer.from(res.data),
   };
 }

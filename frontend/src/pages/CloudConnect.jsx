@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import {
   useCloudStatus,
@@ -31,7 +31,24 @@ function matchesType(file, typeFilter) {
   return true;
 }
 
-function FileBrowser({ filesQuery, onImport, importing, onOpenFolder, onGoBack, stack, search, setSearch, typeFilter, setTypeFilter }) {
+function FileBrowser({
+  filesQuery,
+  onImport,
+  importing,
+  onOpenFolder,
+  onGoBack,
+  stack,
+  search,
+  setSearch,
+  typeFilter,
+  setTypeFilter,
+  selectMode,
+  onToggleSelectMode,
+  selected,
+  onToggleSelect,
+  onImportSelected,
+  importingSelected,
+}) {
   const filteredFiles = useMemo(() => {
     const all = filesQuery.data?.files || [];
     return all.filter((f) => {
@@ -41,22 +58,37 @@ function FileBrowser({ filesQuery, onImport, importing, onOpenFolder, onGoBack, 
     });
   }, [filesQuery.data?.files, search, typeFilter]);
 
+  const hasFiles = !filesQuery.isLoading && filesQuery.data?.connected !== false && !filesQuery.error;
+  const selectedCount = selected.size;
+
   return (
     <div className="bg-white rounded-xl shadow-sm p-5 space-y-4">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-3">
-        {stack.length > 0 && (
-          <button onClick={onGoBack} className="text-sm text-brand-600 hover:underline">
-            ← Atrás
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {stack.length > 0 && (
+            <button onClick={onGoBack} className="text-sm text-brand-600 hover:underline">
+              ← Atrás
+            </button>
+          )}
+          <span className="text-sm text-slate-500">
+            {stack.length === 0 ? 'Raíz' : stack.map((s) => s.name).join(' / ')}
+          </span>
+        </div>
+        {hasFiles && (
+          <button
+            onClick={onToggleSelectMode}
+            className={`text-xs font-medium px-3 py-1.5 rounded-lg ${
+              selectMode ? 'bg-slate-200 text-slate-700' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
+            }`}
+          >
+            {selectMode ? 'Cancelar selección' : 'Seleccionar'}
           </button>
         )}
-        <span className="text-sm text-slate-500">
-          {stack.length === 0 ? 'Raíz' : stack.map((s) => s.name).join(' / ')}
-        </span>
       </div>
 
       {/* Filtros */}
-      {!filesQuery.isLoading && filesQuery.data?.connected !== false && !filesQuery.error && (
+      {hasFiles && (
         <div className="flex gap-2">
           <input
             type="text"
@@ -77,6 +109,24 @@ function FileBrowser({ filesQuery, onImport, importing, onOpenFolder, onGoBack, 
         </div>
       )}
 
+      {/* Barra de selección flotante y fija */}
+      {selectMode && selectedCount > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4 pointer-events-none">
+          <div className="pointer-events-auto flex w-full max-w-xl items-center justify-between gap-3 rounded-xl bg-brand-50 border border-brand-200 shadow-lg px-4 py-3">
+            <span className="text-sm text-brand-800 font-medium">
+              {selectedCount} archivo{selectedCount === 1 ? '' : 's'} seleccionado{selectedCount === 1 ? '' : 's'}
+            </span>
+            <button
+              onClick={onImportSelected}
+              disabled={importingSelected}
+              className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-1.5 text-sm font-medium disabled:opacity-50"
+            >
+              {importingSelected ? 'Importando…' : 'Importar seleccionados'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Contenido */}
       {filesQuery.isLoading ? (
         <p className="text-slate-500 text-sm">Cargando archivos…</p>
@@ -94,19 +144,29 @@ function FileBrowser({ filesQuery, onImport, importing, onOpenFolder, onGoBack, 
         <ul className="divide-y divide-slate-100">
           {filteredFiles.map((f) => (
             <li key={f.id} className="py-2.5 flex items-center justify-between gap-3">
-              <button
-                onClick={() => f.isFolder && onOpenFolder(f)}
-                className={`text-sm text-left ${f.isFolder ? 'text-brand-600 hover:underline font-medium' : 'text-slate-700'}`}
-              >
-                {f.isFolder ? '📁 ' : '📄 '}
-                {f.name}
-                {f.modifiedTime && (
-                  <span className="text-xs text-slate-400 ml-2">
-                    {new Date(f.modifiedTime).toLocaleDateString('es-CL')}
-                  </span>
+              <div className="flex items-center gap-3 min-w-0">
+                {selectMode && !f.isFolder && (
+                  <input
+                    type="checkbox"
+                    checked={selected.has(f.id)}
+                    onChange={() => onToggleSelect(f)}
+                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-400"
+                  />
                 )}
-              </button>
-              {!f.isFolder && (
+                <button
+                  onClick={() => f.isFolder && onOpenFolder(f)}
+                  className={`text-sm text-left truncate ${f.isFolder ? 'text-brand-600 hover:underline font-medium' : 'text-slate-700'}`}
+                >
+                  {f.isFolder ? '📁 ' : '📄 '}
+                  {f.name}
+                  {f.modifiedTime && (
+                    <span className="text-xs text-slate-400 ml-2">
+                      {new Date(f.modifiedTime).toLocaleDateString('es-CL')}
+                    </span>
+                  )}
+                </button>
+              </div>
+              {!f.isFolder && !selectMode && (
                 <button
                   onClick={() => onImport(f)}
                   disabled={importing}
@@ -119,11 +179,74 @@ function FileBrowser({ filesQuery, onImport, importing, onOpenFolder, onGoBack, 
           ))}
         </ul>
       )}
+
+      {/* Espaciador para que la última fila no quede tapada por la barra flotante */}
+      {selectMode && selectedCount > 0 && <div className="h-14" aria-hidden="true" />}
+    </div>
+  );
+}
+
+/**
+ * Resolución de duplicados al importar (mismas opciones que la carga manual):
+ * reemplazar, conservar ambos o —si el existente está en la papelera— restaurarlo.
+ */
+function DuplicatePrompt({ duplicate, onResolve, onCancel, busy }) {
+  const { file, existing } = duplicate;
+
+  return (
+    <div className="rounded-xl bg-amber-50 border border-amber-200 p-5 space-y-3">
+      {existing.inTrash ? (
+        <p className="text-sm text-amber-800">
+          <strong>{existing.name}</strong> ya existe en el repositorio, pero está en la{' '}
+          <span className="font-medium">papelera</span> (eliminado el{' '}
+          {new Date(existing.deletedAt).toLocaleString('es-CL')}). ¿Qué desea hacer?
+        </p>
+      ) : (
+        <p className="text-sm text-amber-800">
+          Ya existe <strong>{existing.name}</strong> en el repositorio (creado el{' '}
+          {new Date(existing.creationDate).toLocaleDateString('es-CL')}, subido el{' '}
+          {new Date(existing.uploadDate).toLocaleString('es-CL')}). ¿Qué desea hacer con{' '}
+          <strong>{file.name}</strong>?
+        </p>
+      )}
+      <div className="flex flex-wrap gap-3">
+        {existing.inTrash && (
+          <button
+            onClick={() => onResolve('restore')}
+            disabled={busy}
+            className="btn rounded-lg bg-emerald-600 hover:bg-emerald-700 transition-colors duration-150 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
+          >
+            Restaurar el existente
+          </button>
+        )}
+        <button
+          onClick={() => onResolve('replace')}
+          disabled={busy}
+          className="btn rounded-lg bg-rose-600 hover:bg-rose-700 transition-colors duration-150 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
+        >
+          Reemplazar
+        </button>
+        <button
+          onClick={() => onResolve('keep')}
+          disabled={busy}
+          className="btn rounded-lg bg-brand-600 hover:bg-brand-700 transition-colors duration-150 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
+        >
+          Conservar ambos
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={busy}
+          className="btn rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors duration-150 text-slate-700 px-4 py-2 text-sm disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+      </div>
     </div>
   );
 }
 
 function GoogleDriveTab({ initialFeedback }) {
+  const navigate = useNavigate();
   const { data: status, isLoading } = useCloudStatus();
   const connected = status?.connected;
   const [folderId, setFolderId] = useState('root');
@@ -131,6 +254,10 @@ function GoogleDriveTab({ initialFeedback }) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [feedback, setFeedback] = useState(initialFeedback);
+  const [duplicate, setDuplicate] = useState(null); // { file, existing }
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState(new Map());
+  const [importingSelected, setImportingSelected] = useState(false);
   const filesQuery = useCloudFiles(folderId, !!connected);
   const importFile = useImportCloudFile();
 
@@ -158,6 +285,9 @@ function GoogleDriveTab({ initialFeedback }) {
     setFolderId(file.id);
     setSearch('');
     setTypeFilter('');
+    setDuplicate(null);
+    setSelectMode(false);
+    setSelected(new Map());
   }
 
   function goBack() {
@@ -166,6 +296,23 @@ function GoogleDriveTab({ initialFeedback }) {
     setFolderId(prev ? prev.id : 'root');
     setSearch('');
     setTypeFilter('');
+    setDuplicate(null);
+    setSelectMode(false);
+    setSelected(new Map());
+  }
+
+  function toggleSelectMode() {
+    setSelectMode((v) => !v);
+    setSelected(new Map());
+  }
+
+  function toggleSelect(file) {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(file.id)) next.delete(file.id);
+      else next.set(file.id, file);
+      return next;
+    });
   }
 
   async function doImport(file, onDuplicate) {
@@ -174,12 +321,50 @@ function GoogleDriveTab({ initialFeedback }) {
       const res = await importFile.mutateAsync({ fileId: file.id, location: file.location, onDuplicate });
       setDuplicate(null);
       setFeedback({ type: 'success', text: res.message });
+      navigate('/documents', { state: { importedIds: [res.id] } });
     } catch (err) {
       const data = err.response?.data;
       if (data?.code === 'DUPLICATE_NAME') { setDuplicate({ file, existing: data.existing }); return; }
+      setDuplicate(null);
       setFeedback({ type: 'error', text: data?.error || 'Error al importar.' });
     }
   }
+
+  async function importSelected() {
+    const files = Array.from(selected.values());
+    if (files.length === 0) return;
+    setFeedback(null);
+    setImportingSelected(true);
+    let ok = 0;
+    let skipped = 0;
+    const importedIds = [];
+    for (const file of files) {
+      try {
+        const res = await importFile.mutateAsync({ fileId: file.id, location: file.location });
+        importedIds.push(res.id);
+        ok += 1;
+      } catch (err) {
+        skipped += 1;
+      }
+    }
+    setImportingSelected(false);
+    setSelectMode(false);
+    setSelected(new Map());
+    if (ok > 0) {
+      setFeedback({
+        type: skipped > 0 ? 'error' : 'success',
+        text:
+          skipped > 0
+            ? `${ok} archivo${ok === 1 ? '' : 's'} importado${ok === 1 ? '' : 's'}. ${skipped} no se pudo${skipped === 1 ? '' : 'ieron'} importar (posibles duplicados); impórtelo${skipped === 1 ? '' : 's'} individualmente.`
+            : `${ok} archivo${ok === 1 ? '' : 's'} importado${ok === 1 ? '' : 's'} correctamente.`,
+      });
+      navigate('/documents', { state: { importedIds } });
+    } else {
+      setFeedback({ type: 'error', text: 'No se pudo importar ningún archivo (posibles duplicados). Impórtelos individualmente.' });
+    }
+  }
+
+  if (isLoading) return <p className="text-slate-500">Cargando…</p>;
 
   return (
     <div className="space-y-4">
@@ -207,6 +392,15 @@ function GoogleDriveTab({ initialFeedback }) {
         </button>
       )}
 
+      {duplicate && (
+        <DuplicatePrompt
+          duplicate={duplicate}
+          busy={importFile.isPending}
+          onResolve={(action) => doImport(duplicate.file, action)}
+          onCancel={() => setDuplicate(null)}
+        />
+      )}
+
       {connected && (
         <>
           <div className="flex justify-end">
@@ -224,6 +418,12 @@ function GoogleDriveTab({ initialFeedback }) {
             search={search}
             setSearch={setSearch}
             typeFilter={typeFilter}
+            selectMode={selectMode}
+            onToggleSelectMode={toggleSelectMode}
+            selected={new Set(selected.keys())}
+            onToggleSelect={toggleSelect}
+            onImportSelected={importSelected}
+            importingSelected={importingSelected}
             setTypeFilter={setTypeFilter}
           />
         </>
@@ -233,6 +433,7 @@ function GoogleDriveTab({ initialFeedback }) {
 }
 
 function DropboxTab({ initialFeedback }) {
+  const navigate = useNavigate();
   const { data: status, isLoading } = useDropboxStatus();
   const connected = status?.connected;
   const [folderPath, setFolderPath] = useState('');
@@ -240,6 +441,10 @@ function DropboxTab({ initialFeedback }) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [feedback, setFeedback] = useState(initialFeedback);
+  const [duplicate, setDuplicate] = useState(null); // { file, existing }
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState(new Map());
+  const [importingSelected, setImportingSelected] = useState(false);
   const filesQuery = useDropboxFiles(folderPath, !!connected);
   const importFile = useImportDropboxFile();
 
@@ -267,6 +472,9 @@ function DropboxTab({ initialFeedback }) {
     setFolderPath(file.id);
     setSearch('');
     setTypeFilter('');
+    setDuplicate(null);
+    setSelectMode(false);
+    setSelected(new Map());
   }
 
   function goBack() {
@@ -275,16 +483,71 @@ function DropboxTab({ initialFeedback }) {
     setFolderPath(prev ? prev.path : '');
     setSearch('');
     setTypeFilter('');
+    setDuplicate(null);
+    setSelectMode(false);
+    setSelected(new Map());
   }
 
-  async function doImport(file) {
+  function toggleSelectMode() {
+    setSelectMode((v) => !v);
+    setSelected(new Map());
+  }
+
+  function toggleSelect(file) {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(file.id)) next.delete(file.id);
+      else next.set(file.id, file);
+      return next;
+    });
+  }
+
+  async function doImport(file, onDuplicate) {
     setFeedback(null);
     try {
-      const res = await importFile.mutateAsync({ fileId: file.id, location: file.location });
+      const res = await importFile.mutateAsync({ fileId: file.id, location: file.location, onDuplicate });
+      setDuplicate(null);
       setFeedback({ type: 'success', text: res.message });
+      navigate('/documents', { state: { importedIds: [res.id] } });
     } catch (err) {
       const data = err.response?.data;
+      if (data?.code === 'DUPLICATE_NAME') { setDuplicate({ file, existing: data.existing }); return; }
+      setDuplicate(null);
       setFeedback({ type: 'error', text: data?.error || 'Error al importar.' });
+    }
+  }
+
+  async function importSelected() {
+    const files = Array.from(selected.values());
+    if (files.length === 0) return;
+    setFeedback(null);
+    setImportingSelected(true);
+    let ok = 0;
+    let skipped = 0;
+    const importedIds = [];
+    for (const file of files) {
+      try {
+        const res = await importFile.mutateAsync({ fileId: file.id, location: file.location });
+        importedIds.push(res.id);
+        ok += 1;
+      } catch (err) {
+        skipped += 1;
+      }
+    }
+    setImportingSelected(false);
+    setSelectMode(false);
+    setSelected(new Map());
+    if (ok > 0) {
+      setFeedback({
+        type: skipped > 0 ? 'error' : 'success',
+        text:
+          skipped > 0
+            ? `${ok} archivo${ok === 1 ? '' : 's'} importado${ok === 1 ? '' : 's'}. ${skipped} no se pudo${skipped === 1 ? '' : 'ieron'} importar (posibles duplicados); impórtelo${skipped === 1 ? '' : 's'} individualmente.`
+            : `${ok} archivo${ok === 1 ? '' : 's'} importado${ok === 1 ? '' : 's'} correctamente.`,
+      });
+      navigate('/documents', { state: { importedIds } });
+    } else {
+      setFeedback({ type: 'error', text: 'No se pudo importar ningún archivo (posibles duplicados). Impórtelos individualmente.' });
     }
   }
 
@@ -316,6 +579,15 @@ function DropboxTab({ initialFeedback }) {
         </button>
       )}
 
+      {duplicate && (
+        <DuplicatePrompt
+          duplicate={duplicate}
+          busy={importFile.isPending}
+          onResolve={(action) => doImport(duplicate.file, action)}
+          onCancel={() => setDuplicate(null)}
+        />
+      )}
+
       {connected && (
         <>
           <div className="flex justify-end">
@@ -333,6 +605,12 @@ function DropboxTab({ initialFeedback }) {
             search={search}
             setSearch={setSearch}
             typeFilter={typeFilter}
+            selectMode={selectMode}
+            onToggleSelectMode={toggleSelectMode}
+            selected={new Set(selected.keys())}
+            onToggleSelect={toggleSelect}
+            onImportSelected={importSelected}
+            importingSelected={importingSelected}
             setTypeFilter={setTypeFilter}
           />
         </>

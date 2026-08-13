@@ -1,5 +1,5 @@
 // HU09 — Conexión e importación desde Google Drive.
-import { config, isGoogleConfigured } from '../config/env.js';
+import { config, isGoogleConfigured, maxFileSizeBytes } from '../config/env.js';
 import * as drive from '../services/googleDrive.service.js';
 import { ingestDocument } from './documents.controller.js';
 import { formatFromName } from '../middleware/upload.js';
@@ -7,6 +7,129 @@ import { prisma } from '../config/prisma.js';
 import { deleteFile } from '../services/storage.service.js';
 import { isDropboxConfigured } from '../config/env.js';
 import * as dropbox from '../services/dropbox.service.js';
+
+/**
+ * Importación de un archivo desde un proveedor de nube conectado.
+ * Comparte con la carga manual (HU07) las validaciones de formato/tamaño y el
+ * flujo de duplicados (reemplazar / conservar ambos / restaurar de papelera).
+ *
+ * @param {object} provider  { label, source, service } donde `service` expone
+ *                           getFileMeta / downloadFile.
+ */
+async function importFromCloud(req, res, provider) {
+  const { label, source, service } = provider;
+  const { fileId, location } = req.body || {};
+  const onDuplicate = (req.query.onDuplicate || '').toLowerCase(); // '', 'replace', 'keep', 'restore'
+  if (!fileId) return res.status(400).json({ error: 'fileId es obligatorio.' });
+
+  let meta;
+  try {
+    meta = await service.getFileMeta(req.user.id, fileId);
+  } catch (err) {
+    console.error(`${label} meta error:`, err.message);
+    meta = null;
+  }
+  if (!meta) {
+    return res.status(400).json({
+      error: `No fue posible obtener la información del archivo en ${label}. Reconecte la cuenta e inténtelo nuevamente.`,
+    });
+  }
+
+  // Formato: mismas reglas que la carga manual.
+  if (!formatFromName(meta.name)) {
+    return res.status(400).json({
+      code: 'INVALID_FORMAT',
+      error: `El archivo "${meta.name}" no es PDF, DOCX ni XLSX y no puede importarse.`,
+    });
+  }
+
+  // Tamaño: se valida con el metadato cuando el proveedor lo informa, para no
+  // descargar en vano; los formatos nativos de Google no lo informan y se
+  // revisan luego sobre el contenido descargado.
+  const maxBytes = maxFileSizeBytes();
+  const tooBig = (bytes) => ({
+    code: 'FILE_TOO_LARGE',
+    error: `El archivo "${meta.name}" pesa ${(bytes / 1024 / 1024).toFixed(1)}MB y supera el máximo de ${config.maxFileSizeMb}MB.`,
+  });
+  if (meta.sizeBytes && meta.sizeBytes > maxBytes) {
+    return res.status(400).json(tooBig(meta.sizeBytes));
+  }
+
+  const existing = await prisma.document.findFirst({
+    where: { originalName: meta.name },
+    orderBy: { uploadedAt: 'desc' },
+  });
+
+  if (existing && !onDuplicate) {
+    const inTrash = !!existing.deletedAt;
+    return res.status(409).json({
+      code: 'DUPLICATE_NAME',
+      error: inTrash
+        ? 'Ya existe un documento con el mismo nombre en la papelera.'
+        : 'Ya existe un documento con el mismo nombre.',
+      existing: {
+        id: existing.id,
+        name: existing.originalName,
+        creationDate: existing.documentDate,
+        uploadDate: existing.uploadedAt,
+        inTrash,
+        deletedAt: existing.deletedAt,
+      },
+    });
+  }
+
+  // Restaurar el existente: no se importa nada nuevo desde la nube.
+  if (existing && onDuplicate === 'restore') {
+    await prisma.document.update({ where: { id: existing.id }, data: { deletedAt: null } });
+    return res.status(200).json({
+      id: existing.id,
+      name: existing.originalName,
+      message: 'Documento restaurado desde la papelera. No se importó un nuevo archivo.',
+    });
+  }
+
+  let file;
+  try {
+    file = await service.downloadFile(req.user.id, fileId);
+  } catch (err) {
+    console.error(`${label} import error:`, err.message);
+    return res.status(400).json({ error: `No fue posible importar el archivo desde ${label}.` });
+  }
+
+  if (file.buffer.length > maxBytes) return res.status(400).json(tooBig(file.buffer.length));
+
+  if (existing && onDuplicate === 'replace') {
+    await deleteFile(existing.storagePath);
+    await prisma.document.delete({ where: { id: existing.id } });
+  }
+
+  // El nombre exportado (Google Docs → .docx) manda sobre el del metadato.
+  let finalName = file.name || meta.name;
+  if (existing && onDuplicate === 'keep') {
+    const dot = finalName.lastIndexOf('.');
+    const base = dot === -1 ? finalName : finalName.slice(0, dot);
+    const ext  = dot === -1 ? '' : finalName.slice(dot);
+    finalName = `${base} (copia ${Date.now()})${ext}`;
+  }
+
+  const doc = await ingestDocument({
+    buffer: file.buffer,
+    originalName: finalName,
+    userId: req.user.id,
+    source,
+    cloudFileId: fileId,
+    cloudLocation: location || label,
+  });
+
+  return res.status(201).json({
+    id: doc.id,
+    name: doc.originalName,
+    format: doc.format,
+    sizeBytes: doc.sizeBytes,
+    uploadedAt: doc.uploadedAt,
+    message: `"${doc.originalName}" importado desde ${label}.`,
+  });
+}
 
 const NOT_CONFIGURED_DROPBOX = {
   configured: false,
@@ -59,60 +182,14 @@ export async function dropboxListFiles(req, res) {
   }
 }
 
-/** POST /cloud/dropbox/import */
+/** POST /cloud/dropbox/import  Body: { fileId, location } */
 export async function dropboxImportFile(req, res) {
   if (!isDropboxConfigured()) return res.status(400).json(NOT_CONFIGURED_DROPBOX);
-  const { fileId, location } = req.body || {};
-  const onDuplicate = (req.query.onDuplicate || '').toLowerCase();
-  if (!fileId) return res.status(400).json({ error: 'fileId es obligatorio.' });
-
-  try {
-    const meta = await dropbox.getFileMeta(req.user.id, fileId);
-    const format = formatFromName(meta.name);
-    if (!format) return res.status(400).json({ error: `"${meta.name}" no es PDF, DOCX ni XLSX.`, code: 'INVALID_FORMAT' });
-
-    const existing = await prisma.document.findFirst({
-      where: { originalName: meta.name },
-      orderBy: { uploadedAt: 'desc' },
-    });
-
-    if (existing && !onDuplicate) {
-      return res.status(409).json({
-        code: 'DUPLICATE_NAME',
-        error: 'Ya existe un documento con el mismo nombre.',
-        existing: { id: existing.id, name: existing.originalName, creationDate: existing.documentDate, uploadDate: existing.uploadedAt },
-      });
-    }
-
-    const file = await dropbox.downloadFile(req.user.id, fileId);
-
-    if (existing && onDuplicate === 'replace') {
-      await deleteFile(existing.storagePath);
-      await prisma.document.delete({ where: { id: existing.id } });
-    }
-
-    let finalName = file.name;
-    if (existing && onDuplicate === 'keep') {
-      const dot = file.name.lastIndexOf('.');
-      const base = dot === -1 ? file.name : file.name.slice(0, dot);
-      const ext  = dot === -1 ? '' : file.name.slice(dot);
-      finalName = `${base} (copia ${Date.now()})${ext}`;
-    }
-
-    const doc = await ingestDocument({
-      buffer: file.buffer,
-      originalName: finalName,
-      userId: req.user.id,
-      source: 'DROPBOX',
-      cloudFileId: fileId,
-      cloudLocation: location || 'Dropbox',
-    });
-
-    return res.status(201).json({ id: doc.id, name: doc.originalName, message: `"${doc.originalName}" importado desde Dropbox.` });
-  } catch (err) {
-    console.error('Dropbox import error:', err.message);
-    return res.status(400).json({ error: 'No fue posible importar el archivo desde Dropbox.' });
-  }
+  return importFromCloud(req, res, {
+    label: 'Dropbox',
+    source: 'DROPBOX',
+    service: dropbox,
+  });
 }
 
 const NOT_CONFIGURED = {
@@ -194,73 +271,11 @@ export async function listFiles(req, res) {
 /** POST /cloud/google/import  Body: { fileId, location } */
 export async function importFile(req, res) {
   if (!isGoogleConfigured()) return res.status(400).json(NOT_CONFIGURED);
-  const { fileId, location } = req.body || {};
-  const onDuplicate = (req.query.onDuplicate || '').toLowerCase();
-  if (!fileId) return res.status(400).json({ error: 'fileId es obligatorio.' });
-
-  try {
-    const meta = await drive.getFileMeta(req.user.id, fileId);
-    if (!meta) return res.status(400).json({ error: 'No se pudo obtener información del archivo.' });
-
-    const format = formatFromName(meta.name);
-    if (!format) {
-      return res.status(400).json({
-        error: `El archivo "${meta.name}" no es PDF, DOCX ni XLSX y no puede importarse.`,
-        code: 'INVALID_FORMAT',
-      });
-    }
-
-    const existing = await prisma.document.findFirst({
-      where: { originalName: meta.name },
-      orderBy: { uploadedAt: 'desc' },
-    });
-
-    if (existing && !onDuplicate) {
-      return res.status(409).json({
-        code: 'DUPLICATE_NAME',
-        error: 'Ya existe un documento con el mismo nombre.',
-        existing: {
-          id: existing.id,
-          name: existing.originalName,
-          creationDate: existing.documentDate,
-          uploadDate: existing.uploadedAt,
-        },
-      });
-    }
-
-    const file = await drive.downloadFile(req.user.id, fileId);
-
-    if (existing && onDuplicate === 'replace') {
-      await deleteFile(existing.storagePath);
-      await prisma.document.delete({ where: { id: existing.id } });
-    }
-
-    let finalName = file.name;
-    if (existing && onDuplicate === 'keep') {
-      const dot = file.name.lastIndexOf('.');
-      const base = dot === -1 ? file.name : file.name.slice(0, dot);
-      const ext  = dot === -1 ? '' : file.name.slice(dot);
-      finalName = `${base} (copia ${Date.now()})${ext}`;
-    }
-
-    const doc = await ingestDocument({
-      buffer: file.buffer,
-      originalName: finalName,
-      userId: req.user.id,
-      source: 'GOOGLE_DRIVE',
-      cloudFileId: fileId,
-      cloudLocation: location || 'Google Drive',
-    });
-
-    return res.status(201).json({
-      id: doc.id,
-      name: doc.originalName,
-      message: `"${doc.originalName}" importado desde Google Drive.`,
-    });
-  } catch (err) {
-    console.error('Drive import error:', err.message);
-    return res.status(400).json({ error: 'No fue posible importar el archivo desde Google Drive.' });
-  }
+  return importFromCloud(req, res, {
+    label: 'Google Drive',
+    source: 'GOOGLE_DRIVE',
+    service: drive,
+  });
 }
 
 /** DELETE /cloud/:provider/disconnect */
