@@ -5,6 +5,9 @@ export const config = {
   maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB || '10', 10),
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
   storageDir: process.env.STORAGE_DIR || '/app/data',
+  // Clave para cifrar los archivos en reposo (HDU09). Si se omite, se deriva
+  // de JWT_SECRET.
+  docEncryptionKey: process.env.DOC_ENCRYPTION_KEY || '',
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
