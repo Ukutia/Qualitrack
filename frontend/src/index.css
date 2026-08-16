@@ -128,6 +128,50 @@ body::after {
   animation: ring-fill 1s var(--ease-out) both;
 }
 
+/* ── Landing: revelado al hacer scroll ──────────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 700ms var(--ease-out), transform 700ms var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Barrido lento del acento sobre el titular del hero. */
+@keyframes sheen {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.hero-sheen {
+  background-image: linear-gradient(100deg, #1f4e57 0%, #2c6670 30%, #b78c4a 50%, #2c6670 70%, #1f4e57 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sheen 9s linear infinite;
+}
+
+/* Cuadrícula técnica de fondo — sugiere planilla/rúbrica sin ruido. */
+.grid-paper {
+  background-image:
+    linear-gradient(to right, rgba(31, 78, 87, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(31, 78, 87, 0.055) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(70% 60% at 50% 30%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(70% 60% at 50% 30%, #000 30%, transparent 100%);
+}
+
+/* Detalle del acordeón de preguntas. */
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+.faq-item[open] .faq-chevron {
+  transform: rotate(45deg);
+}
+
 /* ── Respeta usuarios sensibles al movimiento ───────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,

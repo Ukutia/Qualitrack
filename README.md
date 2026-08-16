@@ -40,6 +40,10 @@ Al iniciar, el backend sincroniza el esquema (`prisma db push`), ejecuta el *see
 
 ## Decisiones del MVP
 
+- **Landing pública:** `/` es la página de presentación (`frontend/src/pages/Landing.jsx`), abierta
+  sin sesión. La aplicación autenticada vive bajo `/app` (tablero) y el resto de rutas protegidas
+  no cambian.
+
 - **Clasificador IA (HU01):** *mock* determinístico por palabras clave (sin llamadas externas).
   La lógica está aislada en `backend/src/services/classifier.service.js` para enchufar
   Claude/OpenAI más adelante sin tocar el resto.
