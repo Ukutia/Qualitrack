@@ -43,4 +43,4 @@ ENV FRONTEND_DIST=/app/public
 EXPOSE 4000
 
 # Al iniciar: sincroniza el esquema, seedea (idempotente) y arranca.
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node prisma/seed.js && node src/server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node prisma/seed.js && node src/server.js"]

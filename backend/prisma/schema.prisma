@@ -104,22 +104,23 @@ model Document {
   id            Int            @id @default(autoincrement())
   originalName  String
   storedName    String         @unique
-  format        String // pdf | docx | xlsx
+  format        String
   sizeBytes     Int
   storagePath   String
   source        DocumentSource @default(UPLOAD)
   cloudFileId   String?
   cloudLocation String?
-  documentDate  DateTime       @default(now()) // base para antigüedad (HU02)
+  documentDate  DateTime       @default(now())
   extractedText String?        @db.Text
   uploadedAt    DateTime       @default(now())
 
   uploadedBy   User @relation(fields: [uploadedById], references: [id])
   uploadedById Int
 
-  deletedAt    DateTime?      // null = activo, fecha = en papelera
+  deletedAt DateTime?
 
   associations Association[]
+  chunks DocumentChunk[]
 }
 
 model Association {
@@ -166,4 +167,18 @@ model CloudConnection {
   updatedAt    DateTime  @updatedAt
 
   @@unique([userId, provider])
+}
+
+model DocumentChunk {
+  id             Int      @id @default(autoincrement())
+  documentId     Int
+  chunkIndex     Int
+  content        String   @db.Text
+  embedding      Unsupported("vector(768)")?
+  embeddingModel String   @default("intfloat/multilingual-e5-base")
+  createdAt      DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
 }
