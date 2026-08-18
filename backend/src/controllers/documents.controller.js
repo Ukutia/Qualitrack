@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma.js';
 import { saveFile, readFile, deleteFile } from '../services/storage.service.js';
 import { extractText } from '../services/textExtraction.service.js';
 import { extractDocumentDate } from '../services/dateExtraction.service.js';
+import { vectorizeDocument } from '../services/vector.service.js';
 import { formatFromName } from '../middleware/upload.js';
 
 const MIME = {
@@ -30,7 +31,7 @@ export async function ingestDocument({
   // Detectar la fecha de emisión real del documento desde su contenido
   const documentDate = extractDocumentDate(extractedText, originalName) ?? new Date();
 
-  return prisma.document.create({
+  const document = await prisma.document.create({
     data: {
       originalName,
       storedName,
@@ -45,6 +46,17 @@ export async function ingestDocument({
       uploadedById: userId,
     },
   });
+
+  try {
+    await vectorizeDocument(document.id, extractedText);
+  } catch (error) {
+    console.error(
+      `Error al vectorizar documento ${document.id}:`,
+      error
+    );
+  }
+
+  return document;
 }
 
 export async function uploadDocument(req, res) {
