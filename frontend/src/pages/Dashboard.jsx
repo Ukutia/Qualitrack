@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useCompliance } from '../hooks/useApi.js';
 import TrafficLight from '../components/TrafficLight.jsx';
+import { LEVEL_ORDER, levelMeta } from '../lib/levels.js';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('es-CL') : '—');
 
@@ -40,9 +41,9 @@ function AgeBar({ documentDate, name, current }) {
   return (
     <li className="space-y-1">
       <div className="flex items-center justify-between gap-2 text-xs">
-        <span className="truncate text-stone-600 max-w-[55%]" title={name}>{name}</span>
+        <span className="truncate text-steel-600 max-w-[55%]" title={name}>{name}</span>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className={`tnum font-medium ${current ? 'text-stone-500' : 'text-rose-500'}`}>
+          <span className={`tnum font-medium ${current ? 'text-steel-500' : 'text-rose-500'}`}>
             {fmtDate(documentDate)}
           </span>
           <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
@@ -54,7 +55,7 @@ function AgeBar({ documentDate, name, current }) {
           </span>
         </div>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-stone-100 overflow-hidden">
+      <div className="h-1.5 w-full rounded-full bg-steel-100 overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-700 ${barColor}`}
           style={{ width: `${pct}%` }}
@@ -97,7 +98,7 @@ function HealthRing({ pct }) {
         x="60" y="76"
         transform="rotate(90 60 60)"
         textAnchor="middle"
-        className="fill-stone-400"
+        className="fill-steel-400"
         style={{ fontSize: '10px', letterSpacing: '0.1em' }}
       >
         SUFICIENTE
@@ -111,8 +112,135 @@ function Stat({ color, count, label }) {
     <div className="flex items-center gap-2.5">
       <TrafficLight color={color} />
       <span className="tnum text-xl font-semibold text-ink-900">{count}</span>
-      <span className="text-sm text-stone-500">{label}</span>
+      <span className="text-sm text-steel-500">{label}</span>
     </div>
+  );
+}
+
+/** Resumen compacto de un nivel: "2/3 suficientes" + barra de avance. */
+function LevelSummary({ level, items }) {
+  const meta = levelMeta(level);
+  const green = items.filter((i) => i.color === 'green').length;
+  const pct = items.length ? Math.round((green / items.length) * 100) : 0;
+  return (
+    <div className="min-w-[9rem] flex-1">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-500">
+          {meta.label}
+        </span>
+        <span className="tnum text-xs text-steel-500">
+          {green}/{items.length}
+        </span>
+      </div>
+      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-steel-100">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${meta.bar}`}
+          style={{ width: `${pct}%` }}
+          title={`${meta.title}: ${green} de ${items.length} subcriterios suficientes`}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Encabezado de la sección de un nivel. */
+function LevelHeader({ level, items }) {
+  const meta = levelMeta(level);
+  const green = items.filter((i) => i.color === 'green').length;
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="max-w-2xl">
+        <div className="flex items-center gap-2">
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ring-1 ${meta.chip}`}
+          >
+            {meta.label}
+          </span>
+          <h2 className="font-display text-lg font-semibold text-ink-900">{meta.title}</h2>
+        </div>
+        <p className="mt-1 text-sm text-steel-500">{meta.description}</p>
+      </div>
+      <p className="tnum shrink-0 text-sm text-steel-500">
+        {green} de {items.length} suficientes
+      </p>
+    </div>
+  );
+}
+
+function SubcriterionCard({ item }) {
+  const meta = levelMeta(item.level);
+  return (
+    <article className="group rounded-xl2 bg-white shadow-soft ring-1 ring-steel-200/50 p-5 transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-lift">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-500">
+              {item.code}
+            </p>
+            <span
+              className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ring-1 ${meta.chip}`}
+            >
+              {meta.short}
+            </span>
+          </div>
+          <h3 className="mt-0.5 font-display text-base font-semibold leading-snug text-ink-900">
+            {item.name}
+          </h3>
+        </div>
+        <TrafficLight color={item.color} size="lg" />
+      </div>
+
+      {item.description && (
+        <p className="mt-2 text-xs leading-relaxed text-steel-500">{item.description}</p>
+      )}
+
+      <p className="mt-3 text-sm font-medium text-steel-600">
+        Estado:{' '}
+        <span className={STATUS_COLOR[item.color] || 'text-rose-600'}>{item.status}</span>
+      </p>
+      <p className="text-xs text-steel-400 mb-3">
+        <span className="tnum">{item.validatedCount}</span> documento(s) validado(s)
+      </p>
+
+      {/* Antigüedad de documentos con barra visual */}
+      {item.documents.length > 0 && (
+        <div className="border-t border-steel-100 pt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-steel-400 mb-2">
+            Antigüedad de documentos
+          </p>
+          <ul className="space-y-2.5">
+            {item.documents.map((d) => (
+              <AgeBar
+                key={d.id}
+                documentDate={d.documentDate}
+                name={d.name}
+                current={d.current}
+              />
+            ))}
+          </ul>
+          {/* Leyenda de colores */}
+          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-steel-400">
+            <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-full bg-emerald-400"/>&lt;1 año</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-full bg-amber-400"/>1-2 años</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-full bg-orange-400"/>2-3 años</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-full bg-rose-500"/>&gt;3 años</span>
+          </div>
+        </div>
+      )}
+
+      {item.acceptedEvidenceTypes && item.acceptedEvidenceTypes.length > 0 && (
+        <div className="mt-3 border-t border-steel-100 pt-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-steel-400">
+            Evidencia típicamente aceptada
+          </p>
+          <ul className="mt-1 list-disc list-inside text-xs text-steel-500">
+            {item.acceptedEvidenceTypes.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -160,16 +288,26 @@ export default function Dashboard() {
   const total = items.length;
   const pct = total ? Math.round((green / total) * 100) : 0;
 
+  // Los subcriterios se agrupan por nivel (1 obligatorio → 3 excelencia).
+  const groups = LEVEL_ORDER.map((level) => ({
+    level,
+    items: items.filter((it) => (it.level ?? 1) === level),
+  })).filter((g) => g.items.length > 0);
+
+  // El Nivel 1 es el piso mínimo: si algo falla ahí, se advierte arriba de todo.
+  const level1 = groups.find((g) => g.level === 1)?.items ?? [];
+  const level1Pending = level1.filter((it) => it.color !== 'green');
+
   return (
     <div className="space-y-7">
       <header>
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-500">
-          {data.criterion?.code}
+          Criterio {data.criterion?.code} · CNA
         </p>
         <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-ink-900">
           Tablero de salud institucional
         </h1>
-        <p className="text-stone-500 mt-1">{data.criterion?.name}</p>
+        <p className="text-steel-500 mt-1">{data.criterion?.name}</p>
       </header>
 
       {!data.canCalculate ? (
@@ -182,7 +320,7 @@ export default function Dashboard() {
       ) : (
         <>
           {/* Hero de salud */}
-          <section className="relative overflow-hidden rounded-xl2 bg-white shadow-soft ring-1 ring-stone-200/60">
+          <section className="relative overflow-hidden rounded-xl2 bg-white shadow-soft ring-1 ring-steel-200/60">
             <span className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-500/[0.06] blur-2xl" />
             <div className="relative flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:gap-10">
               <div className="shrink-0">
@@ -192,13 +330,20 @@ export default function Dashboard() {
                 <h2 className="font-display text-xl font-semibold text-ink-900">
                   {green} de {total} subcriterios con evidencia suficiente
                 </h2>
-                <p className="mt-1 text-sm text-stone-500">
-                  Estado consolidado del Criterio 9 según los documentos validados hasta hoy.
+                <p className="mt-1 text-sm text-steel-500">
+                  Estado consolidado del Criterio 9 —{' '}
+                  <span className="font-medium text-steel-600">niveles 1, 2 y 3</span> — según los
+                  documentos validados hasta hoy.
                 </p>
                 <div className="mt-5 flex flex-wrap gap-x-8 gap-y-3">
                   <Stat color="green" count={green} label="suficientes" />
                   <Stat color="yellow" count={yellow} label="parciales" />
                   <Stat color="red" count={red} label="insuficientes" />
+                </div>
+                <div className="mt-5 flex flex-wrap gap-x-6 gap-y-3 border-t border-steel-100 pt-4">
+                  {groups.map(({ level, items: levelItems }) => (
+                    <LevelSummary key={level} level={level} items={levelItems} />
+                  ))}
                 </div>
               </div>
             </div>
@@ -209,73 +354,26 @@ export default function Dashboard() {
             </div>
           </section>
 
-          <div className="card-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((item) => (
-              <article
-                key={item.subcriterionId}
-                className="group rounded-xl2 bg-white shadow-soft ring-1 ring-stone-200/50 p-5 transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-lift"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-500">
-                      {item.code}
-                    </p>
-                    <h3 className="mt-0.5 font-display text-base font-semibold leading-snug text-ink-900">
-                      {item.name}
-                    </h3>
-                  </div>
-                  <TrafficLight color={item.color} size="lg" />
-                </div>
+          {level1Pending.length > 0 && (
+            <div className="alert-in rounded-xl2 border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+              <span className="font-semibold">Nivel 1 incompleto.</span> Quedan{' '}
+              <span className="tnum font-semibold">{level1Pending.length}</span> subcriterio(s)
+              obligatorio(s) sin evidencia suficiente:{' '}
+              {level1Pending.map((it) => `${it.code} ${it.name}`).join(' · ')}. Este nivel es el piso
+              mínimo para acreditar.
+            </div>
+          )}
 
-                <p className="mt-3 text-sm font-medium text-stone-600">
-                  Estado:{' '}
-                  <span className={STATUS_COLOR[item.color] || 'text-rose-600'}>{item.status}</span>
-                </p>
-                <p className="text-xs text-stone-400 mb-3">
-                  <span className="tnum">{item.validatedCount}</span> documento(s) validado(s)
-                </p>
-
-                {/* Antigüedad de documentos con barra visual */}
-                {item.documents.length > 0 && (
-                  <div className="border-t border-stone-100 pt-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-400 mb-2">
-                      Antigüedad de documentos
-                    </p>
-                    <ul className="space-y-2.5">
-                      {item.documents.map((d) => (
-                        <AgeBar
-                          key={d.id}
-                          documentDate={d.documentDate}
-                          name={d.name}
-                          current={d.current}
-                        />
-                      ))}
-                    </ul>
-                    {/* Leyenda de colores */}
-                    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-stone-400">
-                      <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-full bg-emerald-400"/>&lt;1 año</span>
-                      <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-full bg-amber-400"/>1-2 años</span>
-                      <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-full bg-orange-400"/>2-3 años</span>
-                      <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-full bg-rose-500"/>&gt;3 años</span>
-                    </div>
-                  </div>
-                )}
-
-                {item.acceptedEvidenceTypes && item.acceptedEvidenceTypes.length > 0 && (
-                  <div className="mt-3 border-t border-stone-100 pt-2.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">
-                      Evidencia típicamente aceptada
-                    </p>
-                    <ul className="mt-1 list-disc list-inside text-xs text-stone-500">
-                      {item.acceptedEvidenceTypes.map((t) => (
-                        <li key={t}>{t}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </article>
-            ))}
-          </div>
+          {groups.map(({ level, items: levelItems }) => (
+            <section key={level} className="space-y-4">
+              <LevelHeader level={level} items={levelItems} />
+              <div className="card-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {levelItems.map((item) => (
+                  <SubcriterionCard key={item.subcriterionId} item={item} />
+                ))}
+              </div>
+            </section>
+          ))}
         </>
       )}
     </div>

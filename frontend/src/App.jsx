@@ -1,6 +1,8 @@
-import { Routes, Route } from 'react-router-dom';
+import { Navigate, Routes, Route } from 'react-router-dom';
+import { useAuth } from './context/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Layout from './components/Layout.jsx';
+import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Documents from './pages/Documents.jsx';
@@ -10,9 +12,18 @@ import CriteriaStructure from './pages/CriteriaStructure.jsx';
 import CloudConnect from './pages/CloudConnect.jsx';
 import Trash from './pages/Trash.jsx';
 
+// Página pública: si ya hay sesión, va directo al tablero en vez de la landing.
+function Home() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-8 text-steel-500">Cargando…</div>;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <Landing />;
+}
+
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route
         element={
@@ -21,7 +32,7 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="/documents/:id" element={<DocumentDetail />} />
         <Route path="/upload" element={<Upload />} />

@@ -47,8 +47,8 @@ describe('buildComplianceReport (HU02)', () => {
   it('sin ninguna asociación validada -> no se puede calcular + mensaje exacto', () => {
     const report = buildComplianceReport(
       [
-        { id: 1, code: '9.1', name: 'A', acceptedEvidenceTypes: [], validatedDocs: [] },
-        { id: 2, code: '9.2', name: 'B', acceptedEvidenceTypes: [], validatedDocs: [] },
+        { id: 1, code: '9.1.1', name: 'A', level: 1, acceptedEvidenceTypes: [], validatedDocs: [] },
+        { id: 2, code: '9.2.1', name: 'B', level: 2, acceptedEvidenceTypes: [], validatedDocs: [] },
       ],
       NOW
     );
@@ -60,25 +60,42 @@ describe('buildComplianceReport (HU02)', () => {
   it('calcula estados mixtos y adjunta tipos de evidencia en Parcial/Insuficiente', () => {
     const report = buildComplianceReport(
       [
-        { id: 1, code: '9.1', name: 'A', acceptedEvidenceTypes: ['x'], validatedDocs: [doc(1, 1), doc(2, 2)] },
-        { id: 2, code: '9.2', name: 'B', acceptedEvidenceTypes: ['y'], validatedDocs: [doc(3, 1)] },
-        { id: 3, code: '9.3', name: 'C', acceptedEvidenceTypes: ['z'], validatedDocs: [] },
+        { id: 1, code: '9.1.1', name: 'A', level: 1, required: true, acceptedEvidenceTypes: ['x'], validatedDocs: [doc(1, 1), doc(2, 2)] },
+        { id: 2, code: '9.2.1', name: 'B', level: 2, required: false, acceptedEvidenceTypes: ['y'], validatedDocs: [doc(3, 1)] },
+        { id: 3, code: '9.3.1', name: 'C', level: 3, required: false, acceptedEvidenceTypes: ['z'], validatedDocs: [] },
       ],
       NOW
     );
     expect(report.canCalculate).toBe(true);
 
     const byCode = Object.fromEntries(report.items.map((i) => [i.code, i]));
-    expect(byCode['9.1'].status).toBe('Suficiente');
-    expect(byCode['9.1'].color).toBe('green');
-    expect(byCode['9.1'].acceptedEvidenceTypes).toBeUndefined(); // no se adjunta en Suficiente
+    expect(byCode['9.1.1'].status).toBe('Suficiente');
+    expect(byCode['9.1.1'].color).toBe('green');
+    expect(byCode['9.1.1'].acceptedEvidenceTypes).toBeUndefined(); // no se adjunta en Suficiente
 
-    expect(byCode['9.2'].status).toBe('Parcial');
-    expect(byCode['9.2'].color).toBe('yellow');
-    expect(byCode['9.2'].acceptedEvidenceTypes).toEqual(['y']);
+    expect(byCode['9.2.1'].status).toBe('Parcial');
+    expect(byCode['9.2.1'].color).toBe('yellow');
+    expect(byCode['9.2.1'].acceptedEvidenceTypes).toEqual(['y']);
 
-    expect(byCode['9.3'].status).toBe('Insuficiente');
-    expect(byCode['9.3'].color).toBe('red');
-    expect(byCode['9.3'].acceptedEvidenceTypes).toEqual(['z']);
+    expect(byCode['9.3.1'].status).toBe('Insuficiente');
+    expect(byCode['9.3.1'].color).toBe('red');
+    expect(byCode['9.3.1'].acceptedEvidenceTypes).toEqual(['z']);
+  });
+
+  it('propaga el nivel y la obligatoriedad de cada subcriterio (matriz de 3 niveles)', () => {
+    const report = buildComplianceReport(
+      [
+        { id: 1, code: '9.1.1', name: 'A', level: 1, required: true, acceptedEvidenceTypes: [], validatedDocs: [doc(1, 1)] },
+        { id: 2, code: '9.3.2', name: 'B', level: 3, required: false, acceptedEvidenceTypes: [], validatedDocs: [] },
+        { id: 3, code: '9.2.2', name: 'C', acceptedEvidenceTypes: [], validatedDocs: [] }, // sin nivel -> 1 por defecto
+      ],
+      NOW
+    );
+    const byCode = Object.fromEntries(report.items.map((i) => [i.code, i]));
+    expect(byCode['9.1.1'].level).toBe(1);
+    expect(byCode['9.1.1'].required).toBe(true);
+    expect(byCode['9.3.2'].level).toBe(3);
+    expect(byCode['9.3.2'].required).toBe(false);
+    expect(byCode['9.2.2'].level).toBe(1);
   });
 });

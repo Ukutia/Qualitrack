@@ -2,8 +2,16 @@
 
 Sistema de **gestión y análisis de evidencias** para la acreditación institucional chilena (CNA).
 El MVP se acota a **una sede, hasta 3 carreras y exclusivamente el Criterio 9 de la CNA**
-("Aseguramiento de la calidad de los programas formativos"), con un único usuario administrador
+("Gestión y resultados del aseguramiento interno de la calidad"), con un único usuario administrador
 (Encargado de Aseguramiento de Calidad).
+
+El criterio se evalúa en **tres niveles acumulativos**, tal como los define la matriz de la CNA:
+
+| Nivel | Alcance | Subcriterios |
+|-------|---------|--------------|
+| **1 — Cumplimiento obligatorio** | Piso mínimo para acreditar | 9.1.1 Institucionalidad de la calidad · 9.1.2 Monitoreo del desempeño · 9.1.3 Transparencia y acceso a la información |
+| **2 — Acreditación avanzada** | Requiere todo el Nivel 1 | 9.2.1 Formalización de mecanismos e indicadores · 9.2.2 Instalación de una cultura de calidad transversal |
+| **3 — Excelencia** | Requiere los niveles 1 y 2 | 9.3.1 Autorregulación autónoma y madurez del sistema · 9.3.2 Compromiso y coherencia estamental total |
 
 ## Historias de usuario incluidas
 
@@ -32,7 +40,17 @@ docker compose up --build
 ```
 
 Al iniciar, el backend sincroniza el esquema (`prisma db push`), ejecuta el *seed*
-(admin + Criterio 9 + estructura del informe) y levanta la API.
+(admin + Criterio 9 con sus tres niveles + estructura del informe) y levanta la API.
+
+> **Actualización de la matriz de criterios.** Si la base ya existía con la matriz anterior
+> (subcriterios `9.1`–`9.5`), tras `db push` + `db:seed` conviven con los nuevos. El seed
+> elimina automáticamente los obsoletos **sin asociaciones**; los que aún tienen evidencias
+> asociadas se conservan y se avisa por consola. Para eliminarlos junto con sus asociaciones
+> e historial:
+>
+> ```bash
+> PRUNE_OBSOLETE_SUBCRITERIA=true npm run db:seed
+> ```
 
 - Frontend: http://localhost:5173
 - API: http://localhost:4000/api

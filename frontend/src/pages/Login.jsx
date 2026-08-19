@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { LEVEL_ORDER, levelMeta } from '../lib/levels.js';
 
 export default function Login() {
   const { login, user } = useAuth();
@@ -12,7 +13,7 @@ export default function Login() {
 
   // Si ya hay sesión, redirige (en efecto, no durante el render).
   useEffect(() => {
-    if (user) navigate('/', { replace: true });
+    if (user) navigate('/dashboard', { replace: true });
   }, [user, navigate]);
 
   async function handleSubmit(e) {
@@ -21,7 +22,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(email, password);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'No fue posible iniciar sesión.');
     } finally {
@@ -32,7 +33,7 @@ export default function Login() {
   return (
     <div className="min-h-full grid lg:grid-cols-[1.05fr_1fr]">
       {/* Lienzo institucional */}
-      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-ink-900 bg-gradient-to-br from-ink-800 via-ink-900 to-ink-900 p-12 text-stone-200">
+      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-ink-900 bg-gradient-to-br from-ink-800 via-ink-900 to-ink-900 p-12 text-steel-200">
         <span className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-brand-500/20 blur-3xl" />
         <span className="pointer-events-none absolute -left-20 bottom-10 h-72 w-72 rounded-full bg-gold-500/10 blur-3xl" />
 
@@ -43,23 +44,40 @@ export default function Login() {
               <path d="M11 16.5l3.4 3.4L21 13" fill="none" stroke="#c9a368" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </span>
-          <span className="font-display text-2xl font-semibold tracking-tight text-stone-50">Qualitrack</span>
+          <span className="font-display text-2xl font-semibold tracking-tight text-steel-50">Qualitrack</span>
         </div>
 
         <div className="relative max-w-md">
           <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-400/80">
             Acreditación CNA · Criterio 9
           </p>
-          <h2 className="mt-4 font-display text-4xl font-semibold leading-tight text-stone-50">
+          <h2 className="mt-4 font-display text-4xl font-semibold leading-tight text-steel-50">
             La evidencia, en orden. La acreditación, bajo control.
           </h2>
-          <p className="mt-4 text-stone-400 leading-relaxed">
-            Centraliza tus documentos, vigila el estado de cada subcriterio con semáforos en
-            tiempo real y llega al informe sin sorpresas de última hora.
+          <p className="mt-4 text-steel-400 leading-relaxed">
+            Gestión y resultados del aseguramiento interno de la calidad, organizado tal como lo
+            evalúa la CNA: tres niveles acumulativos y sus subcriterios, con semáforos en tiempo real.
           </p>
+
+          <ul className="mt-7 space-y-3">
+            {LEVEL_ORDER.map((level) => {
+              const meta = levelMeta(level);
+              return (
+                <li key={level} className="flex gap-3">
+                  <span className="mt-1.5 h-6 shrink-0 rounded-full border-l-2 border-gold-400/60" />
+                  <div>
+                    <p className="text-sm font-semibold text-steel-200">
+                      {meta.label} · {meta.title}
+                    </p>
+                    <p className="text-xs leading-relaxed text-steel-500">{meta.description}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
 
-        <p className="relative text-xs text-stone-500">© {new Date().getFullYear()} Qualitrack · Gestión de evidencias</p>
+        <p className="relative text-xs text-steel-500">© {new Date().getFullYear()} Qualitrack · Gestión de evidencias</p>
       </aside>
 
       {/* Formulario */}
@@ -76,7 +94,7 @@ export default function Login() {
           </div>
 
           <h1 className="font-display text-3xl font-semibold text-ink-900">Bienvenido de vuelta</h1>
-          <p className="mt-1.5 text-sm text-stone-500">Ingresa para gestionar tus evidencias.</p>
+          <p className="mt-1.5 text-sm text-steel-500">Ingresa para gestionar tus evidencias.</p>
 
           {error && (
             <div className="alert-in mt-5 rounded-lg bg-rose-50 text-rose-700 text-sm px-4 py-2.5 ring-1 ring-rose-100">
@@ -86,21 +104,21 @@ export default function Login() {
 
           <div className="mt-6 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-steel-700 mb-1.5">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-stone-300 bg-white/70 px-3.5 py-2.5 text-stone-800 placeholder:text-stone-400 transition-shadow focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 outline-none"
+                className="w-full rounded-lg border border-steel-300 bg-white/70 px-3.5 py-2.5 text-steel-800 placeholder:text-steel-400 transition-shadow focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1.5">Contraseña</label>
+              <label className="block text-sm font-medium text-steel-700 mb-1.5">Contraseña</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-stone-300 bg-white/70 px-3.5 py-2.5 text-stone-800 transition-shadow focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 outline-none"
+                className="w-full rounded-lg border border-steel-300 bg-white/70 px-3.5 py-2.5 text-steel-800 transition-shadow focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 outline-none"
               />
             </div>
           </div>
@@ -113,7 +131,7 @@ export default function Login() {
             {submitting ? 'Ingresando…' : 'Ingresar'}
           </button>
 
-          <p className="mt-5 rounded-lg bg-stone-100/70 px-3 py-2 text-xs text-stone-500 ring-1 ring-stone-200/60">
+          <p className="mt-5 rounded-lg bg-steel-100/70 px-3 py-2 text-xs text-steel-500 ring-1 ring-steel-200/60">
             Credenciales por defecto · <span className="tnum">admin@qualitrack.cl</span> / admin123
           </p>
         </form>

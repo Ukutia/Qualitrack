@@ -60,9 +60,10 @@ model Subcriterion {
   id                    Int      @id @default(autoincrement())
   criterion             Criterion @relation(fields: [criterionId], references: [id])
   criterionId           Int
-  code                  String   // "9.1"
+  code                  String   // "9.1.1"
   name                  String
   description           String?
+  level                 Int      @default(1) // 1 = obligatorio, 2 = avanzado, 3 = excelencia
   required              Boolean  @default(true)
   keywords              String[] // alimenta el clasificador mock (HU01)
   acceptedEvidenceTypes String[] // tipos de evidencia aceptados (detalle HU02)

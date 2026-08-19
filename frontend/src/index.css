@@ -14,13 +14,13 @@ html {
 
 body {
   margin: 0;
-  background-color: #f4f1ea;
+  background-color: #fff7eb;
   /* Calidez ambiental: dos focos suaves sobre el papel, no un plano frío. */
   background-image:
-    radial-gradient(1200px 600px at 100% -10%, rgba(31, 78, 87, 0.06), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, rgba(183, 140, 74, 0.07), transparent 55%);
+    radial-gradient(1200px 600px at 100% -10%, rgba(79, 150, 217, 0.08), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(211, 160, 78, 0.08), transparent 55%);
   background-attachment: fixed;
-  color: #1c1e26;
+  color: #181b21;
   font-family: 'Outfit', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -55,7 +55,7 @@ body::after {
 
 /* ── Foco accesible y consistente ───────────────────────────────────── */
 *:focus-visible {
-  outline: 2px solid #2c6670;
+  outline: 2px solid #3778bd;
   outline-offset: 2px;
   border-radius: 4px;
 }

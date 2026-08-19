@@ -19,8 +19,8 @@ const fmtDate = (d) => new Date(d).toLocaleString('es-CL');
 const STATUS_STYLE = {
   Validada: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
   Propuesta: 'bg-amber-100 text-amber-700 ring-amber-200',
-  Descartada: 'bg-stone-200 text-stone-600 ring-stone-300',
-  'Sin clasificar': 'bg-stone-100 text-stone-500 ring-stone-200',
+  Descartada: 'bg-steel-200 text-steel-600 ring-steel-300',
+  'Sin clasificar': 'bg-steel-100 text-steel-500 ring-steel-200',
 };
 
 function OpenFileButton({ docId }) {
@@ -36,7 +36,7 @@ function OpenFileButton({ docId }) {
     <button
       onClick={handle}
       disabled={loading}
-      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-brand-600 hover:text-brand-700 hover:bg-brand-50 ring-1 ring-stone-200 hover:ring-brand-200 transition-colors disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-brand-600 hover:text-brand-700 hover:bg-brand-50 ring-1 ring-steel-200 hover:ring-brand-200 transition-colors disabled:opacity-50"
     >
       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" strokeLinecap="round" strokeLinejoin="round" />
@@ -63,12 +63,12 @@ export default function Documents() {
           <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">
             Repositorio de evidencias
           </h1>
-          <p className="text-stone-500 mt-1">Documentos cargados para el Criterio 9.</p>
+          <p className="text-steel-500 mt-1">Documentos cargados para el Criterio 9.</p>
         </div>
         <div className="flex items-center gap-3">
           <Link
             to="/trash"
-            className="rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-500 px-4 py-2.5 text-sm font-medium"
+            className="rounded-lg border border-steel-200 hover:bg-steel-50 text-steel-500 px-4 py-2.5 text-sm font-medium"
           >
             🗑 Papelera
           </Link>
@@ -81,17 +81,17 @@ export default function Documents() {
         </div>
       </header>
 
-      <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-stone-200/60 overflow-hidden">
+      <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-steel-200/60 overflow-hidden">
         {isLoading ? (
           <table className="w-full text-sm">
-            <thead className="bg-stone-50/80 text-stone-500 text-left">
+            <thead className="bg-steel-50/80 text-steel-500 text-left">
               <tr>
                 {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación',''].map(h => (
                   <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-100">
+            <tbody className="divide-y divide-steel-100">
               {Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>
                   <td className="px-5 py-4"><div className="skeleton h-4 w-44" /></td>
@@ -114,7 +114,7 @@ export default function Documents() {
               </svg>
             </span>
             <h2 className="mt-4 font-display text-lg font-semibold text-ink-900">Aún no hay evidencias</h2>
-            <p className="mt-1 max-w-sm text-sm text-stone-500">
+            <p className="mt-1 max-w-sm text-sm text-steel-500">
               Carga tu primer documento para empezar a construir el respaldo del Criterio 9.
             </p>
             <Link
@@ -126,14 +126,14 @@ export default function Documents() {
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-stone-50/80 text-stone-500 text-left">
+            <thead className="bg-steel-50/80 text-steel-500 text-left">
               <tr>
                 {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación',''].map((h) => (
                   <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-100">
+            <tbody className="divide-y divide-steel-100">
               {docs.map((d) => (
                 <tr key={d.id} className="transition-colors hover:bg-brand-50/40">
                   <td className="px-5 py-3.5">
@@ -141,12 +141,12 @@ export default function Documents() {
                       {d.name}
                     </Link>
                   </td>
-                  <td className="px-5 py-3.5 uppercase text-stone-500">{d.format}</td>
-                  <td className="px-5 py-3.5 tnum text-stone-500">{fmtSize(d.sizeBytes)}</td>
-                  <td className="px-5 py-3.5 text-stone-500">
+                  <td className="px-5 py-3.5 uppercase text-steel-500">{d.format}</td>
+                  <td className="px-5 py-3.5 tnum text-steel-500">{fmtSize(d.sizeBytes)}</td>
+                  <td className="px-5 py-3.5 text-steel-500">
                     {d.source === 'GOOGLE_DRIVE' ? 'Google Drive' : 'Carga directa'}
                   </td>
-                  <td className="px-5 py-3.5 tnum text-stone-500">{fmtDate(d.uploadedAt)}</td>
+                  <td className="px-5 py-3.5 tnum text-steel-500">{fmtDate(d.uploadedAt)}</td>
                   <td className="px-5 py-3.5">
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
@@ -164,7 +164,7 @@ export default function Documents() {
                         onClick={() => handleTrash(d.id, d.name)}
                         disabled={trash.isPending}
                         title="Mover a papelera"
-                        className="inline-flex items-center rounded-md px-2 py-1 text-xs text-stone-400 hover:text-rose-500 hover:bg-rose-50 ring-1 ring-stone-200 hover:ring-rose-200 transition-colors disabled:opacity-50"
+                        className="inline-flex items-center rounded-md px-2 py-1 text-xs text-steel-400 hover:text-rose-500 hover:bg-rose-50 ring-1 ring-steel-200 hover:ring-rose-200 transition-colors disabled:opacity-50"
                       >
                         <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
                           <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
