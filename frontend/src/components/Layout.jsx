@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import fullLogoDark from '../assets/fulllogo_darkmode.svg';
 
 const NAV = [
   { to: '/app', label: 'Tablero', end: true },
@@ -10,24 +11,6 @@ const NAV = [
   { to: '/cloud', label: 'Google Drive' },
   { to: '/trash', label: 'Papelera' },
 ];
-
-function Logo() {
-  return (
-    <span className="grid h-9 w-9 place-items-center rounded-xl bg-ink-700 ring-1 ring-white/10 shadow-inset">
-      <svg viewBox="0 0 32 32" className="h-5 w-5" aria-hidden="true">
-        <circle cx="16" cy="16" r="10" fill="none" stroke="#d3a04e" strokeWidth="2" />
-        <path
-          d="M11 16.5l3.4 3.4L21 13"
-          fill="none"
-          stroke="#d3a04e"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </span>
-  );
-}
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -55,17 +38,10 @@ export default function Layout() {
         <span className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-gold-500/40 to-transparent" />
 
         <div className="px-6 pt-7 pb-6">
-          <div className="flex items-center gap-3">
-            <Logo />
-            <div>
-              <h1 className="font-display text-xl font-semibold tracking-tight text-steel-50">
-                Qualitrack
-              </h1>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-gold-400/80">
-                Acreditación CNA
-              </p>
-            </div>
-          </div>
+          <img src={fullLogoDark} alt="Qualitrack" className="w-full h-auto" />
+          <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-gold-400/80">
+            Acreditación CNA
+          </p>
         </div>
 
         <p className="px-6 pb-3 text-[10px] font-medium uppercase tracking-[0.22em] text-steel-500">

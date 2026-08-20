@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import fullLogo from '../assets/fulllogo.svg';
 
 /* ────────────────────────────────────────────────────────────────────────
    Landing pública de Qualitrack.
@@ -43,22 +44,6 @@ function Reveal({ children, delay = 0, className = '' }) {
     <div ref={ref} className={`reveal ${className}`} style={{ '--reveal-delay': `${delay}ms` }}>
       {children}
     </div>
-  );
-}
-
-function Logo({ className = 'h-5 w-5' }) {
-  return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
-      <circle cx="16" cy="16" r="10" fill="none" stroke="#c9a368" strokeWidth="2" />
-      <path
-        d="M11 16.5l3.4 3.4L21 13"
-        fill="none"
-        stroke="#c9a368"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 
@@ -277,13 +262,8 @@ export default function Landing() {
         }`}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <a href="#top" className="flex items-center gap-2.5">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-ink-900 ring-1 ring-black/10">
-              <Logo />
-            </span>
-            <span className="font-display text-xl font-semibold tracking-tight text-ink-900">
-              Qualitrack
-            </span>
+          <a href="#top" className="flex items-center">
+            <img src={fullLogo} alt="Qualitrack" className="h-10 w-auto" />
           </a>
 
           <nav className="hidden items-center gap-8 md:flex">
@@ -646,12 +626,7 @@ export default function Landing() {
       {/* ── Pie ────────────────────────────────────────────────────────── */}
       <footer className="border-t border-stone-900/[0.07]">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-10 sm:flex-row">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-ink-900 ring-1 ring-black/10">
-              <Logo className="h-4 w-4" />
-            </span>
-            <span className="font-display text-lg font-semibold text-ink-900">Qualitrack</span>
-          </div>
+          <img src={fullLogo} alt="Qualitrack" className="h-8 w-auto" />
           <p className="text-xs text-stone-500">
             © {new Date().getFullYear()} Qualitrack · Gestión de evidencias para acreditación CNA
           </p>

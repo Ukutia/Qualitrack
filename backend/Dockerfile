@@ -18,5 +18,7 @@ RUN mkdir -p /app/data
 
 EXPOSE 4000
 
-# Al iniciar: sincronizar el esquema (db push), seedear y levantar el servidor.
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node prisma/seed.js && node --watch src/server.js"]
+# Al iniciar: regenerar el cliente (por si el volumen de node_modules quedó
+# desactualizado respecto al schema.prisma montado desde el host), sincronizar
+# el esquema (db push), seedear y levantar el servidor.
+CMD ["sh", "-c", "npx prisma generate && npx prisma db push --skip-generate && node prisma/seed.js && node --watch src/server.js"]
