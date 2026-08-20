@@ -46,6 +46,7 @@ model User {
   history            AssociationHistory[]
   cloudConns         CloudConnection[]
   structureVersions  ReportStructureVersion[]
+  reportDrafts       ReportDraft[]
 }
 
 model Criterion {
@@ -98,6 +99,24 @@ model ReportSection {
   parent   ReportSection?  @relation("SectionChildren", fields: [parentId], references: [id])
   parentId Int?
   children ReportSection[] @relation("SectionChildren")
+}
+
+/// Borrador del informe redactado dentro de la plataforma (HU redacción).
+/// `contentHtml` guarda el formato aplicado (título, negrita, cursiva, lista);
+/// `contentText` es el texto plano derivado, base para la revisión de
+/// incoherencias y las sugerencias de respaldo documental.
+model ReportDraft {
+  id          Int      @id @default(autoincrement())
+  title       String   @default("Borrador sin título")
+  contentHtml String   @default("") @db.Text
+  contentText String   @default("") @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author   User @relation(fields: [authorId], references: [id])
+  authorId Int
+
+  @@index([authorId, updatedAt])
 }
 
 model Document {

@@ -28,6 +28,13 @@ import {
   getStructureHistory,
   restoreStructureVersion,
 } from '../controllers/criteria.controller.js';
+import {
+  listDrafts,
+  createDraft,
+  getDraft,
+  updateDraft,
+  deleteDraft,
+} from '../controllers/reportDrafts.controller.js';
 import * as cloud from '../controllers/cloud.controller.js';
 
 const router = Router();
@@ -74,6 +81,13 @@ router.get('/report-structure/history', getStructureHistory);
 router.post('/report-structure', uploadReportStructure);
 router.post('/report-structure/parse', structureUpload.single('file'), parseStructureDocument);
 router.post('/report-structure/:version/restore', restoreStructureVersion);
+
+// Redacción del informe — borradores
+router.get('/report-drafts', listDrafts);
+router.post('/report-drafts', createDraft);
+router.get('/report-drafts/:id', getDraft);
+router.put('/report-drafts/:id', updateDraft);
+router.delete('/report-drafts/:id', deleteDraft);
 
 // Google Drive (HU09)
 router.get('/cloud/google/status', cloud.status);
