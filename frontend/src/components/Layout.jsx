@@ -48,7 +48,7 @@ export default function Layout() {
   return (
     <div className="h-screen flex overflow-hidden">
       <aside
-        className="relative w-64 shrink-0 flex flex-col text-stone-300
+        className="relative w-64 shrink-0 flex flex-col text-steel-300
                     bg-ink-900 bg-gradient-to-b from-ink-800 to-ink-900 overflow-y-auto"
       >
         {/* Hairline dorado que separa el lienzo institucional del contenido */}
@@ -58,7 +58,7 @@ export default function Layout() {
           <div className="flex items-center gap-3">
             <Logo />
             <div>
-              <h1 className="font-display text-xl font-semibold tracking-tight text-stone-50">
+              <h1 className="font-display text-xl font-semibold tracking-tight text-steel-50">
                 Qualitrack
               </h1>
               <p className="text-[11px] uppercase tracking-[0.18em] text-gold-400/80">
@@ -68,8 +68,8 @@ export default function Layout() {
           </div>
         </div>
 
-        <p className="px-6 pb-3 text-[10px] font-medium uppercase tracking-[0.22em] text-stone-500">
-          Criterio 9
+        <p className="px-6 pb-3 text-[10px] font-medium uppercase tracking-[0.22em] text-steel-500">
+          Criterio 9 · 3 niveles
         </p>
         <nav className="flex-1 px-3 space-y-1">
           {NAV.map((item) => (
@@ -80,8 +80,8 @@ export default function Layout() {
               className={({ isActive }) =>
                 `group relative flex items-center rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
                   isActive
-                    ? 'bg-white/[0.06] text-stone-50'
-                    : 'text-stone-400 hover:bg-white/[0.04] hover:text-stone-100'
+                    ? 'bg-white/[0.06] text-steel-50'
+                    : 'text-steel-400 hover:bg-white/[0.04] hover:text-steel-100'
                 }`
               }
             >
@@ -105,13 +105,13 @@ export default function Layout() {
               {initials}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-stone-100">{user?.name}</p>
-              <p className="truncate text-xs text-stone-500">{user?.email}</p>
+              <p className="truncate text-sm font-medium text-steel-100">{user?.name}</p>
+              <p className="truncate text-xs text-steel-500">{user?.email}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="btn mt-3 w-full rounded-lg bg-white/5 hover:bg-white/10 py-2 text-xs font-medium text-stone-300 hover:text-stone-100"
+            className="btn mt-3 w-full rounded-lg bg-white/5 hover:bg-white/10 py-2 text-xs font-medium text-steel-300 hover:text-steel-100"
           >
             Cerrar sesión
           </button>

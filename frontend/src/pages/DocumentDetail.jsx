@@ -13,11 +13,18 @@ export default function DocumentDetail() {
   const action = useAssociationAction();
   const trash = useTrashDocument();
 
-  if (isLoading) return <p className="text-slate-500">Cargando documento…</p>;
+  if (isLoading) return <p className="text-steel-500">Cargando documento…</p>;
   if (!doc) return <p className="text-rose-600">Documento no encontrado.</p>;
 
   const classifyResult = classify.data;
   const hasValidated = doc.associations.some((a) => a.status === 'VALIDATED');
+  // La clasificación depende exclusivamente de la IA (sin respaldo por keywords):
+  // si falla, se muestra el mensaje devuelto por el backend.
+  const classifyError = classify.isError
+    ? classify.error?.response?.data?.error ||
+      'No se pudo generar la propuesta automática: el servicio de IA no está disponible. ' +
+        'Inténtelo nuevamente en unos minutos.'
+    : null;
 
   async function handleTrash() {
     if (!confirm('¿Mover este documento a la papelera? Podrás restaurarlo después.')) return;
@@ -45,13 +52,13 @@ export default function DocumentDetail() {
 
       <header className="bg-white rounded-xl shadow-sm p-6">
         <h1 className="font-display text-2xl font-semibold tracking-tight text-ink-900 break-all">{doc.name}</h1>
-        <div className="grid sm:grid-cols-2 gap-x-8 gap-y-1 mt-3 text-sm text-slate-600">
+        <div className="grid sm:grid-cols-2 gap-x-8 gap-y-1 mt-3 text-sm text-steel-600">
           <p>Formato: <span className="uppercase">{doc.format}</span></p>
           <p>Tamaño: {(doc.sizeBytes / 1024).toFixed(0)} KB</p>
           <p>Origen: {doc.source === 'GOOGLE_DRIVE' ? 'Google Drive' : 'Carga directa'}</p>
           <p>Fecha del documento: {fmtDate(doc.documentDate)}
             {doc.documentDate && (
-              <span className="ml-1.5 text-[10px] rounded-full px-1.5 py-0.5 bg-stone-100 text-stone-400 font-medium">
+              <span className="ml-1.5 text-[10px] rounded-full px-1.5 py-0.5 bg-steel-100 text-steel-400 font-medium">
                 detectada automáticamente
               </span>
             )}
@@ -64,7 +71,7 @@ export default function DocumentDetail() {
       {/* HU01 — Clasificación */}
       <section className="bg-white rounded-xl shadow-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-slate-800">Asociación al Criterio 9</h2>
+          <h2 className="font-semibold text-steel-800">Asociación al Criterio 9</h2>
           {!hasValidated && (
             <button
               onClick={() => classify.mutate(id)}
@@ -76,27 +83,39 @@ export default function DocumentDetail() {
           )}
         </div>
 
+        {classifyError && (
+          <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800 flex gap-3">
+            <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <div>
+              <p className="font-medium">Clasificación automática no disponible</p>
+              <p className="mt-1">{classifyError}</p>
+            </div>
+          </div>
+        )}
+
         {classifyResult && !classifyResult.relevant && (
-          <div className="rounded-lg bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600">
+          <div className="rounded-lg bg-steel-50 border border-steel-200 p-4 text-sm text-steel-600">
             {classifyResult.justification}
           </div>
         )}
 
-        {doc.associations.length === 0 && !classifyResult && (
-          <p className="text-sm text-slate-500">
+        {doc.associations.length === 0 && !classifyResult && !classifyError && (
+          <p className="text-sm text-steel-500">
             Aún no se ha generado una propuesta. Use “Clasificar” para analizar el documento.
           </p>
         )}
 
         <div className="space-y-4">
           {doc.associations.map((a) => (
-            <div key={a.id} className="border border-slate-200 rounded-lg p-4">
+            <div key={a.id} className="border border-steel-200 rounded-lg p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">
+                  <p className="text-sm font-semibold text-steel-800">
                     {a.subcriterion.code} · {a.subcriterion.name}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-steel-500">
                     Estado: <span className="font-medium">{STATUS_LABEL[a.status]}</span>
                     {a.confidence ? ` · confianza ${Math.round(a.confidence * 100)}%` : ''}
                   </p>
@@ -122,10 +141,10 @@ export default function DocumentDetail() {
               </div>
 
               {a.justification && (
-                <p className="mt-3 text-sm text-slate-600">{a.justification}</p>
+                <p className="mt-3 text-sm text-steel-600">{a.justification}</p>
               )}
               {a.evidenceFragment && (
-                <blockquote className="mt-2 border-l-4 border-brand-200 pl-3 text-xs italic text-slate-500">
+                <blockquote className="mt-2 border-l-4 border-brand-200 pl-3 text-xs italic text-steel-500">
                   “{a.evidenceFragment}”
                 </blockquote>
               )}
@@ -138,10 +157,10 @@ export default function DocumentDetail() {
               {/* Historial de auditoría */}
               {a.history.length > 0 && (
                 <details className="mt-3">
-                  <summary className="text-xs text-slate-500 cursor-pointer">
+                  <summary className="text-xs text-steel-500 cursor-pointer">
                     Historial ({a.history.length})
                   </summary>
-                  <ul className="mt-2 space-y-1 text-xs text-slate-500">
+                  <ul className="mt-2 space-y-1 text-xs text-steel-500">
                     {a.history.map((h, i) => (
                       <li key={i}>
                         {ACTION_LABEL[h.action]} — {h.user} · {fmtDate(h.at)}
@@ -157,8 +176,8 @@ export default function DocumentDetail() {
 
       {doc.textPreview && (
         <section className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="font-semibold text-slate-800 mb-2">Texto extraído (vista previa)</h2>
-          <pre className="text-xs text-slate-500 whitespace-pre-wrap max-h-64 overflow-auto">
+          <h2 className="font-semibold text-steel-800 mb-2">Texto extraído (vista previa)</h2>
+          <pre className="text-xs text-steel-500 whitespace-pre-wrap max-h-64 overflow-auto">
             {doc.textPreview}
           </pre>
         </section>

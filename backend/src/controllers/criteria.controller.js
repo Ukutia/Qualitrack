@@ -10,7 +10,7 @@ const CRITERION_CODE = '9';
 export async function getCriterion(req, res) {
   const criterion = await prisma.criterion.findUnique({
     where: { code: CRITERION_CODE },
-    include: { subcriteria: { orderBy: { code: 'asc' } } },
+    include: { subcriteria: { orderBy: [{ level: 'asc' }, { code: 'asc' }] } },
   });
   if (!criterion) return res.status(404).json({ error: 'Criterio no configurado.' });
   return res.json(criterion);

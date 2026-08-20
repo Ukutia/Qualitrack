@@ -1,6 +1,6 @@
 // HU01 — Asociación de evidencia al Criterio 9 (propuesta / validar / descartar).
 import { prisma } from '../config/prisma.js';
-import { classifyText } from '../services/classifier.service.js';
+import { classifyText, ClassifierError } from '../services/classifier.service.js';
 
 const CRITERION_CODE = '9';
 
@@ -10,11 +10,32 @@ export async function classifyDocument(req, res) {
   const doc = await prisma.document.findUnique({ where: { id: documentId } });
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
 
-  const subcriteria = await prisma.subcriterion.findMany({
-    where: { criterion: { code: CRITERION_CODE } },
-  });
+  const criterion = await prisma.criterion.findUnique({ where: { code: CRITERION_CODE } });
+  const subcriteria = criterion
+    ? await prisma.subcriterion.findMany({
+        where: { criterionId: criterion.id },
+        orderBy: [{ level: 'asc' }, { code: 'asc' }],
+      })
+    : [];
 
-  const result = await classifyText(doc.extractedText || '', subcriteria);
+  let result;
+  try {
+    result = await classifyText(doc.extractedText || '', subcriteria, criterion);
+  } catch (err) {
+    // La clasificación depende únicamente de la IA: sin respaldo por keywords,
+    // se informa el problema al usuario en lugar de proponer una asociación.
+    if (err instanceof ClassifierError) {
+      return res.status(err.status).json({
+        error: err.message,
+        code: 'AI_UNAVAILABLE',
+      });
+    }
+    console.error('[classify] Error inesperado al clasificar:', err);
+    return res.status(500).json({
+      error: 'Ocurrió un error inesperado al generar la propuesta automática. Inténtelo nuevamente.',
+      code: 'CLASSIFY_FAILED',
+    });
+  }
 
   if (!result.relevant) {
     return res.json({
@@ -56,7 +77,6 @@ export async function classifyDocument(req, res) {
       snapshot: {
         subcriterion: association.subcriterion.code,
         confidence: result.confidence,
-        matchedKeywords: result.matchedKeywords,
       },
     },
   });
@@ -69,6 +89,7 @@ export async function classifyDocument(req, res) {
       subcriterion: {
         code: association.subcriterion.code,
         name: association.subcriterion.name,
+        level: association.subcriterion.level,
       },
       justification: association.justification,
       evidenceFragment: association.evidenceFragment,

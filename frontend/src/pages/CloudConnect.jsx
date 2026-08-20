@@ -71,7 +71,7 @@ function FileBrowser({
               ← Atrás
             </button>
           )}
-          <span className="text-sm text-slate-500">
+          <span className="text-sm text-steel-500">
             {stack.length === 0 ? 'Raíz' : stack.map((s) => s.name).join(' / ')}
           </span>
         </div>
@@ -79,7 +79,7 @@ function FileBrowser({
           <button
             onClick={onToggleSelectMode}
             className={`text-xs font-medium px-3 py-1.5 rounded-lg ${
-              selectMode ? 'bg-slate-200 text-slate-700' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
+              selectMode ? 'bg-steel-200 text-steel-700' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
             }`}
           >
             {selectMode ? 'Cancelar selección' : 'Seleccionar'}
@@ -95,12 +95,12 @@ function FileBrowser({
             placeholder="Buscar por nombre…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="flex-1 rounded-lg border border-steel-200 px-3 py-2 text-sm text-steel-800 placeholder-steel-400 focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="rounded-lg border border-steel-200 px-3 py-2 text-sm text-steel-700 focus:outline-none focus:ring-2 focus:ring-brand-400"
           >
             {TYPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -129,19 +129,19 @@ function FileBrowser({
 
       {/* Contenido */}
       {filesQuery.isLoading ? (
-        <p className="text-slate-500 text-sm">Cargando archivos…</p>
+        <p className="text-steel-500 text-sm">Cargando archivos…</p>
       ) : filesQuery.data?.connected === false || filesQuery.error ? (
         <p className="text-rose-600 text-sm">
           {filesQuery.data?.error || 'No fue posible establecer conexión con la cuenta seleccionada.'}
         </p>
       ) : filteredFiles.length === 0 ? (
-        <p className="text-slate-500 text-sm">
+        <p className="text-steel-500 text-sm">
           {filesQuery.data?.files?.length === 0
             ? (filesQuery.data.message || 'No existen documentos almacenados en esta ubicación.')
             : 'Ningún archivo coincide con la búsqueda.'}
         </p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-steel-100">
           {filteredFiles.map((f) => (
             <li key={f.id} className="py-2.5 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -150,17 +150,17 @@ function FileBrowser({
                     type="checkbox"
                     checked={selected.has(f.id)}
                     onChange={() => onToggleSelect(f)}
-                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-400"
+                    className="h-4 w-4 rounded border-steel-300 text-brand-600 focus:ring-brand-400"
                   />
                 )}
                 <button
                   onClick={() => f.isFolder && onOpenFolder(f)}
-                  className={`text-sm text-left truncate ${f.isFolder ? 'text-brand-600 hover:underline font-medium' : 'text-slate-700'}`}
+                  className={`text-sm text-left truncate ${f.isFolder ? 'text-brand-600 hover:underline font-medium' : 'text-steel-700'}`}
                 >
                   {f.isFolder ? '📁 ' : '📄 '}
                   {f.name}
                   {f.modifiedTime && (
-                    <span className="text-xs text-slate-400 ml-2">
+                    <span className="text-xs text-steel-400 ml-2">
                       {new Date(f.modifiedTime).toLocaleDateString('es-CL')}
                     </span>
                   )}
@@ -236,7 +236,7 @@ function DuplicatePrompt({ duplicate, onResolve, onCancel, busy }) {
         <button
           onClick={onCancel}
           disabled={busy}
-          className="btn rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors duration-150 text-slate-700 px-4 py-2 text-sm disabled:opacity-50"
+          className="btn rounded-lg bg-steel-100 hover:bg-steel-200 transition-colors duration-150 text-steel-700 px-4 py-2 text-sm disabled:opacity-50"
         >
           Cancelar
         </button>
@@ -364,7 +364,7 @@ function GoogleDriveTab({ initialFeedback }) {
     }
   }
 
-  if (isLoading) return <p className="text-slate-500">Cargando…</p>;
+  if (isLoading) return <p className="text-steel-500">Cargando…</p>;
 
   return (
     <div className="space-y-4">
@@ -375,12 +375,12 @@ function GoogleDriveTab({ initialFeedback }) {
       )}
 
       {status?.configured === false && (
-        <div className="rounded-xl bg-slate-50 border border-slate-200 p-6 space-y-3">
-          <h2 className="font-semibold text-slate-800">Integración no configurada</h2>
-          <p className="text-sm text-slate-600">{status.message}</p>
-          <ol className="list-decimal list-inside text-sm text-slate-600 space-y-1">
+        <div className="rounded-xl bg-steel-50 border border-steel-200 p-6 space-y-3">
+          <h2 className="font-semibold text-steel-800">Integración no configurada</h2>
+          <p className="text-sm text-steel-600">{status.message}</p>
+          <ol className="list-decimal list-inside text-sm text-steel-600 space-y-1">
             <li>Cree credenciales OAuth (tipo "Aplicación web") en Google Cloud Console.</li>
-            <li>Agregue el redirect URI: <code className="bg-slate-200 px-1 rounded">http://localhost:4000/api/cloud/google/callback</code></li>
+            <li>Agregue el redirect URI: <code className="bg-steel-200 px-1 rounded">http://localhost:4000/api/cloud/google/callback</code></li>
             <li>Defina <code>GOOGLE_CLIENT_ID</code> y <code>GOOGLE_CLIENT_SECRET</code> en <code>.env</code> y reinicie los contenedores.</li>
           </ol>
         </div>
@@ -404,7 +404,7 @@ function GoogleDriveTab({ initialFeedback }) {
       {connected && (
         <>
           <div className="flex justify-end">
-            <button onClick={disconnect} className="text-xs text-slate-400 hover:text-rose-600">
+            <button onClick={disconnect} className="text-xs text-steel-400 hover:text-rose-600">
               Desconectar cuenta
             </button>
           </div>
@@ -551,7 +551,7 @@ function DropboxTab({ initialFeedback }) {
     }
   }
 
-  if (isLoading) return <p className="text-slate-500">Cargando…</p>;
+  if (isLoading) return <p className="text-steel-500">Cargando…</p>;
 
   return (
     <div className="space-y-4">
@@ -562,12 +562,12 @@ function DropboxTab({ initialFeedback }) {
       )}
 
       {status?.configured === false && (
-        <div className="rounded-xl bg-slate-50 border border-slate-200 p-6 space-y-3">
-          <h2 className="font-semibold text-slate-800">Integración no configurada</h2>
-          <p className="text-sm text-slate-600">{status.message}</p>
-          <ol className="list-decimal list-inside text-sm text-slate-600 space-y-1">
+        <div className="rounded-xl bg-steel-50 border border-steel-200 p-6 space-y-3">
+          <h2 className="font-semibold text-steel-800">Integración no configurada</h2>
+          <p className="text-sm text-steel-600">{status.message}</p>
+          <ol className="list-decimal list-inside text-sm text-steel-600 space-y-1">
             <li>Cree una app en <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noreferrer" className="text-brand-600 underline">Dropbox Developer Console</a>.</li>
-            <li>Agregue el redirect URI: <code className="bg-slate-200 px-1 rounded">http://localhost:4000/api/cloud/dropbox/callback</code></li>
+            <li>Agregue el redirect URI: <code className="bg-steel-200 px-1 rounded">http://localhost:4000/api/cloud/dropbox/callback</code></li>
             <li>Defina <code>DROPBOX_APP_KEY</code> y <code>DROPBOX_APP_SECRET</code> en <code>.env</code> y reinicie los contenedores.</li>
           </ol>
         </div>
@@ -591,7 +591,7 @@ function DropboxTab({ initialFeedback }) {
       {connected && (
         <>
           <div className="flex justify-end">
-            <button onClick={disconnect} className="text-xs text-slate-400 hover:text-rose-600">
+            <button onClick={disconnect} className="text-xs text-steel-400 hover:text-rose-600">
               Desconectar cuenta
             </button>
           </div>
@@ -654,13 +654,13 @@ export default function CloudConnect() {
         <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">
           Almacenamiento en la nube
         </h1>
-        <p className="text-slate-500 mt-1">
+        <p className="text-steel-500 mt-1">
           Importe evidencias directamente desde su almacenamiento en la nube.
         </p>
       </header>
 
       {/* Tabs */}
-      <div className="border-b border-slate-200">
+      <div className="border-b border-steel-200">
         <nav className="flex gap-1">
           {TABS.map((tab) => (
             <button
@@ -669,7 +669,7 @@ export default function CloudConnect() {
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
                   ? 'border-brand-600 text-brand-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                  : 'border-transparent text-steel-500 hover:text-steel-700'
               }`}
             >
               {tab.icon} {tab.label}

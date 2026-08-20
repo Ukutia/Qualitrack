@@ -4,35 +4,48 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Petróleo institucional — el acento de marca (no el azul Tailwind genérico).
+        // Azul institucional — el acento de marca, anclado en Alice Blue (D8EBFB).
         brand: {
-          50: '#eef3f4',
-          100: '#d4e3e5',
-          200: '#a9c6cb',
-          300: '#74a3aa',
-          400: '#458089',
-          500: '#2c6670',
-          600: '#1f4e57',
-          700: '#193f47',
-          800: '#163339',
-          900: '#0e2227',
+          50: '#f5f9fe',
+          100: '#e8f2fc',
+          200: '#d8ebfb',
+          300: '#b0d4f5',
+          400: '#7fb6ea',
+          500: '#4f96d9',
+          600: '#3778bd',
+          700: '#2c5f97',
+          800: '#234a74',
+          900: '#1a3752',
         },
-        // Dorado de "acreditación" — usado con moderación (hairlines, marca).
+        // Dorado "Sunlit Clay" — usado con moderación (hairlines, marca).
         gold: {
-          200: '#ecdcb6',
-          300: '#dcc08a',
-          400: '#c9a368',
-          500: '#b78c4a',
-          600: '#9a733a',
+          200: '#f0dbb0',
+          300: '#e5c58a',
+          400: '#dab264',
+          500: '#d3a04e',
+          600: '#b3853d',
         },
-        // Tinta cálida para sidebar/encabezados.
+        // Tinta "Carbon Black" para sidebar/encabezados.
         ink: {
-          900: '#15161c',
-          800: '#1c1e26',
-          700: '#262a34',
-          600: '#343a46',
+          900: '#181b21',
+          800: '#20242c',
+          700: '#2a2f38',
+          600: '#363c47',
         },
-        paper: '#f4f1ea',
+        // Gris neutro "Grey Olive" — texto secundario, bordes, estados deshabilitados.
+        steel: {
+          50: '#f7f7f7',
+          100: '#eeeeee',
+          200: '#dcdcdc',
+          300: '#c4c4c4',
+          400: '#adadad',
+          500: '#959595',
+          600: '#767676',
+          700: '#5c5c5c',
+          800: '#424242',
+          900: '#2b2b2b',
+        },
+        paper: '#fff7eb',
       },
       fontFamily: {
         sans: ['Outfit', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
