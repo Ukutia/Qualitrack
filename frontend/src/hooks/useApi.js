@@ -149,6 +149,55 @@ export function useRestoreStructure() {
   });
 }
 
+// ── Redacción del informe (borradores) ──────────────────────────────
+export function useReportDrafts() {
+  return useQuery({
+    queryKey: ['report-drafts'],
+    queryFn: async () => (await api.get('/report-drafts')).data,
+  });
+}
+
+export function useReportDraft(id) {
+  return useQuery({
+    queryKey: ['report-draft', id],
+    queryFn: async () => (await api.get(`/report-drafts/${id}`)).data,
+    enabled: !!id,
+    // El contenido vive en el editor mientras se redacta: un refetch
+    // pisaría lo que el usuario está escribiendo.
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+}
+
+export function useCreateReportDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload = {}) => (await api.post('/report-drafts', payload)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['report-drafts'] }),
+  });
+}
+
+export function useSaveReportDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, title, contentHtml }) => {
+      const body = {};
+      if (title !== undefined) body.title = title;
+      if (contentHtml !== undefined) body.contentHtml = contentHtml;
+      return (await api.put(`/report-drafts/${id}`, body)).data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['report-drafts'] }),
+  });
+}
+
+export function useDeleteReportDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => (await api.delete(`/report-drafts/${id}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['report-drafts'] }),
+  });
+}
+
 // ── Google Drive (HU09) ─────────────────────────────────────────────
 export function useCloudStatus() {
   return useQuery({

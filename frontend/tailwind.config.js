@@ -67,9 +67,14 @@ export default {
           from: { transform: 'translateX(100%)' },
           to:   { transform: 'translateX(0)' },
         },
+        'pulse-highlight': {
+          '0%, 100%': { backgroundColor: 'rgba(44, 102, 112, 0.16)' },
+          '50%': { backgroundColor: 'rgba(44, 102, 112, 0.04)' },
+        },
       },
       animation: {
         'slide-in-right': 'slide-in-right 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        'pulse-highlight': 'pulse-highlight 1.4s ease-in-out 4',
       },
     },
   },

@@ -2,10 +2,11 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const NAV = [
-  { to: '/dashboard', label: 'Tablero', end: true },
+  { to: '/app', label: 'Tablero', end: true },
   { to: '/documents', label: 'Repositorio' },
   { to: '/upload', label: 'Cargar evidencia' },
   { to: '/structure', label: 'Estructura informe' },
+  { to: '/report', label: 'Redacción informe' },
   { to: '/cloud', label: 'Google Drive' },
   { to: '/trash', label: 'Papelera' },
 ];
@@ -14,11 +15,11 @@ function Logo() {
   return (
     <span className="grid h-9 w-9 place-items-center rounded-xl bg-ink-700 ring-1 ring-white/10 shadow-inset">
       <svg viewBox="0 0 32 32" className="h-5 w-5" aria-hidden="true">
-        <circle cx="16" cy="16" r="10" fill="none" stroke="#c9a368" strokeWidth="2" />
+        <circle cx="16" cy="16" r="10" fill="none" stroke="#d3a04e" strokeWidth="2" />
         <path
           d="M11 16.5l3.4 3.4L21 13"
           fill="none"
-          stroke="#c9a368"
+          stroke="#d3a04e"
           strokeWidth="2.4"
           strokeLinecap="round"
           strokeLinejoin="round"

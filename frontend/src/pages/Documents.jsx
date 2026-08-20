@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDocuments, useTrashDocument } from '../hooks/useApi.js';
 
 async function openFile(docId) {
@@ -50,6 +50,16 @@ function OpenFileButton({ docId }) {
 export default function Documents() {
   const { data: docs, isLoading } = useDocuments();
   const trash = useTrashDocument();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [highlightedIds] = useState(() => new Set(location.state?.importedIds || []));
+
+  useEffect(() => {
+    if (location.state?.importedIds) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleTrash(id, name) {
     if (!confirm(`¿Mover "${name}" a la papelera?`)) return;
@@ -135,7 +145,12 @@ export default function Documents() {
             </thead>
             <tbody className="divide-y divide-steel-100">
               {docs.map((d) => (
-                <tr key={d.id} className="transition-colors hover:bg-brand-50/40">
+                <tr
+                  key={d.id}
+                  className={`transition-colors hover:bg-brand-50/40 ${
+                    highlightedIds.has(d.id) ? 'animate-pulse-highlight' : ''
+                  }`}
+                >
                   <td className="px-5 py-3.5">
                     <Link to={`/documents/${d.id}`} className="font-medium text-brand-600 hover:text-brand-700 hover:underline underline-offset-2">
                       {d.name}

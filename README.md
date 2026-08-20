@@ -22,6 +22,7 @@ El criterio se evalúa en **tres niveles acumulativos**, tal como los define la 
 | **HU09** | Importante | Conectar **Google Drive** (OAuth real) para navegar e importar archivos. |
 | **HU01** | Importante | Asociación de evidencia al Criterio 9 con propuesta automática, justificación, validar/descartar e historial de auditoría. |
 | **HU02** | Importante | Cálculo del estado de cumplimiento por subcriterio (Suficiente / Parcial / Insuficiente). |
+| **Redacción** | Esencial | Redactar el borrador del informe dentro de la plataforma, con formato (título, negrita, cursiva, lista), autoguardado y recuperación íntegra del contenido. |
 
 ## Stack
 
@@ -58,6 +59,10 @@ Al iniciar, el backend sincroniza el esquema (`prisma db push`), ejecuta el *see
 
 ## Decisiones del MVP
 
+- **Landing pública:** `/` es la página de presentación (`frontend/src/pages/Landing.jsx`), abierta
+  sin sesión. La aplicación autenticada vive bajo `/app` (tablero) y el resto de rutas protegidas
+  no cambian.
+
 - **Clasificador IA (HU01):** *mock* determinístico por palabras clave (sin llamadas externas).
   La lógica está aislada en `backend/src/services/classifier.service.js` para enchufar
   Claude/OpenAI más adelante sin tocar el resto.
@@ -65,6 +70,12 @@ Al iniciar, el backend sincroniza el esquema (`prisma db push`), ejecuta el *see
   muestra instrucciones de configuración.
 - **Almacenamiento:** volumen local (`backend/src/services/storage.service.js` aísla un futuro
   cambio a S3/GCS).
+- **Editor del borrador (Redacción):** `contentEditable` nativo + `execCommand`, sin
+  dependencias de terceros. Mantiene la selección de texto del navegador, base de la revisión
+  de incoherencias y de la inserción de frases del almacén. El HTML se sanea en el servidor
+  (`backend/src/services/draftSanitizer.service.js`) contra una lista blanca de etiquetas y
+  sin atributos. Autoguardado a los 2 s de la última modificación (el criterio exige ≤ 5 s),
+  con reintento cada 5 s si falla la red y volcado al salir de la sección.
 - **Reglas de cumplimiento (HU02):** Suficiente = ≥2 docs validados < 3 años; Parcial = ≥1
   validado pero > 3 años, o solo 1 vigente; Insuficiente = sin validados. Cubiertas por tests.
 

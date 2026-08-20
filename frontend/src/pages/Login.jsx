@@ -13,7 +13,7 @@ export default function Login() {
 
   // Si ya hay sesión, redirige (en efecto, no durante el render).
   useEffect(() => {
-    if (user) navigate('/dashboard', { replace: true });
+    if (user) navigate('/app', { replace: true });
   }, [user, navigate]);
 
   async function handleSubmit(e) {
@@ -22,7 +22,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(email, password);
-      navigate('/dashboard');
+      navigate('/app');
     } catch (err) {
       setError(err.response?.data?.error || 'No fue posible iniciar sesión.');
     } finally {
