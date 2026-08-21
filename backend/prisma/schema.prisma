@@ -175,7 +175,7 @@ model DocumentChunk {
   chunkIndex     Int
   content        String   @db.Text
   embedding      Unsupported("vector(768)")?
-  embeddingModel String   @default("intfloat/multilingual-e5-base")
+  embeddingModel String @default("Qwen/Qwen3-Embedding-0.6B")
   createdAt      DateTime @default(now())
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)

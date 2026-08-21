@@ -4,7 +4,9 @@ from sentence_transformers import SentenceTransformer
 
 app = FastAPI()
 
-MODEL_NAME = "intfloat/multilingual-e5-base"
+MODEL_NAME = "Qwen/Qwen3-Embedding-0.6B"
+EMBEDDING_DIMENSIONS = 768
+
 model = SentenceTransformer(MODEL_NAME)
 
 
@@ -18,18 +20,26 @@ def health():
     return {
         "status": "ok",
         "model": MODEL_NAME,
-        "dimensions": 768
+        "dimensions": EMBEDDING_DIMENSIONS
     }
 
 
 @app.post("/embed")
 def embed(request: EmbedRequest):
-    prefix = "query: " if request.type == "query" else "passage: "
 
-    embedding = model.encode(
-        prefix + request.text,
-        normalize_embeddings=True
-    )
+    if request.type == "query":
+        embedding = model.encode(
+            request.text,
+            prompt_name="query",
+            normalize_embeddings=True,
+            truncate_dim=EMBEDDING_DIMENSIONS
+        )
+    else:
+        embedding = model.encode(
+            request.text,
+            normalize_embeddings=True,
+            truncate_dim=EMBEDDING_DIMENSIONS
+        )
 
     return {
         "model": MODEL_NAME,

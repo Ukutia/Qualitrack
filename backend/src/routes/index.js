@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { upload, structureUpload } from '../middleware/upload.js';
+import { semanticSearch } from '../controllers/search.controller.js';
 
 import { login, me } from '../controllers/auth.controller.js';
 import {
@@ -47,6 +48,9 @@ router.get('/cloud/dropbox/callback', cloud.dropboxCallback);
 
 // A partir de aquí, todo requiere autenticación.
 router.use(requireAuth);
+
+// Búsqueda semántica
+router.post('/search/semantic', semanticSearch);
 
 // Documentos (HU07)
 router.post('/documents', upload.single('file'), uploadDocument);

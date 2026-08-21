@@ -2,7 +2,7 @@ const EMBEDDING_SERVICE_URL =
   process.env.EMBEDDING_SERVICE_URL || "http://localhost:8000";
 
 const EMBEDDING_DIMENSIONS = 768;
-const EMBEDDING_MODEL = "intfloat/multilingual-e5-base";
+const EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-0.6B";
 
 /**
  * Genera un embedding utilizando el servicio local de embeddings.
