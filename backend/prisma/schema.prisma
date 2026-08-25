@@ -47,6 +47,7 @@ model User {
   cloudConns         CloudConnection[]
   structureVersions  ReportStructureVersion[]
   reportDrafts       ReportDraft[]
+  reportDraftVersions ReportDraftVersion[]
 }
 
 model Criterion {
@@ -117,7 +118,29 @@ model ReportDraft {
   author   User @relation(fields: [authorId], references: [id])
   authorId Int
 
+  versions ReportDraftVersion[]
+
   @@index([authorId, updatedAt])
+}
+
+/// Instantánea de un ReportDraft en un punto del tiempo. No se crea en cada
+/// autoguardado (saturaría el historial): `updateDraft` solo respalda el
+/// estado anterior cuando ha pasado un intervalo mínimo desde la última
+/// instantánea, o al restaurar una versión previa.
+model ReportDraftVersion {
+  id          Int      @id @default(autoincrement())
+  draft       ReportDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  draftId     Int
+  version     Int
+  title       String
+  contentHtml String   @default("") @db.Text
+  contentText String   @default("") @db.Text
+  createdAt   DateTime @default(now())
+
+  createdBy   User? @relation(fields: [createdById], references: [id])
+  createdById Int?
+
+  @@unique([draftId, version])
 }
 
 model Document {

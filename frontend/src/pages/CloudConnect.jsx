@@ -31,6 +31,89 @@ function matchesType(file, typeFilter) {
   return true;
 }
 
+const STATUS_LABELS = {
+  pendiente: 'Pendiente',
+  subiendo: 'Subiendo…',
+  ok: 'Importado',
+  error: 'Error',
+};
+
+const STATUS_STYLES = {
+  pendiente: 'text-steel-400',
+  subiendo: 'text-brand-600',
+  ok: 'text-emerald-600',
+  error: 'text-rose-600',
+};
+
+/**
+ * Clasifica el error de una importación individual para poder mostrar un
+ * motivo específico (y, en el caso de error de red, permitir reintentar
+ * solo ese archivo) en vez de un conteo agregado de "omitidos".
+ */
+function classifyImportError(err) {
+  if (!err.response) {
+    return { code: 'NETWORK_ERROR', reason: 'Error de conexión. Verifique su red e inténtelo nuevamente.' };
+  }
+  const data = err.response.data;
+  if (data?.code === 'DUPLICATE_NAME') {
+    return {
+      code: 'DUPLICATE_NAME',
+      reason: data.existing?.inTrash
+        ? 'Ya existe un archivo con el mismo nombre en la papelera.'
+        : 'Ya existe un archivo con el mismo nombre.',
+    };
+  }
+  if (data?.code === 'INVALID_FORMAT') {
+    return { code: 'INVALID_FORMAT', reason: data.error || 'Formato no soportado.' };
+  }
+  if (data?.code === 'FILE_TOO_LARGE') {
+    return { code: 'FILE_TOO_LARGE', reason: data.error || 'El archivo supera el tamaño máximo.' };
+  }
+  return { code: 'ERROR', reason: data?.error || 'Error al importar.' };
+}
+
+function ImportSummary({ statuses, onRetryPending, onGoToDocuments, importedIds, busy }) {
+  const entries = Array.from(statuses.values());
+  if (entries.length === 0) return null;
+  const hasNetworkErrors = entries.some((e) => e.status === 'error' && e.code === 'NETWORK_ERROR');
+
+  return (
+    <div className="rounded-xl border border-steel-200 p-4 space-y-3">
+      <h3 className="text-sm font-semibold text-steel-700">Resultado de la importación</h3>
+      <ul className="divide-y divide-steel-100">
+        {entries.map(({ file, status, reason }) => (
+          <li key={file.id} className="py-1.5 flex items-center justify-between gap-3 text-sm">
+            <span className="truncate text-steel-700">{file.name}</span>
+            <span className={`shrink-0 text-xs font-medium ${STATUS_STYLES[status]}`}>
+              {STATUS_LABELS[status]}
+              {reason ? ` — ${reason}` : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap gap-3 pt-1">
+        {hasNetworkErrors && (
+          <button
+            onClick={onRetryPending}
+            disabled={busy}
+            className="rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+          >
+            Reintentar pendientes
+          </button>
+        )}
+        {importedIds.length > 0 && (
+          <button
+            onClick={onGoToDocuments}
+            className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 text-xs font-medium"
+          >
+            Ir a evidencias
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function FileBrowser({
   filesQuery,
   onImport,
@@ -197,9 +280,13 @@ function DuplicatePrompt({ duplicate, onResolve, onCancel, busy }) {
     <div className="rounded-xl bg-amber-50 border border-amber-200 p-5 space-y-3">
       {existing.inTrash ? (
         <p className="text-sm text-amber-800">
-          <strong>{existing.name}</strong> ya existe en el repositorio, pero está en la{' '}
+          Ya existe un documento llamado <strong>{existing.name}</strong>, pero está en la{' '}
           <span className="font-medium">papelera</span> (eliminado el{' '}
-          {new Date(existing.deletedAt).toLocaleString('es-CL')}). ¿Qué desea hacer?
+          {new Date(existing.deletedAt).toLocaleString('es-CL')}). Puede{' '}
+          <strong>restaurarlo</strong> (no se importa <strong>{file.name}</strong>),{' '}
+          <strong>reemplazarlo</strong> (se elimina definitivamente el de la papelera y se importa{' '}
+          <strong>{file.name}</strong> en su lugar) o <strong>conservar ambos</strong> (el existente
+          permanece en la papelera y <strong>{file.name}</strong> se importa como un documento nuevo).
         </p>
       ) : (
         <p className="text-sm text-amber-800">
@@ -258,6 +345,8 @@ function GoogleDriveTab({ initialFeedback }) {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(new Map());
   const [importingSelected, setImportingSelected] = useState(false);
+  const [fileStatuses, setFileStatuses] = useState(new Map());
+  const [importedIds, setImportedIds] = useState([]);
   const filesQuery = useCloudFiles(folderId, !!connected);
   const importFile = useImportCloudFile();
 
@@ -330,38 +419,50 @@ function GoogleDriveTab({ initialFeedback }) {
     }
   }
 
-  async function importSelected() {
-    const files = Array.from(selected.values());
-    if (files.length === 0) return;
+  async function runImportBatch(files) {
     setFeedback(null);
     setImportingSelected(true);
-    let ok = 0;
-    let skipped = 0;
-    const importedIds = [];
+    setFileStatuses((prev) => {
+      const next = new Map(prev);
+      files.forEach((file) => next.set(file.id, { file, status: 'pendiente' }));
+      return next;
+    });
+    const newlyImported = [];
     for (const file of files) {
+      setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'subiendo' }));
       try {
         const res = await importFile.mutateAsync({ fileId: file.id, location: file.location });
-        importedIds.push(res.id);
-        ok += 1;
+        newlyImported.push(res.id);
+        setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'ok' }));
       } catch (err) {
-        skipped += 1;
+        const { code, reason } = classifyImportError(err);
+        setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'error', code, reason }));
       }
     }
     setImportingSelected(false);
     setSelectMode(false);
     setSelected(new Map());
-    if (ok > 0) {
-      setFeedback({
-        type: skipped > 0 ? 'error' : 'success',
-        text:
-          skipped > 0
-            ? `${ok} archivo${ok === 1 ? '' : 's'} importado${ok === 1 ? '' : 's'}. ${skipped} no se pudo${skipped === 1 ? '' : 'ieron'} importar (posibles duplicados); impórtelo${skipped === 1 ? '' : 's'} individualmente.`
-            : `${ok} archivo${ok === 1 ? '' : 's'} importado${ok === 1 ? '' : 's'} correctamente.`,
-      });
-      navigate('/documents', { state: { importedIds } });
-    } else {
-      setFeedback({ type: 'error', text: 'No se pudo importar ningún archivo (posibles duplicados). Impórtelos individualmente.' });
+    if (newlyImported.length > 0) {
+      setImportedIds((prev) => [...prev, ...newlyImported]);
     }
+  }
+
+  async function importSelected() {
+    const files = Array.from(selected.values());
+    if (files.length === 0) return;
+    await runImportBatch(files);
+  }
+
+  async function retryPending() {
+    const pending = Array.from(fileStatuses.values())
+      .filter((e) => e.status === 'error' && e.code === 'NETWORK_ERROR')
+      .map((e) => e.file);
+    if (pending.length === 0) return;
+    await runImportBatch(pending);
+  }
+
+  function goToDocuments() {
+    navigate('/documents', { state: { importedIds } });
   }
 
   if (isLoading) return <p className="text-steel-500">Cargando…</p>;
@@ -400,6 +501,14 @@ function GoogleDriveTab({ initialFeedback }) {
           onCancel={() => setDuplicate(null)}
         />
       )}
+
+      <ImportSummary
+        statuses={fileStatuses}
+        importedIds={importedIds}
+        busy={importingSelected}
+        onRetryPending={retryPending}
+        onGoToDocuments={goToDocuments}
+      />
 
       {connected && (
         <>
@@ -445,6 +554,8 @@ function DropboxTab({ initialFeedback }) {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(new Map());
   const [importingSelected, setImportingSelected] = useState(false);
+  const [fileStatuses, setFileStatuses] = useState(new Map());
+  const [importedIds, setImportedIds] = useState([]);
   const filesQuery = useDropboxFiles(folderPath, !!connected);
   const importFile = useImportDropboxFile();
 
@@ -517,38 +628,50 @@ function DropboxTab({ initialFeedback }) {
     }
   }
 
-  async function importSelected() {
-    const files = Array.from(selected.values());
-    if (files.length === 0) return;
+  async function runImportBatch(files) {
     setFeedback(null);
     setImportingSelected(true);
-    let ok = 0;
-    let skipped = 0;
-    const importedIds = [];
+    setFileStatuses((prev) => {
+      const next = new Map(prev);
+      files.forEach((file) => next.set(file.id, { file, status: 'pendiente' }));
+      return next;
+    });
+    const newlyImported = [];
     for (const file of files) {
+      setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'subiendo' }));
       try {
         const res = await importFile.mutateAsync({ fileId: file.id, location: file.location });
-        importedIds.push(res.id);
-        ok += 1;
+        newlyImported.push(res.id);
+        setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'ok' }));
       } catch (err) {
-        skipped += 1;
+        const { code, reason } = classifyImportError(err);
+        setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'error', code, reason }));
       }
     }
     setImportingSelected(false);
     setSelectMode(false);
     setSelected(new Map());
-    if (ok > 0) {
-      setFeedback({
-        type: skipped > 0 ? 'error' : 'success',
-        text:
-          skipped > 0
-            ? `${ok} archivo${ok === 1 ? '' : 's'} importado${ok === 1 ? '' : 's'}. ${skipped} no se pudo${skipped === 1 ? '' : 'ieron'} importar (posibles duplicados); impórtelo${skipped === 1 ? '' : 's'} individualmente.`
-            : `${ok} archivo${ok === 1 ? '' : 's'} importado${ok === 1 ? '' : 's'} correctamente.`,
-      });
-      navigate('/documents', { state: { importedIds } });
-    } else {
-      setFeedback({ type: 'error', text: 'No se pudo importar ningún archivo (posibles duplicados). Impórtelos individualmente.' });
+    if (newlyImported.length > 0) {
+      setImportedIds((prev) => [...prev, ...newlyImported]);
     }
+  }
+
+  async function importSelected() {
+    const files = Array.from(selected.values());
+    if (files.length === 0) return;
+    await runImportBatch(files);
+  }
+
+  async function retryPending() {
+    const pending = Array.from(fileStatuses.values())
+      .filter((e) => e.status === 'error' && e.code === 'NETWORK_ERROR')
+      .map((e) => e.file);
+    if (pending.length === 0) return;
+    await runImportBatch(pending);
+  }
+
+  function goToDocuments() {
+    navigate('/documents', { state: { importedIds } });
   }
 
   if (isLoading) return <p className="text-steel-500">Cargando…</p>;
@@ -587,6 +710,14 @@ function DropboxTab({ initialFeedback }) {
           onCancel={() => setDuplicate(null)}
         />
       )}
+
+      <ImportSummary
+        statuses={fileStatuses}
+        importedIds={importedIds}
+        busy={importingSelected}
+        onRetryPending={retryPending}
+        onGoToDocuments={goToDocuments}
+      />
 
       {connected && (
         <>

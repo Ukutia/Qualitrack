@@ -11,6 +11,10 @@ import {
 
 const PREVIEW_CHARS = 180;
 
+// Intervalo mínimo entre instantáneas automáticas: el autoguardado pega cada
+// pocos segundos y no cada cambio merece quedar en el historial.
+const MIN_VERSION_INTERVAL_MS = 5 * 60 * 1000;
+
 function toSummary(draft) {
   return {
     id: draft.id,
@@ -66,7 +70,6 @@ export async function updateDraft(req, res) {
 
   const existing = await prisma.reportDraft.findFirst({
     where: { id, authorId: req.user.id },
-    select: { id: true, title: true },
   });
   if (!existing) return res.status(404).json({ error: 'Borrador no encontrado.' });
 
@@ -91,11 +94,126 @@ export async function updateDraft(req, res) {
     return res.status(400).json({ error: 'No se recibieron cambios.' });
   }
 
-  const draft = await prisma.reportDraft.update({ where: { id }, data });
+  const contentChanged =
+    data.contentHtml !== undefined && data.contentHtml !== existing.contentHtml;
+
+  const draft = await prisma.$transaction(async (tx) => {
+    if (contentChanged) await snapshotIfDue(tx, existing, req.user.id);
+    return tx.reportDraft.update({ where: { id }, data });
+  });
+
   return res.json({
     id: draft.id,
     title: draft.title,
     updatedAt: draft.updatedAt,
+  });
+}
+
+/** Respalda el estado previo del borrador si pasó el intervalo mínimo desde la última instantánea. */
+async function snapshotIfDue(tx, draft, userId) {
+  const last = await tx.reportDraftVersion.findFirst({
+    where: { draftId: draft.id },
+    orderBy: { version: 'desc' },
+  });
+  if (last && Date.now() - last.createdAt.getTime() < MIN_VERSION_INTERVAL_MS) return;
+
+  await tx.reportDraftVersion.create({
+    data: {
+      draftId: draft.id,
+      version: (last?.version || 0) + 1,
+      title: draft.title,
+      contentHtml: draft.contentHtml,
+      contentText: draft.contentText,
+      createdById: userId,
+    },
+  });
+}
+
+/** GET /report-drafts/:id/history — instantáneas guardadas, de más reciente a más antigua. */
+export async function getDraftHistory(req, res) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'Identificador inválido.' });
+
+  const draft = await prisma.reportDraft.findFirst({
+    where: { id, authorId: req.user.id },
+    select: { id: true },
+  });
+  if (!draft) return res.status(404).json({ error: 'Borrador no encontrado.' });
+
+  const versions = await prisma.reportDraftVersion.findMany({
+    where: { draftId: id },
+    orderBy: { version: 'desc' },
+    include: { createdBy: { select: { id: true, name: true, email: true } } },
+  });
+
+  return res.json(
+    versions.map((v) => ({
+      version: v.version,
+      title: v.title,
+      preview: v.contentText.slice(0, PREVIEW_CHARS),
+      createdAt: v.createdAt,
+      createdBy: v.createdBy
+        ? { id: v.createdBy.id, name: v.createdBy.name, email: v.createdBy.email }
+        : null,
+    }))
+  );
+}
+
+/**
+ * POST /report-drafts/:id/versions/:version/restore
+ * Respalda el estado actual (si difiere) y aplica el contenido de la
+ * instantánea indicada al borrador vigente.
+ */
+export async function restoreDraftVersion(req, res) {
+  const id = Number(req.params.id);
+  const targetVersion = Number(req.params.version);
+  if (!Number.isInteger(id) || !Number.isInteger(targetVersion)) {
+    return res.status(400).json({ error: 'Identificador o versión inválidos.' });
+  }
+
+  const draft = await prisma.reportDraft.findFirst({ where: { id, authorId: req.user.id } });
+  if (!draft) return res.status(404).json({ error: 'Borrador no encontrado.' });
+
+  const target = await prisma.reportDraftVersion.findUnique({
+    where: { draftId_version: { draftId: id, version: targetVersion } },
+  });
+  if (!target) return res.status(404).json({ error: `Versión ${targetVersion} no encontrada.` });
+
+  const restored = await prisma.$transaction(async (tx) => {
+    if (draft.contentHtml !== target.contentHtml || draft.title !== target.title) {
+      const last = await tx.reportDraftVersion.findFirst({
+        where: { draftId: id },
+        orderBy: { version: 'desc' },
+      });
+      await tx.reportDraftVersion.create({
+        data: {
+          draftId: id,
+          version: (last?.version || 0) + 1,
+          title: draft.title,
+          contentHtml: draft.contentHtml,
+          contentText: draft.contentText,
+          createdById: req.user.id,
+        },
+      });
+    }
+
+    return tx.reportDraft.update({
+      where: { id },
+      data: {
+        title: target.title,
+        contentHtml: target.contentHtml,
+        contentText: target.contentText,
+      },
+    });
+  });
+
+  return res.json({
+    id: restored.id,
+    title: restored.title,
+    contentHtml: restored.contentHtml,
+    updatedAt: restored.updatedAt,
+    restoredFrom: targetVersion,
+    message: `Borrador restaurado a la versión ${targetVersion}.`,
   });
 }
 

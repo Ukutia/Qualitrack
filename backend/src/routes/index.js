@@ -34,6 +34,8 @@ import {
   getDraft,
   updateDraft,
   deleteDraft,
+  getDraftHistory,
+  restoreDraftVersion,
 } from '../controllers/reportDrafts.controller.js';
 import * as cloud from '../controllers/cloud.controller.js';
 
@@ -88,6 +90,8 @@ router.post('/report-drafts', createDraft);
 router.get('/report-drafts/:id', getDraft);
 router.put('/report-drafts/:id', updateDraft);
 router.delete('/report-drafts/:id', deleteDraft);
+router.get('/report-drafts/:id/history', getDraftHistory);
+router.post('/report-drafts/:id/versions/:version/restore', restoreDraftVersion);
 
 // Google Drive (HU09)
 router.get('/cloud/google/status', cloud.status);

@@ -198,6 +198,32 @@ export function useDeleteReportDraft() {
   });
 }
 
+export function useReportDraftHistory(id) {
+  return useQuery({
+    queryKey: ['report-draft-history', id],
+    queryFn: async () => (await api.get(`/report-drafts/${id}/history`)).data,
+    enabled: !!id,
+  });
+}
+
+export function useRestoreReportDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, version }) =>
+      (await api.post(`/report-drafts/${id}/versions/${version}/restore`)).data,
+    onSuccess: (data, { id }) => {
+      // Se escribe la respuesta directo en la caché en vez de solo invalidar:
+      // `useReportDraft` tiene staleTime Infinity y el remontaje del editor
+      // no debe correr contra un refetch todavía en vuelo.
+      qc.setQueryData(['report-draft', id], (prev) =>
+        prev ? { ...prev, title: data.title, contentHtml: data.contentHtml, updatedAt: data.updatedAt } : prev
+      );
+      qc.invalidateQueries({ queryKey: ['report-drafts'] });
+      qc.invalidateQueries({ queryKey: ['report-draft-history', id] });
+    },
+  });
+}
+
 // ── Google Drive (HU09) ─────────────────────────────────────────────
 export function useCloudStatus() {
   return useQuery({
