@@ -11,6 +11,9 @@ import { searchSimilarChunks } from './vector.service.js';
 
 const RESULTS_PER_SUBCRITERION = 3;
 
+const MIN_RELEVANCE_SCORE = 0.50;
+const MIN_SCORE_MARGIN = 0.08;
+
 
 /**
  * Construye la consulta semántica que representa un subcriterio CNA.
@@ -138,6 +141,12 @@ export async function classifyDocumentByEmbeddings(
 
   const best = ranking[0];
 
+  const secondBest = ranking[1] ?? null;
+
+  const margin = secondBest
+    ? best.semanticScore - secondBest.semanticScore
+    : best.semanticScore;
+
   const semanticRanking = ranking.map((item) => ({
     code: item.subcriterion.code,
     name: item.subcriterion.name,
@@ -152,14 +161,40 @@ export async function classifyDocumentByEmbeddings(
     best.semanticScore.toFixed(4)
   );
 
+  const scoreMargin = Number(
+    margin.toFixed(4)
+  );
+
+  const isRelevant =
+    score >= MIN_RELEVANCE_SCORE &&
+    scoreMargin >= MIN_SCORE_MARGIN;
+
   const evidenceFragment = best.bestChunk.content
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 500);
 
+  if (!isRelevant) {
+    return {
+      relevant: false,
+      subcriterionId: null,
+      subcriterion: null,
+      confidence: score,
+
+      justification:
+        `No existe evidencia semántica suficiente para asociar el documento ` +
+        `a un subcriterio del Criterio 9. ` +
+        `Mejor score: ${score}; margen respecto al segundo resultado: ${scoreMargin}.`,
+
+      evidenceFragment: null,
+      matchedKeywords: [],
+      semanticRanking,
+    };
+  }
+
   return {
-    // Por ahora siempre proponemos el mejor resultado.
-    // El usuario sigue siendo quien valida o rechaza.
+    // Si supera los umbrales de relevancia,
+    // se propone el subcriterio con mayor score.
     relevant: true,
 
     subcriterionId: best.subcriterion.id,
