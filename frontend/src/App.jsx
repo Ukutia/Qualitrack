@@ -9,6 +9,7 @@ import Upload from './pages/Upload.jsx';
 import CriteriaStructure from './pages/CriteriaStructure.jsx';
 import CloudConnect from './pages/CloudConnect.jsx';
 import Trash from './pages/Trash.jsx';
+import SemanticSearch from './pages/SemanticSearch.jsx';
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/documents" element={<Documents />} />
+        <Route path="/search" element={<SemanticSearch />} />
         <Route path="/documents/:id" element={<DocumentDetail />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/structure" element={<CriteriaStructure />} />

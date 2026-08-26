@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 const NAV = [
   { to: '/', label: 'Tablero', end: true },
   { to: '/documents', label: 'Repositorio' },
+  { to: '/search', label: 'Búsqueda temática' },
   { to: '/upload', label: 'Cargar evidencia' },
   { to: '/structure', label: 'Estructura informe' },
   { to: '/cloud', label: 'Google Drive' },

@@ -9,6 +9,19 @@ export function useDocuments() {
   });
 }
 
+// ── Búsqueda semántica ──────────────────────────────────────────────
+export function useSemanticSearch() {
+  return useMutation({
+    mutationFn: async ({ query, limit = 30 }) =>
+      (
+        await api.post('/search/semantic', {
+          query,
+          limit,
+        })
+      ).data,
+  });
+}
+
 export function useDocument(id) {
   return useQuery({
     queryKey: ['document', id],
