@@ -7,6 +7,7 @@ const NAV = [
   { to: '/search', label: 'Búsqueda temática' },
   { to: '/upload', label: 'Cargar evidencia' },
   { to: '/structure', label: 'Estructura informe' },
+  { to: '/report', label: 'Redacción informe' },
   { to: '/cloud', label: 'Google Drive' },
   { to: '/trash', label: 'Papelera' },
 ];

@@ -47,6 +47,9 @@ model User {
   cloudConns         CloudConnection[]
   structureVersions  ReportStructureVersion[]
   topics             Topic[]
+
+  reportDrafts         ReportDraft[]
+  reportDraftVersions  ReportDraftVersion[]
 }
 
 model Criterion {
@@ -99,6 +102,38 @@ model ReportSection {
   parent   ReportSection?  @relation("SectionChildren", fields: [parentId], references: [id])
   parentId Int?
   children ReportSection[] @relation("SectionChildren")
+}
+
+model ReportDraft {
+  id          Int      @id @default(autoincrement())
+  title       String   @default("Borrador sin título")
+  contentHtml String   @default("") @db.Text
+  contentText String   @default("") @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author   User @relation(fields: [authorId], references: [id])
+  authorId Int
+
+  versions ReportDraftVersion[]
+
+  @@index([authorId, updatedAt])
+}
+
+model ReportDraftVersion {
+  id          Int         @id @default(autoincrement())
+  draft       ReportDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  draftId     Int
+  version     Int
+  title       String
+  contentHtml String      @default("") @db.Text
+  contentText String      @default("") @db.Text
+  createdAt   DateTime    @default(now())
+
+  createdBy   User? @relation(fields: [createdById], references: [id])
+  createdById Int?
+
+  @@unique([draftId, version])
 }
 
 model Document {

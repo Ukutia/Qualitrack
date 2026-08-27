@@ -186,6 +186,111 @@ export function useRestoreStructure() {
   });
 }
 
+// ── Redacción del informe ───────────────────────────────────────────
+export function useReportDrafts() {
+  return useQuery({
+    queryKey: ['report-drafts'],
+    queryFn: async () => (await api.get('/report-drafts')).data,
+  });
+}
+
+export function useReportDraft(id) {
+  return useQuery({
+    queryKey: ['report-draft', id],
+    queryFn: async () => (await api.get(`/report-drafts/${id}`)).data,
+    enabled: !!id,
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+}
+
+export function useCreateReportDraft() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload = {}) =>
+      (await api.post('/report-drafts', payload)).data,
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['report-drafts'] }),
+  });
+}
+
+export function useSaveReportDraft() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, title, contentHtml }) => {
+      const body = {};
+
+      if (title !== undefined) body.title = title;
+      if (contentHtml !== undefined) body.contentHtml = contentHtml;
+
+      return (await api.put(`/report-drafts/${id}`, body)).data;
+    },
+
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['report-drafts'] }),
+  });
+}
+
+export function useDeleteReportDraft() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id) =>
+      (await api.delete(`/report-drafts/${id}`)).data,
+
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['report-drafts'] }),
+  });
+}
+
+export function useReportDraftHistory(id) {
+  return useQuery({
+    queryKey: ['report-draft-history', id],
+    queryFn: async () =>
+      (await api.get(`/report-drafts/${id}/history`)).data,
+    enabled: !!id,
+  });
+}
+
+export function useRestoreReportDraft() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, version }) =>
+      (
+        await api.post(
+          `/report-drafts/${id}/versions/${version}/restore`
+        )
+      ).data,
+
+    onSuccess: (data, { id }) => {
+      qc.setQueryData(
+        ['report-draft', id],
+        (prev) =>
+          prev
+            ? {
+                ...prev,
+                title: data.title,
+                contentHtml: data.contentHtml,
+                updatedAt: data.updatedAt,
+              }
+            : prev
+      );
+
+      qc.invalidateQueries({
+        queryKey: ['report-drafts'],
+      });
+
+      qc.invalidateQueries({
+        queryKey: ['report-draft-history', id],
+      });
+    },
+  });
+}
+
+
 // ── Google Drive (HU09) ─────────────────────────────────────────────
 export function useCloudStatus() {
   return useQuery({

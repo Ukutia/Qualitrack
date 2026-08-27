@@ -3,6 +3,15 @@ import { requireAuth } from '../middleware/auth.js';
 import { upload, structureUpload } from '../middleware/upload.js';
 import { semanticSearch } from '../controllers/search.controller.js';
 import { listTopics, createTopic, } from '../controllers/topics.controller.js';
+import {
+  listDrafts,
+  createDraft,
+  getDraft,
+  updateDraft,
+  deleteDraft,
+  getDraftHistory,
+  restoreDraftVersion,
+} from '../controllers/reportDrafts.controller.js';
 
 import { login, me } from '../controllers/auth.controller.js';
 import {
@@ -83,6 +92,15 @@ router.get('/report-structure/history', getStructureHistory);
 router.post('/report-structure', uploadReportStructure);
 router.post('/report-structure/parse', structureUpload.single('file'), parseStructureDocument);
 router.post('/report-structure/:version/restore', restoreStructureVersion);
+
+// Redacción del informe — borradores
+router.get('/report-drafts', listDrafts);
+router.post('/report-drafts', createDraft);
+router.get('/report-drafts/:id', getDraft);
+router.put('/report-drafts/:id', updateDraft);
+router.delete('/report-drafts/:id', deleteDraft);
+router.get('/report-drafts/:id/history', getDraftHistory);
+router.post('/report-drafts/:id/versions/:version/restore', restoreDraftVersion);
 
 // Google Drive (HU09)
 router.get('/cloud/google/status', cloud.status);
