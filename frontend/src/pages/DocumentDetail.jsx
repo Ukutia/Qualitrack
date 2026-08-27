@@ -1,59 +1,9 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useRef, useState, useEffect, useCallback } from 'react';
 import { useDocument, useClassify, useAssociationAction, useTrashDocument } from '../hooks/useApi.js';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
 const ACTION_LABEL = { PROPOSED: 'Propuesta generada', VALIDATED: 'Validada', REJECTED: 'Descartada' };
 const STATUS_LABEL = { PROPOSED: 'Propuesta', VALIDATED: 'Validada', NOT_VALIDATED: 'Descartada' };
-
-// Muestra el texto extraído del documento y, al seleccionar un fragmento, un botón
-// flotante "Buscar coincidencias" (placeholder: aún sin funcionalidad conectada).
-function SelectableText({ text }) {
-  const containerRef = useRef(null);
-  const [popup, setPopup] = useState(null); // { top, left }
-
-  const updatePopupFromSelection = useCallback(() => {
-    const container = containerRef.current;
-    const sel = window.getSelection();
-    if (!container || !sel || sel.isCollapsed || !sel.toString().trim() || !sel.anchorNode || !container.contains(sel.anchorNode)) {
-      setPopup(null);
-      return;
-    }
-    const rect = sel.getRangeAt(0).getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    setPopup({
-      top: rect.top - containerRect.top,
-      left: rect.left - containerRect.left + rect.width / 2,
-    });
-  }, []);
-
-  useEffect(() => {
-    document.addEventListener('selectionchange', updatePopupFromSelection);
-    return () => document.removeEventListener('selectionchange', updatePopupFromSelection);
-  }, [updatePopupFromSelection]);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <pre className="text-xs text-steel-500 whitespace-pre-wrap max-h-96 overflow-auto">{text}</pre>
-      {popup && (
-        <button
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {}}
-          title="Próximamente"
-          className="absolute z-10 -translate-x-1/2 -translate-y-full flex items-center gap-1.5 rounded-lg bg-ink-900 hover:bg-ink-800 text-white px-3 py-1.5 text-xs font-medium shadow-lg whitespace-nowrap"
-          style={{ top: popup.top - 8, left: popup.left }}
-        >
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m21 21-4.3-4.3" strokeLinecap="round" />
-          </svg>
-          Buscar coincidencias
-        </button>
-      )}
-    </div>
-  );
-}
 
 export default function DocumentDetail() {
   const { id } = useParams();
@@ -224,13 +174,12 @@ export default function DocumentDetail() {
         </div>
       </section>
 
-      {doc.text && (
+      {doc.textPreview && (
         <section className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="font-semibold text-steel-800 mb-2">Texto extraído</h2>
-          <p className="text-xs text-steel-400 mb-3">
-            Seleccione un fragmento para buscar coincidencias en otros documentos.
-          </p>
-          <SelectableText text={doc.text} />
+          <h2 className="font-semibold text-steel-800 mb-2">Texto extraído (vista previa)</h2>
+          <pre className="text-xs text-steel-500 whitespace-pre-wrap max-h-64 overflow-auto">
+            {doc.textPreview}
+          </pre>
         </section>
       )}
     </div>
