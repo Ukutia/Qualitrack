@@ -188,7 +188,7 @@ export async function getDocument(req, res) {
     documentDate: doc.documentDate,
     uploadedAt: doc.uploadedAt,
     uploadedBy: doc.uploadedBy?.name,
-    text: doc.extractedText || '',
+    textPreview: (doc.extractedText || '').slice(0, 1500),
     associations: doc.associations.map((a) => ({
       id: a.id,
       status: a.status,
