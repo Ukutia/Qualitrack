@@ -35,6 +35,40 @@ const STATUS_STYLE = {
   error: 'bg-rose-50 text-rose-800 ring-rose-600/20',
 };
 
+// Panel de coincidencias: se abre al presionar "Buscar coincidencias" sobre un
+// fragmento seleccionado del borrador. Placeholder a la espera de conectar la
+// búsqueda real de coincidencias en los documentos cargados.
+function MatchesPanel({ query, onClose }) {
+  return (
+    <aside className="w-80 shrink-0 space-y-3 rounded-2xl bg-white p-5 ring-1 ring-stone-900/10 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-stone-500">
+          Coincidencias
+        </p>
+        <button
+          onClick={onClose}
+          aria-label="Cerrar panel de coincidencias"
+          className="btn -mr-1 -mt-1 rounded-md px-1.5 py-0.5 text-xs text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+        >
+          ✕
+        </button>
+      </div>
+
+      <blockquote className="rounded-lg border-l-4 border-brand-200 bg-brand-50/50 px-3 py-2 text-xs italic text-stone-600">
+        “{query}”
+      </blockquote>
+
+      <div className="rounded-xl bg-stone-50 px-4 py-6 text-center ring-1 ring-stone-900/10">
+        <p className="text-sm font-medium text-ink-900">Búsqueda no disponible todavía</p>
+        <p className="mt-1 text-xs text-stone-500">
+          Aquí se listarán los documentos con coincidencias para el fragmento seleccionado
+          cuando la funcionalidad esté lista.
+        </p>
+      </div>
+    </aside>
+  );
+}
+
 function SaveIndicator({ status, savedAt }) {
   const hora = savedAt ? timeFmt.format(new Date(savedAt)) : null;
 
@@ -96,6 +130,7 @@ export default function ReportEditor() {
   // Fuerza el remontaje del editor tras una restauración: el contenido del
   // `contentEditable` solo se inyecta una vez por `id` (ver DraftEditor).
   const [restoreNonce, setRestoreNonce] = useState(0);
+  const [matchesQuery, setMatchesQuery] = useState(null);
 
   const pendingRef = useRef(null);
   const timerRef = useRef(null);
@@ -121,6 +156,7 @@ export default function ReportEditor() {
     setTitle(draft.data.title);
     setSavedAt(draft.data.updatedAt);
     setStatus('idle');
+    setMatchesQuery(null);
     pendingRef.current = null;
     clearTimeout(timerRef.current);
   }, [draft.data]);
@@ -368,50 +404,59 @@ ${draft.data?.contentHtml || ''}
                 className="w-full rounded-xl bg-white px-5 py-3 font-display text-lg font-semibold text-ink-900 ring-1 ring-stone-900/10 focus:ring-ink-800/30"
               />
 
-              <DraftEditor
-                key={`${draft.data.id}:${restoreNonce}`}
-                initialHtml={draft.data.contentHtml}
-                onChange={(html) => schedule({ contentHtml: html })}
-              />
+              <div className="flex items-start gap-4">
+                <div className="min-w-0 flex-1 space-y-3">
+                  <DraftEditor
+                    key={`${draft.data.id}:${restoreNonce}`}
+                    initialHtml={draft.data.contentHtml}
+                    onChange={(html) => schedule({ contentHtml: html })}
+                    onOpenMatches={(text) => setMatchesQuery(text)}
+                  />
 
-              <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-                <SaveIndicator status={status} savedAt={savedAt} />
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setHistoryOpen((v) => !v)}
-                    className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900"
-                  >
-                    {historyOpen ? 'Ocultar historial' : 'Historial de versiones'}
-                  </button>
-                  <button
-                    onClick={handleExport}
-                    className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900"
-                  >
-                    Exportar a PDF
-                  </button>
-                  <button
-                    onClick={flush}
-                    disabled={status === 'saving' || !pendingRef.current}
-                    className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900 disabled:opacity-50"
-                  >
-                    Guardar ahora
-                  </button>
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+                    <SaveIndicator status={status} savedAt={savedAt} />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setHistoryOpen((v) => !v)}
+                        className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900"
+                      >
+                        {historyOpen ? 'Ocultar historial' : 'Historial de versiones'}
+                      </button>
+                      <button
+                        onClick={handleExport}
+                        className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900"
+                      >
+                        Exportar a PDF
+                      </button>
+                      <button
+                        onClick={flush}
+                        disabled={status === 'saving' || !pendingRef.current}
+                        className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900 disabled:opacity-50"
+                      >
+                        Guardar ahora
+                      </button>
+                    </div>
+                  </div>
+
+                  {historyOpen && (
+                    <DraftHistory
+                      draftId={draft.data.id}
+                      onRestored={(restored) => {
+                        setTitle(restored.title);
+                        setSavedAt(restored.updatedAt);
+                        setStatus('idle');
+                        pendingRef.current = null;
+                        clearTimeout(timerRef.current);
+                        setRestoreNonce((n) => n + 1);
+                      }}
+                    />
+                  )}
                 </div>
-              </div>
 
-              {historyOpen && (
-                <DraftHistory
-                  draftId={draft.data.id}
-                  onRestored={(restored) => {
-                    setTitle(restored.title);
-                    setSavedAt(restored.updatedAt);
-                    setStatus('idle');
-                    pendingRef.current = null;
-                    clearTimeout(timerRef.current);
-                    setRestoreNonce((n) => n + 1);
-                  }}
-                />
-              )}
+                {matchesQuery !== null && (
+                  <MatchesPanel query={matchesQuery} onClose={() => setMatchesQuery(null)} />
+                )}
+              </div>
             </>
           )}
         </section>
