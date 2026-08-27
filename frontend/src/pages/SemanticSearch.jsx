@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useSemanticSearch } from '../hooks/useApi.js';
+import { useSemanticSearch, useTopics, useCreateTopic, } from '../hooks/useApi.js';
 
 export default function SemanticSearch() {
   const [query, setQuery] = useState('');
   const search = useSemanticSearch();
+  const topics = useTopics();
+  const createTopic = useCreateTopic();
+  const [topicName, setTopicName] = useState('');
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -15,7 +18,7 @@ export default function SemanticSearch() {
 
     await search.mutateAsync({
       query: value,
-      limit: 30,
+      limit: 10,
     });
   }
 
@@ -29,6 +32,8 @@ export default function SemanticSearch() {
           documentId: result.documentId,
           originalName: result.originalName,
           bestSimilarity: result.similarity,
+          subcriterionCode: result.subcriterionCode,
+          subcriterionName: result.subcriterionName,
           fragments: [],
         };
       }
@@ -62,6 +67,98 @@ export default function SemanticSearch() {
           del repositorio, independiente de su clasificación.
         </p>
       </header>
+
+      <form
+        onSubmit={async (event) => {
+          event.preventDefault();
+
+          const value = topicName.trim();
+
+          if (value.length < 3) return;
+
+          await createTopic.mutateAsync(value);
+          setTopicName('');
+        }}
+        className="rounded-xl2 bg-white p-5 shadow-soft ring-1 ring-stone-200/60"
+      >
+        <label
+          htmlFor="topic-name"
+          className="mb-2 block text-sm font-medium text-ink-900"
+        >
+          Nueva temática
+        </label>
+
+        <div className="flex gap-3">
+          <input
+            id="topic-name"
+            type="text"
+            value={topicName}
+            onChange={(event) => setTopicName(event.target.value)}
+            placeholder="Ej: Calidad docente"
+            className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-4 py-3 text-sm text-ink-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+          />
+
+          <button
+            type="submit"
+            disabled={topicName.trim().length < 3 || createTopic.isPending}
+            className="btn rounded-lg bg-brand-600 px-5 py-3 text-sm font-medium text-white shadow-soft hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {createTopic.isPending ? 'Guardando…' : 'Guardar temática'}
+          </button>
+        </div>
+
+        {topicName.trim().length > 0 && topicName.trim().length < 3 && (
+          <p className="mt-2 text-xs text-rose-600">
+            La temática debe tener al menos 3 caracteres.
+          </p>
+        )}
+
+        {createTopic.isError && (
+          <p className="mt-2 text-xs text-rose-600">
+            {createTopic.error?.response?.data?.error ||
+              'No fue posible guardar la temática.'}
+          </p>
+        )}
+      </form>
+
+      <section className="rounded-xl2 bg-white p-5 shadow-soft ring-1 ring-stone-200/60">
+        <div className="mb-4">
+          <h2 className="font-display text-xl font-semibold text-ink-900">
+            Temáticas guardadas
+          </h2>
+
+          <p className="mt-1 text-sm text-stone-500">
+            Selecciona una temática para buscar evidencia relacionada.
+          </p>
+        </div>
+
+        {topics.isLoading ? (
+          <p className="text-sm text-stone-500">
+            Cargando temáticas…
+          </p>
+        ) : topics.isError ? (
+          <p className="text-sm text-rose-600">
+            No fue posible cargar las temáticas.
+          </p>
+        ) : (topics.data?.topics || []).length === 0 ? (
+          <p className="text-sm text-stone-500">
+            Aún no hay temáticas guardadas.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {topics.data.topics.map((topic) => (
+              <button
+                key={topic.id}
+                type="button"
+                onClick={() => setQuery(topic.name)}
+                className="rounded-full bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 ring-1 ring-brand-100 transition hover:bg-brand-100"
+              >
+                {topic.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
 
       <form
         onSubmit={handleSubmit}
@@ -150,6 +247,15 @@ export default function SemanticSearch() {
                     >
                       {document.originalName}
                     </Link>
+
+                    {document.subcriterionCode && (
+                      <p className="mt-1 text-sm text-stone-500">
+                        Subcriterio {document.subcriterionCode}
+                        {document.subcriterionName
+                          ? ` — ${document.subcriterionName}`
+                          : ''}
+                      </p>
+                    )}
 
                     <p className="mt-1 text-xs text-stone-400">
                       {document.fragments.length}{' '}

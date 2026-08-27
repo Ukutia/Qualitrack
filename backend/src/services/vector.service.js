@@ -174,8 +174,28 @@ export async function searchSimilarChunks(
     `;
   }
 
-  return results.map((result) => ({
-    ...result,
-    similarity: Number(result.similarity),
-  }));
+  const enrichedResults = await Promise.all(
+    results.map(async (result) => {
+      const association = await prisma.association.findFirst({
+        where: {
+          documentId: result.documentId,
+        },
+        include: {
+          subcriterion: true,
+        },
+        orderBy: {
+          confidence: "desc",
+        },
+      });
+
+      return {
+        ...result,
+        similarity: Number(result.similarity),
+        subcriterionCode: association?.subcriterion?.code ?? null,
+        subcriterionName: association?.subcriterion?.name ?? null,
+      };
+    })
+  );
+
+  return enrichedResults;
 }

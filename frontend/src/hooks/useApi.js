@@ -22,6 +22,30 @@ export function useSemanticSearch() {
   });
 }
 
+// ── Temáticas ───────────────────────────────────────────────────────
+export function useTopics() {
+  return useQuery({
+    queryKey: ['topics'],
+    queryFn: async () => (await api.get('/topics')).data,
+  });
+}
+
+export function useCreateTopic() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (name) =>
+      (
+        await api.post('/topics', {
+          name,
+        })
+      ).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['topics'] });
+    },
+  });
+}
+
 export function useDocument(id) {
   return useQuery({
     queryKey: ['document', id],

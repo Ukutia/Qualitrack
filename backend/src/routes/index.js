@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { upload, structureUpload } from '../middleware/upload.js';
 import { semanticSearch } from '../controllers/search.controller.js';
+import { listTopics, createTopic, } from '../controllers/topics.controller.js';
 
 import { login, me } from '../controllers/auth.controller.js';
 import {
@@ -51,6 +52,10 @@ router.use(requireAuth);
 
 // Búsqueda semántica
 router.post('/search/semantic', semanticSearch);
+
+// Temáticas
+router.get('/topics', listTopics);
+router.post('/topics', createTopic);
 
 // Documentos (HU07)
 router.post('/documents', upload.single('file'), uploadDocument);
