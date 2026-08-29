@@ -32,9 +32,12 @@ function unwrapMisplacedLists(root) {
   }
 }
 
-export default function DraftEditor({ initialHtml = '', onChange, onSelectionChange }) {
+export default function DraftEditor({ initialHtml = '', onChange, onSelectionChange, onOpenMatches }) {
   const ref = useRef(null);
+  const wrapperRef = useRef(null);
   const [active, setActive] = useState({ h2: false, bold: false, italic: false, list: false });
+  // Botón flotante "Buscar coincidencias": aparece sobre el fragmento seleccionado.
+  const [matchTrigger, setMatchTrigger] = useState(null); // { top, left, text }
 
   // El contenido se inyecta una sola vez: mientras se redacta, la fuente de
   // verdad es el DOM del editor. La página lo remonta (`key`) al cambiar de
@@ -54,6 +57,31 @@ export default function DraftEditor({ initialHtml = '', onChange, onSelectionCha
     });
     onSelectionChange?.(document.getSelection()?.toString() ?? '');
   }, [onSelectionChange]);
+
+  const updateMatchTrigger = useCallback(() => {
+    const el = ref.current;
+    const wrapper = wrapperRef.current;
+    const sel = document.getSelection();
+    if (
+      !el || !wrapper || !sel || sel.isCollapsed || !sel.toString().trim() ||
+      !el.contains(sel.anchorNode)
+    ) {
+      setMatchTrigger(null);
+      return;
+    }
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
+    setMatchTrigger({
+      top: rect.top - wrapperRect.top,
+      left: rect.left - wrapperRect.left + rect.width / 2,
+      text: sel.toString(),
+    });
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('selectionchange', updateMatchTrigger);
+    return () => document.removeEventListener('selectionchange', updateMatchTrigger);
+  }, [updateMatchTrigger]);
 
   useEffect(() => {
     document.addEventListener('selectionchange', refreshActive);
@@ -100,11 +128,11 @@ export default function DraftEditor({ initialHtml = '', onChange, onSelectionCha
   }
 
   return (
-    <div className="rounded-2xl bg-white ring-1 ring-stone-900/10 shadow-sm overflow-hidden">
+    <div ref={wrapperRef} className="relative rounded-2xl bg-white ring-1 ring-stone-900/10 shadow-sm">
       <div
         role="toolbar"
         aria-label="Formato del borrador"
-        className="flex items-center gap-1 border-b border-stone-900/10 bg-stone-50/70 px-3 py-2"
+        className="flex items-center gap-1 rounded-t-2xl border-b border-stone-900/10 bg-stone-50/70 px-3 py-2"
       >
         {TOOLS.map((tool) => (
           <button
@@ -157,8 +185,29 @@ export default function DraftEditor({ initialHtml = '', onChange, onSelectionCha
         onKeyUp={refreshActive}
         onMouseUp={refreshActive}
         onPaste={handlePaste}
-        className="draft-surface min-h-[26rem] max-h-[60vh] overflow-y-auto px-7 py-6 text-[15px] leading-relaxed text-ink-900 focus:outline-none"
+        className="draft-surface min-h-[26rem] max-h-[60vh] overflow-y-auto rounded-b-2xl px-7 py-6 text-[15px] leading-relaxed text-ink-900 focus:outline-none"
       />
+
+      {matchTrigger && (
+        <button
+          type="button"
+          // `onMouseDown` con preventDefault: evita que el navegador colapse la
+          // selección antes de que se dispare `onClick`.
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            onOpenMatches?.(matchTrigger.text);
+            setMatchTrigger(null);
+          }}
+          className="btn absolute z-10 flex -translate-x-1/2 -translate-y-full items-center gap-1.5 whitespace-nowrap rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg hover:bg-ink-800"
+          style={{ top: matchTrigger.top - 8, left: matchTrigger.left }}
+        >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" strokeLinecap="round" />
+          </svg>
+          Buscar coincidencias
+        </button>
+      )}
     </div>
   );
 }

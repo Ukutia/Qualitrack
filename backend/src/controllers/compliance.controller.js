@@ -15,7 +15,7 @@ export async function getCompliance(req, res) {
             include: { document: true },
           },
         },
-        orderBy: { code: 'asc' },
+        orderBy: [{ level: 'asc' }, { code: 'asc' }],
       },
     },
   });
@@ -26,6 +26,9 @@ export async function getCompliance(req, res) {
     id: s.id,
     code: s.code,
     name: s.name,
+    description: s.description,
+    level: s.level,
+    required: s.required,
     acceptedEvidenceTypes: s.acceptedEvidenceTypes,
     validatedDocs: s.associations.map((a) => ({
       id: a.document.id,

@@ -54,7 +54,8 @@ export function statusColor(status) {
  * Construye el reporte de cumplimiento del criterio.
  *
  * @param {Array} subcriteria  Lista de subcriterios, cada uno con:
- *   { id, code, name, acceptedEvidenceTypes, validatedDocs: [{id, originalName, documentDate}] }
+ *   { id, code, name, level, required, acceptedEvidenceTypes,
+ *     validatedDocs: [{id, originalName, documentDate}] }
  * @param {Date} now
  * @returns {{ canCalculate: boolean, message?: string, items: Array }}
  */
@@ -75,6 +76,9 @@ export function buildComplianceReport(subcriteria, now = new Date()) {
       subcriterionId: s.id,
       code: s.code,
       name: s.name,
+      description: s.description ?? null,
+      level: s.level ?? 1,
+      required: s.required ?? false,
       status,
       color: statusColor(status),
       validatedCount: validatedDocs.length,

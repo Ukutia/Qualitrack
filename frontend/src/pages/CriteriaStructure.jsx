@@ -214,7 +214,7 @@ export default function CriteriaStructure() {
     }
   }
 
-  if (isLoading) return <p className="text-slate-500">Cargando estructura…</p>;
+  if (isLoading) return <p className="text-steel-500">Cargando estructura…</p>;
 
   return (
     <>
@@ -230,14 +230,14 @@ export default function CriteriaStructure() {
         {/* panel */}
         <div className="relative z-50 w-full max-w-md bg-white shadow-xl flex flex-col h-full animate-slide-in-right">
           {/* header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-steel-200">
             <div>
-              <h2 className="text-base font-semibold text-slate-800">Historial de versiones</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Versión activa: {data.version ?? '—'}</p>
+              <h2 className="text-base font-semibold text-steel-800">Historial de versiones</h2>
+              <p className="text-xs text-steel-400 mt-0.5">Versión activa: {data.version ?? '—'}</p>
             </div>
             <button
               onClick={() => { setShowHistory(false); closeRestoreDialog(); }}
-              className="rounded-md p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              className="rounded-md p-1.5 text-steel-400 hover:text-steel-600 hover:bg-steel-100 transition-colors"
               aria-label="Cerrar historial"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -249,15 +249,15 @@ export default function CriteriaStructure() {
           {/* contenido */}
           <div className="flex-1 overflow-y-auto px-5 py-4">
             {!history || history.length === 0 ? (
-              <p className="text-sm text-slate-400">No hay versiones registradas.</p>
+              <p className="text-sm text-steel-400">No hay versiones registradas.</p>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-steel-100">
                 {history.map((v) => (
                   <div key={v.version} className="py-4 space-y-3">
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-0.5 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold text-slate-800">
+                          <span className="text-sm font-semibold text-steel-800">
                             Versión {v.version}
                           </span>
                           {v.active && (
@@ -266,11 +266,11 @@ export default function CriteriaStructure() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-steel-500">
                           {formatDate(v.uploadedAt)}
                           {' · '}{v.sectionCount} secciones
                           {v.uploadedBy && (
-                            <> · <span className="text-slate-700 font-medium">{v.uploadedBy.name}</span></>
+                            <> · <span className="text-steel-700 font-medium">{v.uploadedBy.name}</span></>
                           )}
                         </p>
                         {v.note && (
@@ -281,7 +281,7 @@ export default function CriteriaStructure() {
                       {!v.active && (
                         <button
                           onClick={() => openRestoreDialog(v.version)}
-                          className="shrink-0 rounded-md border border-slate-300 hover:bg-slate-50 text-slate-600 text-xs px-3 py-1.5 font-medium transition-colors"
+                          className="shrink-0 rounded-md border border-steel-300 hover:bg-steel-50 text-steel-600 text-xs px-3 py-1.5 font-medium transition-colors"
                         >
                           Restaurar
                         </button>
@@ -313,18 +313,18 @@ export default function CriteriaStructure() {
 
           {/* texto */}
           <div className="text-center space-y-1">
-            <h3 className="text-base font-semibold text-slate-800">
+            <h3 className="text-base font-semibold text-steel-800">
               Restaurar versión {confirmRestore}
             </h3>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-steel-500">
               Esto creará una nueva versión activa copiando el contenido de la versión {confirmRestore}. Esta acción no se puede deshacer directamente.
             </p>
           </div>
 
           {/* input de confirmación */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">
-              Escribe <span className="font-mono font-semibold text-slate-800">restaurar</span> para confirmar
+            <label className="block text-xs font-medium text-steel-600">
+              Escribe <span className="font-mono font-semibold text-steel-800">restaurar</span> para confirmar
             </label>
             <input
               type="text"
@@ -334,7 +334,7 @@ export default function CriteriaStructure() {
                 if (e.key === 'Enter' && restoreInput === 'restaurar') handleRestore(confirmRestore);
               }}
               placeholder="restaurar"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 placeholder:text-slate-300"
+              className="w-full rounded-lg border border-steel-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 placeholder:text-steel-300"
               autoFocus
             />
           </div>
@@ -343,14 +343,14 @@ export default function CriteriaStructure() {
           <div className="flex gap-2 pt-1">
             <button
               onClick={closeRestoreDialog}
-              className="flex-1 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-600 text-sm px-4 py-2 font-medium transition-colors"
+              className="flex-1 rounded-lg border border-steel-300 hover:bg-steel-50 text-steel-600 text-sm px-4 py-2 font-medium transition-colors"
             >
               Cancelar
             </button>
             <button
               onClick={() => handleRestore(confirmRestore)}
               disabled={restoreInput !== 'restaurar' || restoreStructure.isPending}
-              className="flex-1 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm px-4 py-2 font-medium transition-colors disabled:cursor-not-allowed"
+              className="flex-1 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:bg-steel-200 disabled:text-steel-400 text-white text-sm px-4 py-2 font-medium transition-colors disabled:cursor-not-allowed"
             >
               {restoreStructure.isPending ? 'Restaurando…' : 'Restaurar'}
             </button>
@@ -372,13 +372,13 @@ export default function CriteriaStructure() {
       <header className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">Estructura oficial del informe CNA</h1>
-          <p className="text-slate-500 mt-1">Versión activa: {data.version ?? '—'}</p>
+          <p className="text-steel-500 mt-1">Versión activa: {data.version ?? '—'}</p>
         </div>
         {!draft && !parseResult && (
           <div className="flex gap-2">
             <button
               onClick={() => setShowHistory((v) => !v)}
-              className="rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-600 px-4 py-2 text-sm font-medium flex items-center gap-2"
+              className="rounded-lg border border-steel-300 hover:bg-steel-50 text-steel-600 px-4 py-2 text-sm font-medium flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -438,37 +438,37 @@ export default function CriteriaStructure() {
         <div className="bg-white rounded-xl shadow-sm p-5 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-base font-semibold text-slate-800">Secciones detectadas</h2>
-              <p className="text-sm text-slate-500 mt-0.5">
-                Documento: <span className="font-medium text-slate-700">{parseResult.filename}</span>
+              <h2 className="text-base font-semibold text-steel-800">Secciones detectadas</h2>
+              <p className="text-sm text-steel-500 mt-0.5">
+                Documento: <span className="font-medium text-steel-700">{parseResult.filename}</span>
                 {' · '}{parseResult.totalSections} secciones encontradas
               </p>
             </div>
             <button
               onClick={() => setParseResult(null)}
-              className="text-slate-400 hover:text-slate-600 text-xs shrink-0"
+              className="text-steel-400 hover:text-steel-600 text-xs shrink-0"
             >
               Descartar
             </button>
           </div>
 
-          <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-[480px] overflow-y-auto">
+          <div className="border border-steel-200 rounded-lg divide-y divide-steel-100 max-h-[480px] overflow-y-auto">
             {parseResult.sections.map((s) => (
               <div
                 key={s.code}
                 className={`flex items-center justify-between gap-3 px-4 py-2.5 ${LEVEL_INDENT[s.level] || 'pl-4'}`}
               >
                 <div className="flex items-baseline gap-2 min-w-0">
-                  <span className="text-xs font-mono text-slate-400 shrink-0">{s.code}</span>
+                  <span className="text-xs font-mono text-steel-400 shrink-0">{s.code}</span>
                   <span
-                    className={`text-sm text-slate-800 truncate ${s.level === 1 ? 'font-semibold' : s.level === 2 ? 'font-medium' : ''}`}
+                    className={`text-sm text-steel-800 truncate ${s.level === 1 ? 'font-semibold' : s.level === 2 ? 'font-medium' : ''}`}
                   >
                     {s.name}
                   </span>
                 </div>
                 <span
                   className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                    s.required ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-400'
+                    s.required ? 'bg-steel-200 text-steel-700' : 'bg-steel-100 text-steel-400'
                   }`}
                 >
                   {s.required ? 'Obligatoria' : 'Opcional'}
@@ -487,7 +487,7 @@ export default function CriteriaStructure() {
             </button>
             <button
               onClick={importToEditor}
-              className="rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 text-sm font-medium"
+              className="rounded-lg border border-steel-300 hover:bg-steel-50 text-steel-700 px-4 py-2 text-sm font-medium"
             >
               Revisar y editar antes de guardar
             </button>
@@ -498,7 +498,7 @@ export default function CriteriaStructure() {
       {/* ── Editor visual ────────────────────────────────────────────── */}
       {draft && (
         <div className="bg-white rounded-xl shadow-sm p-5 space-y-3">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-steel-600">
             Edite las secciones del informe. Al guardar se crea una nueva versión y el sistema
             marca qué secciones se agregaron, eliminaron o renombraron.
           </p>
@@ -515,17 +515,17 @@ export default function CriteriaStructure() {
                 className={[
                   'border rounded-lg p-3 transition-all duration-150',
                   dragIndex === i
-                    ? 'opacity-40 scale-[0.98] border-slate-300 bg-slate-50'
+                    ? 'opacity-40 scale-[0.98] border-steel-300 bg-steel-50'
                     : dragOverIndex === i && dragIndex !== null
                     ? 'border-brand-500 border-2 bg-brand-50/30 shadow-md'
-                    : 'border-slate-200 bg-white',
+                    : 'border-steel-200 bg-white',
                 ].join(' ')}
               >
                 <div className="flex items-start gap-2">
                   {/* drag handle */}
                   <div
                     title="Arrastrar para reordenar"
-                    className="shrink-0 mt-1.5 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 transition-colors px-0.5"
+                    className="shrink-0 mt-1.5 cursor-grab active:cursor-grabbing text-steel-300 hover:text-steel-500 transition-colors px-0.5"
                   >
                     <svg viewBox="0 0 10 16" className="w-3.5 h-3.5 fill-current" aria-hidden="true">
                       <circle cx="2.5" cy="2" r="1.5" />
@@ -541,27 +541,27 @@ export default function CriteriaStructure() {
                     value={row.code}
                     onChange={(e) => updateRow(i, 'code', e.target.value)}
                     placeholder="N°"
-                    className="w-16 rounded-md border border-slate-300 px-2 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-16 rounded-md border border-steel-300 px-2 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-brand-500"
                   />
                   <div className="flex-1 space-y-2">
                     <input
                       value={row.name}
                       onChange={(e) => updateRow(i, 'name', e.target.value)}
                       placeholder="Nombre de la sección"
-                      className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500"
+                      className="w-full rounded-md border border-steel-300 px-3 py-1.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500"
                     />
                     <input
                       value={row.description}
                       onChange={(e) => updateRow(i, 'description', e.target.value)}
                       placeholder="Descripción (qué debe contener según la CNA)"
-                      className="w-full rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-brand-500"
+                      className="w-full rounded-md border border-steel-200 px-3 py-1.5 text-xs text-steel-600 outline-none focus:ring-2 focus:ring-brand-500"
                     />
-                    <label className="inline-flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                    <label className="inline-flex items-center gap-2 text-xs text-steel-600 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={row.required}
                         onChange={(e) => updateRow(i, 'required', e.target.checked)}
-                        className="rounded border-slate-300"
+                        className="rounded border-steel-300"
                       />
                       Sección obligatoria
                     </label>
@@ -571,7 +571,7 @@ export default function CriteriaStructure() {
                       onClick={() => move(i, -1)}
                       disabled={i === 0}
                       title="Subir"
-                      className="rounded-md bg-slate-100 hover:bg-slate-200 disabled:opacity-40 px-2 py-1 text-xs"
+                      className="rounded-md bg-steel-100 hover:bg-steel-200 disabled:opacity-40 px-2 py-1 text-xs"
                     >
                       ↑
                     </button>
@@ -579,7 +579,7 @@ export default function CriteriaStructure() {
                       onClick={() => move(i, 1)}
                       disabled={i === draft.length - 1}
                       title="Bajar"
-                      className="rounded-md bg-slate-100 hover:bg-slate-200 disabled:opacity-40 px-2 py-1 text-xs"
+                      className="rounded-md bg-steel-100 hover:bg-steel-200 disabled:opacity-40 px-2 py-1 text-xs"
                     >
                       ↓
                     </button>
@@ -598,7 +598,7 @@ export default function CriteriaStructure() {
 
           <button
             onClick={addRow}
-            className="w-full rounded-lg border-2 border-dashed border-slate-300 hover:border-brand-500 text-slate-500 hover:text-brand-600 py-2 text-sm font-medium"
+            className="w-full rounded-lg border-2 border-dashed border-steel-300 hover:border-brand-500 text-steel-500 hover:text-brand-600 py-2 text-sm font-medium"
           >
             + Agregar sección
           </button>
@@ -613,7 +613,7 @@ export default function CriteriaStructure() {
             </button>
             <button
               onClick={() => setDraft(null)}
-              className="rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 text-sm"
+              className="rounded-lg bg-steel-100 hover:bg-steel-200 text-steel-700 px-4 py-2 text-sm"
             >
               Cancelar
             </button>
@@ -623,19 +623,19 @@ export default function CriteriaStructure() {
 
       {/* ── Vista de solo lectura ─────────────────────────────────────── */}
       {!draft && !parseResult && (
-        <div className="bg-white rounded-xl shadow-sm divide-y divide-slate-100">
+        <div className="bg-white rounded-xl shadow-sm divide-y divide-steel-100">
           {data.sections.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-sm">
+            <div className="p-8 text-center text-steel-400 text-sm">
               No hay estructura definida. Importe un documento oficial o edite manualmente.
             </div>
           ) : (
             data.sections.map((s) => (
               <div key={s.code} className="p-4 flex items-start justify-between gap-4">
                 <div>
-                  <p className="font-semibold text-slate-800">
+                  <p className="font-semibold text-steel-800">
                     {s.code}. {s.name}
                   </p>
-                  {s.description && <p className="text-sm text-slate-500 mt-0.5">{s.description}</p>}
+                  {s.description && <p className="text-sm text-steel-500 mt-0.5">{s.description}</p>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {CHANGE_BADGE[s.changeType] && (
@@ -645,7 +645,7 @@ export default function CriteriaStructure() {
                   )}
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      s.required ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-500'
+                      s.required ? 'bg-steel-200 text-steel-700' : 'bg-steel-100 text-steel-500'
                     }`}
                   >
                     {s.label}

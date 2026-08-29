@@ -54,7 +54,7 @@ export default function Upload() {
     <div className="space-y-6 max-w-2xl">
       <header>
         <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">Cargar evidencia</h1>
-        <p className="text-stone-500 mt-1">
+        <p className="text-steel-500 mt-1">
           Formatos aceptados: PDF, DOCX, XLSX · Tamaño máximo: <span className="tnum">{MAX_MB}</span>MB.
         </p>
       </header>
@@ -71,7 +71,7 @@ export default function Upload() {
         className={`group flex flex-col items-center justify-center gap-3 rounded-xl2 border-2 border-dashed p-12 text-center cursor-pointer transition-all duration-200 ${
           dragOver
             ? 'bg-brand-50 border-brand-500 scale-[1.01]'
-            : 'bg-white border-stone-300 hover:border-brand-400 hover:bg-brand-50/40'
+            : 'bg-white border-steel-300 hover:border-brand-400 hover:bg-brand-50/40'
         }`}
       >
         <input
@@ -100,7 +100,7 @@ export default function Upload() {
         {file ? (
           <p className="font-medium text-ink-900">{file.name}</p>
         ) : (
-          <p className="text-stone-500">
+          <p className="text-steel-500">
             Arrastra un archivo aquí o{' '}
             <span className="font-medium text-brand-600">haz clic</span> para seleccionar.
           </p>
@@ -157,7 +157,7 @@ export default function Upload() {
             </button>
             <button
               onClick={() => setDuplicate(null)}
-              className="btn rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors duration-150 text-slate-700 px-4 py-2 text-sm"
+              className="btn rounded-lg bg-steel-100 hover:bg-steel-200 transition-colors duration-150 text-steel-700 px-4 py-2 text-sm"
             >
               Cancelar
             </button>

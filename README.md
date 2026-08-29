@@ -2,8 +2,16 @@
 
 Sistema de **gestión y análisis de evidencias** para la acreditación institucional chilena (CNA).
 El MVP se acota a **una sede, hasta 3 carreras y exclusivamente el Criterio 9 de la CNA**
-("Aseguramiento de la calidad de los programas formativos"), con un único usuario administrador
+("Gestión y resultados del aseguramiento interno de la calidad"), con un único usuario administrador
 (Encargado de Aseguramiento de Calidad).
+
+El criterio se evalúa en **tres niveles acumulativos**, tal como los define la matriz de la CNA:
+
+| Nivel | Alcance | Subcriterios |
+|-------|---------|--------------|
+| **1 — Cumplimiento obligatorio** | Piso mínimo para acreditar | 9.1.1 Institucionalidad de la calidad · 9.1.2 Monitoreo del desempeño · 9.1.3 Transparencia y acceso a la información |
+| **2 — Acreditación avanzada** | Requiere todo el Nivel 1 | 9.2.1 Formalización de mecanismos e indicadores · 9.2.2 Instalación de una cultura de calidad transversal |
+| **3 — Excelencia** | Requiere los niveles 1 y 2 | 9.3.1 Autorregulación autónoma y madurez del sistema · 9.3.2 Compromiso y coherencia estamental total |
 
 ## Historias de usuario incluidas
 
@@ -14,6 +22,7 @@ El MVP se acota a **una sede, hasta 3 carreras y exclusivamente el Criterio 9 de
 | **HU09** | Importante | Conectar **Google Drive** (OAuth real) para navegar e importar archivos. |
 | **HU01** | Importante | Asociación de evidencia al Criterio 9 con propuesta automática, justificación, validar/descartar e historial de auditoría. |
 | **HU02** | Importante | Cálculo del estado de cumplimiento por subcriterio (Suficiente / Parcial / Insuficiente). |
+| **Redacción** | Esencial | Redactar el borrador del informe dentro de la plataforma, con formato (título, negrita, cursiva, lista), autoguardado y recuperación íntegra del contenido. |
 
 ## Stack
 
@@ -32,13 +41,27 @@ docker compose up --build
 ```
 
 Al iniciar, el backend sincroniza el esquema (`prisma db push`), ejecuta el *seed*
-(admin + Criterio 9 + estructura del informe) y levanta la API.
+(admin + Criterio 9 con sus tres niveles + estructura del informe) y levanta la API.
+
+> **Actualización de la matriz de criterios.** Si la base ya existía con la matriz anterior
+> (subcriterios `9.1`–`9.5`), tras `db push` + `db:seed` conviven con los nuevos. El seed
+> elimina automáticamente los obsoletos **sin asociaciones**; los que aún tienen evidencias
+> asociadas se conservan y se avisa por consola. Para eliminarlos junto con sus asociaciones
+> e historial:
+>
+> ```bash
+> PRUNE_OBSOLETE_SUBCRITERIA=true npm run db:seed
+> ```
 
 - Frontend: http://localhost:5173
 - API: http://localhost:4000/api
 - Credenciales por defecto: **admin@qualitrack.cl / admin123**
 
 ## Decisiones del MVP
+
+- **Landing pública:** `/` es la página de presentación (`frontend/src/pages/Landing.jsx`), abierta
+  sin sesión. La aplicación autenticada vive bajo `/app` (tablero) y el resto de rutas protegidas
+  no cambian.
 
 - **Clasificador IA (HU01):** *mock* determinístico por palabras clave (sin llamadas externas).
   La lógica está aislada en `backend/src/services/classifier.service.js` para enchufar
@@ -47,6 +70,12 @@ Al iniciar, el backend sincroniza el esquema (`prisma db push`), ejecuta el *see
   muestra instrucciones de configuración.
 - **Almacenamiento:** volumen local (`backend/src/services/storage.service.js` aísla un futuro
   cambio a S3/GCS).
+- **Editor del borrador (Redacción):** `contentEditable` nativo + `execCommand`, sin
+  dependencias de terceros. Mantiene la selección de texto del navegador, base de la revisión
+  de incoherencias y de la inserción de frases del almacén. El HTML se sanea en el servidor
+  (`backend/src/services/draftSanitizer.service.js`) contra una lista blanca de etiquetas y
+  sin atributos. Autoguardado a los 2 s de la última modificación (el criterio exige ≤ 5 s),
+  con reintento cada 5 s si falla la red y volcado al salir de la sección.
 - **Reglas de cumplimiento (HU02):** Suficiente = ≥2 docs validados < 3 años; Parcial = ≥1
   validado pero > 3 años, o solo 1 vigente; Insuficiente = sin validados. Cubiertas por tests.
 

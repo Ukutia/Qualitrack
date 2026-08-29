@@ -46,10 +46,9 @@ model User {
   history            AssociationHistory[]
   cloudConns         CloudConnection[]
   structureVersions  ReportStructureVersion[]
+  reportDrafts       ReportDraft[]
+  reportDraftVersions ReportDraftVersion[]
   topics             Topic[]
-
-  reportDrafts         ReportDraft[]
-  reportDraftVersions  ReportDraftVersion[]
 }
 
 model Criterion {
@@ -64,9 +63,10 @@ model Subcriterion {
   id                    Int      @id @default(autoincrement())
   criterion             Criterion @relation(fields: [criterionId], references: [id])
   criterionId           Int
-  code                  String   // "9.1"
+  code                  String   // "9.1.1"
   name                  String
   description           String?
+  level                 Int      @default(1) // 1 = obligatorio, 2 = avanzado, 3 = excelencia
   required              Boolean  @default(true)
   keywords              String[] // alimenta el clasificador mock (HU01)
   acceptedEvidenceTypes String[] // tipos de evidencia aceptados (detalle HU02)
@@ -104,6 +104,10 @@ model ReportSection {
   children ReportSection[] @relation("SectionChildren")
 }
 
+/// Borrador del informe redactado dentro de la plataforma (HU redacción).
+/// `contentHtml` guarda el formato aplicado (título, negrita, cursiva, lista);
+/// `contentText` es el texto plano derivado, base para la revisión de
+/// incoherencias y las sugerencias de respaldo documental.
 model ReportDraft {
   id          Int      @id @default(autoincrement())
   title       String   @default("Borrador sin título")
@@ -120,15 +124,19 @@ model ReportDraft {
   @@index([authorId, updatedAt])
 }
 
+/// Instantánea de un ReportDraft en un punto del tiempo. No se crea en cada
+/// autoguardado (saturaría el historial): `updateDraft` solo respalda el
+/// estado anterior cuando ha pasado un intervalo mínimo desde la última
+/// instantánea, o al restaurar una versión previa.
 model ReportDraftVersion {
-  id          Int         @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   draft       ReportDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
   draftId     Int
   version     Int
   title       String
-  contentHtml String      @default("") @db.Text
-  contentText String      @default("") @db.Text
-  createdAt   DateTime    @default(now())
+  contentHtml String   @default("") @db.Text
+  contentText String   @default("") @db.Text
+  createdAt   DateTime @default(now())
 
   createdBy   User? @relation(fields: [createdById], references: [id])
   createdById Int?
@@ -140,20 +148,20 @@ model Document {
   id            Int            @id @default(autoincrement())
   originalName  String
   storedName    String         @unique
-  format        String
+  format        String // pdf | docx | xlsx
   sizeBytes     Int
   storagePath   String
   source        DocumentSource @default(UPLOAD)
   cloudFileId   String?
   cloudLocation String?
-  documentDate  DateTime       @default(now())
+  documentDate  DateTime       @default(now()) // base para antigüedad (HU02)
   extractedText String?        @db.Text
   uploadedAt    DateTime       @default(now())
 
   uploadedBy   User @relation(fields: [uploadedById], references: [id])
   uploadedById Int
 
-  deletedAt DateTime?
+  deletedAt    DateTime?      // null = activo, fecha = en papelera
 
   associations Association[]
   chunks DocumentChunk[]
@@ -211,7 +219,7 @@ model DocumentChunk {
   chunkIndex     Int
   content        String   @db.Text
   embedding      Unsupported("vector(768)")?
-  embeddingModel String @default("Qwen/Qwen3-Embedding-0.6B")
+  embeddingModel String   @default("Qwen/Qwen3-Embedding-0.6B")
   createdAt      DateTime @default(now())
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)

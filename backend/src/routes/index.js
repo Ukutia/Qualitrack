@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { upload, structureUpload } from '../middleware/upload.js';
 import { semanticSearch } from '../controllers/search.controller.js';
-import { listTopics, createTopic, } from '../controllers/topics.controller.js';
+import { listTopics, createTopic } from '../controllers/topics.controller.js';
 import {
   listDrafts,
   createDraft,
@@ -12,7 +12,6 @@ import {
   getDraftHistory,
   restoreDraftVersion,
 } from '../controllers/reportDrafts.controller.js';
-
 import { login, me } from '../controllers/auth.controller.js';
 import {
   uploadDocument,

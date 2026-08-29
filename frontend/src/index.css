@@ -14,13 +14,13 @@ html {
 
 body {
   margin: 0;
-  background-color: #f4f1ea;
+  background-color: #fff7eb;
   /* Calidez ambiental: dos focos suaves sobre el papel, no un plano frío. */
   background-image:
-    radial-gradient(1200px 600px at 100% -10%, rgba(31, 78, 87, 0.06), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, rgba(183, 140, 74, 0.07), transparent 55%);
+    radial-gradient(1200px 600px at 100% -10%, rgba(79, 150, 217, 0.08), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(211, 160, 78, 0.08), transparent 55%);
   background-attachment: fixed;
-  color: #1c1e26;
+  color: #181b21;
   font-family: 'Outfit', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -55,7 +55,7 @@ body::after {
 
 /* ── Foco accesible y consistente ───────────────────────────────────── */
 *:focus-visible {
-  outline: 2px solid #2c6670;
+  outline: 2px solid #3778bd;
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -126,6 +126,90 @@ body::after {
 }
 .ring-progress {
   animation: ring-fill 1s var(--ease-out) both;
+}
+
+/* ── Área de redacción del borrador ─────────────────────────────────── */
+/* Tailwind preflight aplana h2/ul/li; aquí se devuelve el aspecto de
+   documento para que el formato aplicado se vea mientras se redacta. */
+.draft-surface:empty::before,
+.draft-surface:has(> p:only-child:empty)::before {
+  content: attr(data-placeholder);
+  color: #9a958a;
+  pointer-events: none;
+}
+.draft-surface > * + * {
+  margin-top: 0.75rem;
+}
+.draft-surface h1,
+.draft-surface h2,
+.draft-surface h3 {
+  font-family: 'Fraunces', Georgia, Cambria, serif;
+  font-weight: 500;
+  line-height: 1.25;
+  color: #1c1e26;
+}
+.draft-surface h1 { font-size: 1.6rem; }
+.draft-surface h2 { font-size: 1.3rem; }
+.draft-surface h3 { font-size: 1.1rem; }
+.draft-surface ul,
+.draft-surface ol {
+  padding-left: 1.5rem;
+}
+.draft-surface ul { list-style: disc; }
+.draft-surface ol { list-style: decimal; }
+.draft-surface li { margin-top: 0.25rem; }
+.draft-surface blockquote {
+  border-left: 3px solid #b78c4a;
+  padding-left: 0.9rem;
+  color: #454545;
+  font-style: italic;
+}
+.draft-surface ::selection {
+  background: rgba(44, 102, 112, 0.18);
+}
+
+/* ── Landing: revelado al hacer scroll ──────────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 700ms var(--ease-out), transform 700ms var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Barrido lento del acento sobre el titular del hero. */
+@keyframes sheen {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.hero-sheen {
+  background-image: linear-gradient(100deg, #1f4e57 0%, #2c6670 30%, #b78c4a 50%, #2c6670 70%, #1f4e57 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sheen 9s linear infinite;
+}
+
+/* Cuadrícula técnica de fondo — sugiere planilla/rúbrica sin ruido. */
+.grid-paper {
+  background-image:
+    linear-gradient(to right, rgba(31, 78, 87, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(31, 78, 87, 0.055) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(70% 60% at 50% 30%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(70% 60% at 50% 30%, #000 30%, transparent 100%);
+}
+
+/* Detalle del acordeón de preguntas. */
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+.faq-item[open] .faq-chevron {
+  transform: rotate(45deg);
 }
 
 /* ── Respeta usuarios sensibles al movimiento ───────────────────────── */
