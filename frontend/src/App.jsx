@@ -12,12 +12,9 @@ import CriteriaStructure from './pages/CriteriaStructure.jsx';
 import ReportEditor from './pages/ReportEditor.jsx';
 import CloudConnect from './pages/CloudConnect.jsx';
 import Trash from './pages/Trash.jsx';
-<<<<<<< Updated upstream
 import SemanticSearch from './pages/SemanticSearch.jsx';
-=======
 import AccessDenied from './pages/AccessDenied.jsx';
 import { ROLES } from './lib/roles.js';
->>>>>>> Stashed changes
 
 // Roles con acceso a cada ruta (EP 1.1 · EP 1.2). El backend revalida cada
 // petición: esto solo evita que la pantalla llegue a montarse.
@@ -43,17 +40,11 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-<<<<<<< Updated upstream
-        <Route path="/app" element={<Dashboard />} />
-        <Route path="/documents" element={<Documents />} />
-        <Route path="/search" element={<SemanticSearch />} />
-        <Route path="/documents/:id" element={<DocumentDetail />} />
-=======
         <Route path="/acceso-denegado" element={<AccessDenied />} />
         <Route path="/app" element={<Guard roles={ADMIN_ONLY}><Dashboard /></Guard>} />
         <Route path="/documents" element={<Guard roles={ADMIN_AND_USER}><Documents /></Guard>} />
+        <Route path="/search" element={<Guard roles={ADMIN_ONLY}><SemanticSearch /></Guard>} />
         <Route path="/documents/:id" element={<Guard roles={ADMIN_AND_USER}><DocumentDetail /></Guard>} />
->>>>>>> Stashed changes
         <Route path="/upload" element={<Upload />} />
         <Route path="/structure" element={<Guard roles={ADMIN_ONLY}><CriteriaStructure /></Guard>} />
         <Route path="/report" element={<Guard roles={ADMIN_ONLY}><ReportEditor /></Guard>} />

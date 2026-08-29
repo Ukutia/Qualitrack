@@ -1,21 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import fullLogoDark from '../assets/fulllogo_darkmode.svg';
-<<<<<<< Updated upstream
-
-const NAV = [
-  { to: '/app', label: 'Tablero', end: true },
-  { to: '/documents', label: 'Repositorio' },
-  { to: '/search', label: 'Búsqueda temática' },
-  { to: '/upload', label: 'Cargar evidencia' },
-  { to: '/structure', label: 'Estructura informe' },
-  { to: '/report', label: 'Redacción informe' },
-  { to: '/cloud', label: 'Google Drive' },
-  { to: '/trash', label: 'Papelera' },
-];
-=======
 import { navFor, roleLabel } from '../lib/roles.js';
->>>>>>> Stashed changes
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -44,7 +30,7 @@ export default function Layout() {
         {/* Hairline dorado que separa el lienzo institucional del contenido */}
         <span className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-gold-500/40 to-transparent" />
 
-        <div className="px-6 pt-7 pb-6">
+        <div className="px-6 pt-5 pb-6">
           <img src={fullLogoDark} alt="Qualitrack" className="w-full h-auto" />
           <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-gold-400/80">
             Acreditación CNA

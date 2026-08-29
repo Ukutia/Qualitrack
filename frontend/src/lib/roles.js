@@ -23,6 +23,7 @@ const ALL = [ROLES.ADMIN, ROLES.USER, ROLES.INGESTOR];
 export const SECTIONS = [
   { to: '/app', label: 'Tablero', end: true, roles: [ROLES.ADMIN] },
   { to: '/documents', label: 'Repositorio', roles: [ROLES.ADMIN, ROLES.USER] },
+  { to: '/search', label: 'Búsqueda temática', roles: [ROLES.ADMIN] },
   { to: '/upload', label: 'Cargar evidencia', roles: ALL },
   { to: '/structure', label: 'Estructura informe', roles: [ROLES.ADMIN] },
   { to: '/report', label: 'Redacción informe', roles: [ROLES.ADMIN] },
