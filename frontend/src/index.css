@@ -144,7 +144,7 @@ body::after {
 .draft-surface h2,
 .draft-surface h3 {
   font-family: 'Fraunces', Georgia, Cambria, serif;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.25;
   color: #1c1e26;
 }

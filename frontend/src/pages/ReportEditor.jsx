@@ -6,6 +6,8 @@ import {
   useCreateReportDraft,
   useSaveReportDraft,
   useDeleteReportDraft,
+  useReportDraftHistory,
+  useRestoreReportDraft,
 } from '../hooks/useApi.js';
 
 // Autoguardado: el criterio exige "como máximo 5 segundos después de la última
@@ -124,6 +126,10 @@ export default function ReportEditor() {
   const [status, setStatus] = useState('idle');
   const [savedAt, setSavedAt] = useState(null);
   const [title, setTitle] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  // Fuerza el remontaje del editor tras una restauración: el contenido del
+  // `contentEditable` solo se inyecta una vez por `id` (ver DraftEditor).
+  const [restoreNonce, setRestoreNonce] = useState(0);
   const [matchesQuery, setMatchesQuery] = useState(null);
 
   const pendingRef = useRef(null);
@@ -217,6 +223,69 @@ export default function ReportEditor() {
     setSelectedId(created.id);
   }
 
+  // Exporta el borrador a PDF vía el diálogo de impresión del navegador. Se
+  // usa un iframe oculto en vez de `window.open`: los bloqueadores de
+  // ventanas emergentes interceptan la segunda opción en varios navegadores.
+  function handleExport() {
+    const safeTitle = (title || 'Borrador sin título').replace(/[<>]/g, '');
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    iframe.contentDocument.write(`<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>${safeTitle}</title>
+<style>
+  body {
+    font-family: Georgia, Cambria, serif;
+    color: #1c1e26;
+    max-width: 46rem;
+    margin: 2.5rem auto;
+    padding: 0 1.5rem;
+    line-height: 1.6;
+  }
+  h1.doc-title {
+    font-size: 1.9rem;
+    font-weight: 600;
+    margin-bottom: 1.75rem;
+  }
+  h1, h2, h3 { font-weight: 500; line-height: 1.25; }
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.3rem; }
+  h3 { font-size: 1.1rem; }
+  ul, ol { padding-left: 1.5rem; }
+  blockquote {
+    border-left: 3px solid #b78c4a;
+    padding-left: 0.9rem;
+    color: #454545;
+    font-style: italic;
+    margin-left: 0;
+  }
+  @media print {
+    body { margin: 0; padding: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+<h1 class="doc-title">${safeTitle}</h1>
+${draft.data?.contentHtml || ''}
+</body>
+</html>`);
+    iframe.contentDocument.close();
+
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => document.body.removeChild(iframe), 1000);
+  }
+
   async function handleDelete(id) {
     if (!window.confirm('¿Eliminar este borrador? La acción no se puede deshacer.')) return;
     clearTimeout(timerRef.current);
@@ -284,13 +353,13 @@ export default function ReportEditor() {
                   {item.preview || 'Sin contenido'}
                 </p>
                 <p className="mt-1 text-[11px] text-stone-400 tnum">
-                  {listFmt.format(new Date(item.updatedAt))}
+                  Creado el {listFmt.format(new Date(item.createdAt))}
                 </p>
               </button>
               <button
                 onClick={() => handleDelete(item.id)}
                 aria-label={`Eliminar ${item.title}`}
-                className="btn absolute right-2 top-2 hidden rounded-md px-1.5 py-0.5 text-xs text-stone-400 hover:bg-rose-50 hover:text-rose-600 group-hover:block"
+                className="btn absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-xs text-stone-400 opacity-40 hover:bg-rose-50 hover:text-rose-600 hover:opacity-100"
               >
                 ✕
               </button>
@@ -338,7 +407,7 @@ export default function ReportEditor() {
               <div className="flex items-start gap-4">
                 <div className="min-w-0 flex-1 space-y-3">
                   <DraftEditor
-                    key={draft.data.id}
+                    key={`${draft.data.id}:${restoreNonce}`}
                     initialHtml={draft.data.contentHtml}
                     onChange={(html) => schedule({ contentHtml: html })}
                     onOpenMatches={(text) => setMatchesQuery(text)}
@@ -346,14 +415,42 @@ export default function ReportEditor() {
 
                   <div className="flex flex-wrap items-center justify-between gap-3 px-1">
                     <SaveIndicator status={status} savedAt={savedAt} />
-                    <button
-                      onClick={flush}
-                      disabled={status === 'saving' || !pendingRef.current}
-                      className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900 disabled:opacity-50"
-                    >
-                      Guardar ahora
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setHistoryOpen((v) => !v)}
+                        className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900"
+                      >
+                        {historyOpen ? 'Ocultar historial' : 'Historial de versiones'}
+                      </button>
+                      <button
+                        onClick={handleExport}
+                        className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900"
+                      >
+                        Exportar a PDF
+                      </button>
+                      <button
+                        onClick={flush}
+                        disabled={status === 'saving' || !pendingRef.current}
+                        className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900 disabled:opacity-50"
+                      >
+                        Guardar ahora
+                      </button>
+                    </div>
                   </div>
+
+                  {historyOpen && (
+                    <DraftHistory
+                      draftId={draft.data.id}
+                      onRestored={(restored) => {
+                        setTitle(restored.title);
+                        setSavedAt(restored.updatedAt);
+                        setStatus('idle');
+                        pendingRef.current = null;
+                        clearTimeout(timerRef.current);
+                        setRestoreNonce((n) => n + 1);
+                      }}
+                    />
+                  )}
                 </div>
 
                 {matchesQuery !== null && (
@@ -364,6 +461,56 @@ export default function ReportEditor() {
           )}
         </section>
       </div>
+    </div>
+  );
+}
+
+function DraftHistory({ draftId, onRestored }) {
+  const history = useReportDraftHistory(draftId);
+  const restoreDraft = useRestoreReportDraft();
+
+  return (
+    <div className="rounded-2xl bg-white p-4 ring-1 ring-stone-900/10">
+      <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.22em] text-stone-500">
+        Historial de versiones
+      </p>
+
+      {history.isLoading && <div className="skeleton h-10" />}
+
+      {history.data && history.data.length === 0 && (
+        <p className="text-sm text-stone-500">
+          Aún no hay instantáneas guardadas. Se crean automáticamente al redactar.
+        </p>
+      )}
+
+      <ul className="divide-y divide-stone-900/5">
+        {(history.data ?? []).map((v) => (
+          <li key={v.version} className="flex items-center justify-between gap-3 py-2.5">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-ink-900">{v.title}</p>
+              <p className="truncate text-xs text-stone-500">{v.preview || 'Sin contenido'}</p>
+              <p className="mt-0.5 text-[11px] text-stone-400 tnum">
+                Versión {v.version} · {listFmt.format(new Date(v.createdAt))}
+                {v.createdBy ? ` · ${v.createdBy.name}` : ''}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                if (!window.confirm(`¿Restaurar la versión ${v.version}? Se reemplazará el contenido actual.`))
+                  return;
+                restoreDraft.mutate(
+                  { id: draftId, version: v.version },
+                  { onSuccess: onRestored }
+                );
+              }}
+              disabled={restoreDraft.isPending}
+              className="btn shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900 disabled:opacity-50"
+            >
+              Restaurar
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
