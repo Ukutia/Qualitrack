@@ -193,9 +193,12 @@ export default function DraftEditor({ initialHtml = '', onChange, onSelectionCha
           type="button"
           // `onMouseDown` con preventDefault: evita que el navegador colapse la
           // selección antes de que se dispare `onClick`.
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            onOpenMatches?.(matchTrigger.text);
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const selectedText = matchTrigger.text;
+            onOpenMatches?.(selectedText);
             setMatchTrigger(null);
           }}
           className="btn absolute z-10 flex -translate-x-1/2 -translate-y-full items-center gap-1.5 whitespace-nowrap rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg hover:bg-ink-800"
