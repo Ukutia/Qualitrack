@@ -1,5 +1,15 @@
+import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useDocument, useClassify, useAssociationAction, useTrashDocument } from '../hooks/useApi.js';
+import {
+  useDocument,
+  useClassify,
+  useAssociationAction,
+  useTrashDocument,
+  useReassignAssociation,
+  useCriterion,
+} from '../hooks/useApi.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import { ROLES } from '../lib/roles.js';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
 const ACTION_LABEL = { PROPOSED: 'Propuesta generada', VALIDATED: 'Validada', REJECTED: 'Descartada' };
@@ -12,6 +22,13 @@ export default function DocumentDetail() {
   const classify = useClassify();
   const action = useAssociationAction();
   const trash = useTrashDocument();
+  const reassign = useReassignAssociation();
+  const { data: criterion } = useCriterion();
+  const { user } = useAuth();
+  const [manualSub, setManualSub] = useState('');
+
+  // La papelera es exclusiva del administrador (EP 1.2).
+  const canTrash = user?.role === ROLES.ADMIN;
 
   if (isLoading) return <p className="text-steel-500">Cargando documento…</p>;
   if (!doc) return <p className="text-rose-600">Documento no encontrado.</p>;
@@ -38,6 +55,7 @@ export default function DocumentDetail() {
         <Link to="/documents" className="text-sm text-brand-600 hover:underline">
           ← Volver al repositorio
         </Link>
+        {canTrash && (
         <button
           onClick={handleTrash}
           disabled={trash.isPending}
@@ -48,6 +66,7 @@ export default function DocumentDetail() {
           </svg>
           {trash.isPending ? 'Moviendo…' : 'Mover a papelera'}
         </button>
+        )}
       </div>
 
       <header className="bg-white rounded-xl shadow-sm p-6">
@@ -171,6 +190,46 @@ export default function DocumentDetail() {
               )}
             </div>
           ))}
+        </div>
+
+        {/* EP 1.2 — Reasignación manual cuando la propuesta de la IA no convence */}
+        <div className="border-t border-steel-200 pt-4">
+          <p className="text-sm font-medium text-steel-700">Asignar el subcriterio manualmente</p>
+          <p className="mt-1 text-xs text-steel-500">
+            Si no está de acuerdo con la propuesta del sistema, elija el subcriterio correcto: la
+            asociación queda validada a su nombre y la propuesta automática se descarta.
+          </p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <select
+              value={manualSub}
+              onChange={(e) => setManualSub(e.target.value)}
+              className="min-w-[22rem] rounded-lg border border-steel-300 bg-white px-3 py-2 text-sm text-steel-700 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+            >
+              <option value="">Seleccione un subcriterio…</option>
+              {(criterion?.subcriteria || []).map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  Nivel {sub.level} · {sub.code} · {sub.name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={async () => {
+                await reassign.mutateAsync({ documentId: id, subcriterionId: Number(manualSub) });
+                setManualSub('');
+              }}
+              disabled={!manualSub || reassign.isPending}
+              className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
+            >
+              {reassign.isPending ? 'Guardando…' : 'Reasignar'}
+            </button>
+          </div>
+
+          {reassign.isError && (
+            <p className="mt-2 text-xs text-rose-600">
+              {reassign.error?.response?.data?.error || 'No fue posible reasignar el subcriterio.'}
+            </p>
+          )}
         </div>
       </section>
 

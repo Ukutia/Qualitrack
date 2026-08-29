@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { ROLES, ROLE_LABELS } from '../src/config/roles.js';
 
 const prisma = new PrismaClient();
 
@@ -232,18 +233,36 @@ async function pruneObsoleteSubcriteria(criterionId, validCodes) {
 }
 
 async function main() {
-  // 1) Admin
+  // 1) Cuentas por rol (EP 1.1 · EP 1.2)
   const email = process.env.ADMIN_EMAIL || 'admin@qualitrack.cl';
   const password = process.env.ADMIN_PASSWORD || 'admin123';
   const name = process.env.ADMIN_NAME || 'Encargado de Aseguramiento de Calidad';
-  const passwordHash = await bcrypt.hash(password, 10);
 
-  await prisma.user.upsert({
-    where: { email },
-    update: { name, role: 'admin' },
-    create: { email, name, passwordHash, role: 'admin' },
-  });
-  console.log(`✓ Admin: ${email}`);
+  const ACCOUNTS = [
+    { email, name, password, role: ROLES.ADMIN },
+    {
+      email: 'usuario@qualitrack.cl',
+      name: 'Miembro del Equipo de Calidad',
+      password: process.env.USER_PASSWORD || 'usuario123',
+      role: ROLES.USER,
+    },
+    {
+      email: 'ingestor@qualitrack.cl',
+      name: 'Ingestor de Datos',
+      password: process.env.INGESTOR_PASSWORD || 'ingestor123',
+      role: ROLES.INGESTOR,
+    },
+  ];
+
+  for (const acc of ACCOUNTS) {
+    const passwordHash = await bcrypt.hash(acc.password, 10);
+    await prisma.user.upsert({
+      where: { email: acc.email },
+      update: { name: acc.name, role: acc.role },
+      create: { email: acc.email, name: acc.name, passwordHash, role: acc.role },
+    });
+    console.log(`✓ ${ROLE_LABELS[acc.role]}: ${acc.email}`);
+  }
 
   // 2) Criterio 9 + subcriterios por nivel
   const CRITERION_NAME = 'Gestión y resultados del aseguramiento interno de la calidad';

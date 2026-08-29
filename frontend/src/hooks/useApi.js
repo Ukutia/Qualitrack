@@ -134,6 +134,29 @@ export function useAssociationAction() {
   });
 }
 
+/** EP 1.2 — reasignación manual del subcriterio de un documento. */
+export function useReassignAssociation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ documentId, subcriterionId }) =>
+      (await api.put(`/documents/${documentId}/association`, { subcriterionId })).data,
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['compliance'] });
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['document', String(variables.documentId)] });
+      qc.invalidateQueries({ queryKey: ['document', variables.documentId] });
+    },
+  });
+}
+
+/** Criterio 9 con sus subcriterios (para elegir a mano). */
+export function useCriterion() {
+  return useQuery({
+    queryKey: ['criteria'],
+    queryFn: async () => (await api.get('/criteria')).data,
+  });
+}
+
 // ── Cumplimiento (HU02) ─────────────────────────────────────────────
 export function useCompliance() {
   return useQuery({

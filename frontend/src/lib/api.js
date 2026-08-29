@@ -19,6 +19,11 @@ api.interceptors.response.use(
       localStorage.removeItem('qualitrack_token');
       if (location.pathname !== '/login') location.href = '/login';
     }
+    // El backend rechazó la ruta por rol (EP 1.1 · EP 1.2): la sesión sigue
+    // siendo válida, así que se muestra la pantalla de acceso denegado.
+    if (err.response?.status === 403 && err.response?.data?.code === 'FORBIDDEN_ROLE') {
+      if (location.pathname !== '/acceso-denegado') location.href = '/acceso-denegado';
+    }
     return Promise.reject(err);
   }
 );

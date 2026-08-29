@@ -12,14 +12,23 @@ import CriteriaStructure from './pages/CriteriaStructure.jsx';
 import ReportEditor from './pages/ReportEditor.jsx';
 import CloudConnect from './pages/CloudConnect.jsx';
 import Trash from './pages/Trash.jsx';
+<<<<<<< Updated upstream
 import SemanticSearch from './pages/SemanticSearch.jsx';
+=======
+import AccessDenied from './pages/AccessDenied.jsx';
+import { ROLES } from './lib/roles.js';
+>>>>>>> Stashed changes
 
-// Página pública: si ya hay sesión, va directo al tablero en vez de la landing.
-function Home() {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="p-8 text-steel-500">Cargando…</div>;
-  if (user) return <Navigate to="/dashboard" replace />;
-  return <Landing />;
+// Roles con acceso a cada ruta (EP 1.1 · EP 1.2). El backend revalida cada
+// petición: esto solo evita que la pantalla llegue a montarse.
+const ADMIN_ONLY = [ROLES.ADMIN];
+const ADMIN_AND_USER = [ROLES.ADMIN, ROLES.USER];
+
+// Dentro del Layout la sesión ya está garantizada; acá solo se filtra por rol.
+function Guard({ roles, children }) {
+  const { user } = useAuth();
+  if (!roles.includes(user?.role)) return <Navigate to="/acceso-denegado" replace />;
+  return children;
 }
 
 export default function App() {
@@ -34,15 +43,22 @@ export default function App() {
           </ProtectedRoute>
         }
       >
+<<<<<<< Updated upstream
         <Route path="/app" element={<Dashboard />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="/search" element={<SemanticSearch />} />
         <Route path="/documents/:id" element={<DocumentDetail />} />
+=======
+        <Route path="/acceso-denegado" element={<AccessDenied />} />
+        <Route path="/app" element={<Guard roles={ADMIN_ONLY}><Dashboard /></Guard>} />
+        <Route path="/documents" element={<Guard roles={ADMIN_AND_USER}><Documents /></Guard>} />
+        <Route path="/documents/:id" element={<Guard roles={ADMIN_AND_USER}><DocumentDetail /></Guard>} />
+>>>>>>> Stashed changes
         <Route path="/upload" element={<Upload />} />
-        <Route path="/structure" element={<CriteriaStructure />} />
-        <Route path="/report" element={<ReportEditor />} />
-        <Route path="/cloud" element={<CloudConnect />} />
-        <Route path="/trash" element={<Trash />} />
+        <Route path="/structure" element={<Guard roles={ADMIN_ONLY}><CriteriaStructure /></Guard>} />
+        <Route path="/report" element={<Guard roles={ADMIN_ONLY}><ReportEditor /></Guard>} />
+        <Route path="/cloud" element={<Guard roles={ADMIN_AND_USER}><CloudConnect /></Guard>} />
+        <Route path="/trash" element={<Guard roles={ADMIN_ONLY}><Trash /></Guard>} />
       </Route>
     </Routes>
   );

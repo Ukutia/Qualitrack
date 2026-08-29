@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUploadDocument } from '../hooks/useApi.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import { ROLES } from '../lib/roles.js';
 
 const ACCEPT = '.pdf,.docx,.xlsx';
 const MAX_MB = 10;
@@ -8,6 +10,9 @@ const MAX_MB = 10;
 export default function Upload() {
   const upload = useUploadDocument();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  // El Ingestor no tiene repositorio: se queda en la carga (EP 1.1).
+  const canSeeRepository = user?.role !== ROLES.INGESTOR;
   const inputRef = useRef();
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState(null); // {type, text}
@@ -39,7 +44,7 @@ export default function Upload() {
       setFile(null);
       setDuplicate(null);
       if (inputRef.current) inputRef.current.value = '';
-      setTimeout(() => navigate('/documents'), 900);
+      if (canSeeRepository) setTimeout(() => navigate('/documents'), 900);
     } catch (err) {
       const data = err.response?.data;
       if (data?.code === 'DUPLICATE_NAME') {

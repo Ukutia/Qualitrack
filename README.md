@@ -55,7 +55,10 @@ Al iniciar, el backend sincroniza el esquema (`prisma db push`), ejecuta el *see
 
 - Frontend: http://localhost:5173
 - API: http://localhost:4000/api
-- Credenciales por defecto: **admin@qualitrack.cl / admin123**
+- Cuentas por defecto (una por rol, ver `backend/src/config/roles.js`):
+  - Administrador de calidad — **admin@qualitrack.cl / admin123** (acceso total)
+  - Equipo de aseguramiento — **usuario@qualitrack.cl / usuario123** (carga, nube y revisión de *sus* documentos)
+  - Ingestor de datos — **ingestor@qualitrack.cl / ingestor123** (solo carga de documentos)
 
 ## Decisiones del MVP
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { LEVEL_ORDER, levelMeta } from '../lib/levels.js';
+import { homeFor } from '../lib/roles.js';
 
 export default function Login() {
   const { login, user } = useAuth();
@@ -12,8 +13,9 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
 
   // Si ya hay sesión, redirige (en efecto, no durante el render).
+  // Cada rol aterriza en la primera sección a la que tiene acceso.
   useEffect(() => {
-    if (user) navigate('/app', { replace: true });
+    if (user) navigate(homeFor(user.role), { replace: true });
   }, [user, navigate]);
 
   async function handleSubmit(e) {
@@ -22,7 +24,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(email, password);
-      navigate('/app');
+      // La redirección definitiva la hace el efecto de arriba, ya con el rol.
     } catch (err) {
       setError(err.response?.data?.error || 'No fue posible iniciar sesión.');
     } finally {

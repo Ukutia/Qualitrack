@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import fullLogoDark from '../assets/fulllogo_darkmode.svg';
+<<<<<<< Updated upstream
 
 const NAV = [
   { to: '/app', label: 'Tablero', end: true },
@@ -12,10 +13,15 @@ const NAV = [
   { to: '/cloud', label: 'Google Drive' },
   { to: '/trash', label: 'Papelera' },
 ];
+=======
+import { navFor, roleLabel } from '../lib/roles.js';
+>>>>>>> Stashed changes
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  // Cada rol ve solo sus secciones (EP 1.1 · EP 1.2).
+  const nav = navFor(user?.role);
 
   function handleLogout() {
     logout();
@@ -49,7 +55,7 @@ export default function Layout() {
           Criterio 9 · 3 niveles
         </p>
         <nav className="flex-1 px-3 space-y-1">
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -84,6 +90,9 @@ export default function Layout() {
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-steel-100">{user?.name}</p>
               <p className="truncate text-xs text-steel-500">{user?.email}</p>
+              <p className="mt-1 truncate text-[10px] font-medium uppercase tracking-[0.14em] text-gold-400/80">
+                {roleLabel(user?.role)}
+              </p>
             </div>
           </div>
           <button

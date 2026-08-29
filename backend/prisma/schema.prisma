@@ -38,9 +38,12 @@ model User {
   name         String
   email        String   @unique
   passwordHash String
+  /// Rol de acceso (EP 1.1 · EP 1.2): "admin" | "user" | "ingestor".
+  /// Los permisos de cada rol se declaran en src/config/roles.js.
   role         String   @default("admin")
   createdAt    DateTime @default(now())
 
+<<<<<<< Updated upstream
   documents          Document[]
   validatedAssocs    Association[]           @relation("ValidatedBy")
   history            AssociationHistory[]
@@ -49,6 +52,15 @@ model User {
   reportDrafts       ReportDraft[]
   reportDraftVersions ReportDraftVersion[]
   topics             Topic[]
+=======
+  documents           Document[]
+  validatedAssocs     Association[]            @relation("ValidatedBy")
+  history             AssociationHistory[]
+  cloudConns          CloudConnection[]
+  structureVersions   ReportStructureVersion[]
+  reportDrafts        ReportDraft[]
+  reportDraftVersions ReportDraftVersion[]
+>>>>>>> Stashed changes
 }
 
 model Criterion {
@@ -60,14 +72,14 @@ model Criterion {
 }
 
 model Subcriterion {
-  id                    Int      @id @default(autoincrement())
+  id                    Int       @id @default(autoincrement())
   criterion             Criterion @relation(fields: [criterionId], references: [id])
   criterionId           Int
-  code                  String   // "9.1.1"
+  code                  String // "9.1.1"
   name                  String
   description           String?
-  level                 Int      @default(1) // 1 = obligatorio, 2 = avanzado, 3 = excelencia
-  required              Boolean  @default(true)
+  level                 Int       @default(1) // 1 = obligatorio, 2 = avanzado, 3 = excelencia
+  required              Boolean   @default(true)
   keywords              String[] // alimenta el clasificador mock (HU01)
   acceptedEvidenceTypes String[] // tipos de evidencia aceptados (detalle HU02)
 
@@ -81,7 +93,7 @@ model ReportStructureVersion {
   version    Int             @unique
   uploadedAt DateTime        @default(now())
   active     Boolean         @default(false)
-  note       String?         // ej. "Restaurada desde versión 3"
+  note       String? // ej. "Restaurada desde versión 3"
   sections   ReportSection[]
 
   uploadedBy   User? @relation(fields: [uploadedById], references: [id])
@@ -129,14 +141,24 @@ model ReportDraft {
 /// estado anterior cuando ha pasado un intervalo mínimo desde la última
 /// instantánea, o al restaurar una versión previa.
 model ReportDraftVersion {
+<<<<<<< Updated upstream
   id          Int      @id @default(autoincrement())
+=======
+  id          Int         @id @default(autoincrement())
+>>>>>>> Stashed changes
   draft       ReportDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
   draftId     Int
   version     Int
   title       String
+<<<<<<< Updated upstream
   contentHtml String   @default("") @db.Text
   contentText String   @default("") @db.Text
   createdAt   DateTime @default(now())
+=======
+  contentHtml String      @default("") @db.Text
+  contentText String      @default("") @db.Text
+  createdAt   DateTime    @default(now())
+>>>>>>> Stashed changes
 
   createdBy   User? @relation(fields: [createdById], references: [id])
   createdById Int?
@@ -161,23 +183,23 @@ model Document {
   uploadedBy   User @relation(fields: [uploadedById], references: [id])
   uploadedById Int
 
-  deletedAt    DateTime?      // null = activo, fecha = en papelera
+  deletedAt DateTime? // null = activo, fecha = en papelera
 
   associations Association[]
   chunks DocumentChunk[]
 }
 
 model Association {
-  id              Int               @id @default(autoincrement())
-  document        Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  documentId      Int
-  subcriterion    Subcriterion      @relation(fields: [subcriterionId], references: [id])
-  subcriterionId  Int
-  status          AssociationStatus @default(PROPOSED)
-  justification   String?           @db.Text
-  evidenceFragment String?          @db.Text
-  confidence      Float             @default(0)
-  createdAt       DateTime          @default(now())
+  id               Int               @id @default(autoincrement())
+  document         Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId       Int
+  subcriterion     Subcriterion      @relation(fields: [subcriterionId], references: [id])
+  subcriterionId   Int
+  status           AssociationStatus @default(PROPOSED)
+  justification    String?           @db.Text
+  evidenceFragment String?           @db.Text
+  confidence       Float             @default(0)
+  createdAt        DateTime          @default(now())
 
   validatedBy   User?     @relation("ValidatedBy", fields: [validatedById], references: [id])
   validatedById Int?

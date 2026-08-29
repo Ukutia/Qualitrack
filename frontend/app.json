@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "20421650-f46b-499a-83c4-e84e067ea66f"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "benjaminurrutiapbe",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}

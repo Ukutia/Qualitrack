@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { enforceRolePolicy } from '../middleware/authorize.js';
+import { requireOwnDocument, requireOwnAssociation } from '../middleware/ownership.js';
 import { upload, structureUpload } from '../middleware/upload.js';
 import { semanticSearch } from '../controllers/search.controller.js';
 import { listTopics, createTopic } from '../controllers/topics.controller.js';
@@ -28,6 +30,7 @@ import {
   classifyDocument,
   validateAssociation,
   rejectAssociation,
+  reassignAssociation,
 } from '../controllers/classification.controller.js';
 import { getCompliance } from '../controllers/compliance.controller.js';
 import {
@@ -55,8 +58,11 @@ router.get('/cloud/google/callback', cloud.callback);
 // Dropbox callback público
 router.get('/cloud/dropbox/callback', cloud.dropboxCallback);
 
-// A partir de aquí, todo requiere autenticación.
+// A partir de aquí, todo requiere autenticación y un rol con permiso sobre la
+// ruta (EP 1.1 · EP 1.2). La política es de denegación por defecto y se resuelve
+// antes de consultar la base de datos.
 router.use(requireAuth);
+router.use(enforceRolePolicy);
 
 // Búsqueda semántica
 router.post('/search/semantic', semanticSearch);
@@ -69,17 +75,18 @@ router.post('/topics', createTopic);
 router.post('/documents', upload.single('file'), uploadDocument);
 router.get('/documents', listDocuments);
 router.get('/documents/trash', listTrash);
-router.get('/documents/:id', getDocument);
-router.get('/documents/:id/file', serveFile);
-router.patch('/documents/:id/date', updateDocumentDate);
+router.get('/documents/:id', requireOwnDocument, getDocument);
+router.get('/documents/:id/file', requireOwnDocument, serveFile);
+router.patch('/documents/:id/date', requireOwnDocument, updateDocumentDate);
 router.post('/documents/:id/trash', trashDocument);
 router.post('/documents/:id/restore', restoreDocument);
 router.delete('/documents/:id', destroyDocument);
 
 // Clasificación (HU01)
-router.post('/documents/:id/classify', classifyDocument);
-router.post('/associations/:id/validate', validateAssociation);
-router.post('/associations/:id/reject', rejectAssociation);
+router.post('/documents/:id/classify', requireOwnDocument, classifyDocument);
+router.put('/documents/:id/association', requireOwnDocument, reassignAssociation);
+router.post('/associations/:id/validate', requireOwnAssociation, validateAssociation);
+router.post('/associations/:id/reject', requireOwnAssociation, rejectAssociation);
 
 // Cumplimiento (HU02)
 router.get('/compliance', getCompliance);

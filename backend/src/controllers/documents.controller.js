@@ -5,6 +5,7 @@ import { extractText } from '../services/textExtraction.service.js';
 import { extractDocumentDate } from '../services/dateExtraction.service.js';
 import { vectorizeDocument } from '../services/vector.service.js';
 import { formatFromName } from '../middleware/upload.js';
+import { ownerFilter } from '../middleware/ownership.js';
 
 const MIME = {
   pdf:  'application/pdf',
@@ -66,9 +67,11 @@ export async function uploadDocument(req, res) {
   const originalName = req.file.originalname;
   const onDuplicate = (req.query.onDuplicate || '').toLowerCase(); // '', 'replace', 'keep', 'restore'
 
-  // Manejo de duplicados por nombre (HU07).
+  // Manejo de duplicados por nombre (HU07). Para los roles acotados al dueño
+  // el duplicado se busca solo entre sus propias cargas: avisar de un archivo
+  // homónimo de otro usuario filtraría su repositorio.
   const existing = await prisma.document.findFirst({
-    where: { originalName },
+    where: { originalName, ...ownerFilter(req.user) },
     orderBy: { uploadedAt: 'desc' },
   });
 
@@ -139,8 +142,9 @@ export async function uploadDocument(req, res) {
 }
 
 export async function listDocuments(req, res) {
+  // Los roles acotados al dueño (EP 1.2) solo ven sus propias cargas.
   const docs = await prisma.document.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, ...ownerFilter(req.user) },
     orderBy: { uploadedAt: 'desc' },
     include: {
       associations: { include: { subcriterion: true } },
