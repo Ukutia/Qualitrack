@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import DraftEditor from '../components/DraftEditor.jsx';
 import {
   useReportDrafts,
@@ -8,6 +9,7 @@ import {
   useDeleteReportDraft,
   useReportDraftHistory,
   useRestoreReportDraft,
+  useSemanticSearch,
 } from '../hooks/useApi.js';
 
 // Autoguardado: el criterio exige "como máximo 5 segundos después de la última
@@ -38,33 +40,200 @@ const STATUS_STYLE = {
 // Panel de coincidencias: se abre al presionar "Buscar coincidencias" sobre un
 // fragmento seleccionado del borrador. Placeholder a la espera de conectar la
 // búsqueda real de coincidencias en los documentos cargados.
-function MatchesPanel({ query, onClose }) {
+function MatchesPanel({
+  query,
+  search,
+  elapsedMs,
+  onClose,
+}) {
+  // Solo se consideran coincidencias suficientemente relacionadas.
+  const results = (search.data?.results ?? []).filter(
+    (result) => result.similarity >= MIN_MATCH_SIMILARITY
+  );
+
+  // Agrupar los chunks encontrados por documento.
+  const groupedMap = new Map();
+
+  for (const result of results) {
+    if (!groupedMap.has(result.documentId)) {
+      groupedMap.set(result.documentId, {
+        documentId: result.documentId,
+        originalName: result.originalName,
+        bestSimilarity: result.similarity,
+        subcriterionCode: result.subcriterionCode,
+        subcriterionName: result.subcriterionName,
+        fragments: [],
+      });
+    }
+
+    const document = groupedMap.get(result.documentId);
+
+    document.bestSimilarity = Math.max(
+      document.bestSimilarity,
+      result.similarity
+    );
+
+    document.fragments.push({
+      chunkIndex: result.chunkIndex,
+      content: result.content,
+      similarity: result.similarity,
+    });
+  }
+
+  const documents = Array.from(groupedMap.values()).sort(
+    (a, b) => b.bestSimilarity - a.bestSimilarity
+  );
+
   return (
-    <aside className="w-80 shrink-0 space-y-3 rounded-2xl bg-white p-5 ring-1 ring-stone-900/10 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-stone-500">
-          Coincidencias
-        </p>
+    <aside className="w-80 shrink-0 rounded-2xl bg-white p-4 ring-1 ring-stone-900/10 shadow-sm">
+      {/* Encabezado */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-stone-500">
+            Coincidencias
+          </p>
+
+          <h3 className="mt-1 font-display text-lg font-semibold text-ink-900">
+            Documentos relacionados
+          </h3>
+        </div>
+
         <button
+          type="button"
           onClick={onClose}
-          aria-label="Cerrar panel de coincidencias"
-          className="btn -mr-1 -mt-1 rounded-md px-1.5 py-0.5 text-xs text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+          aria-label="Cerrar coincidencias"
+          className="btn rounded-lg px-2 py-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700"
         >
           ✕
         </button>
       </div>
 
-      <blockquote className="rounded-lg border-l-4 border-brand-200 bg-brand-50/50 px-3 py-2 text-xs italic text-stone-600">
+      {/* Fragmento seleccionado */}
+      <blockquote className="mt-4 rounded-lg bg-stone-50 p-3 text-xs leading-5 text-stone-600 ring-1 ring-stone-900/5">
         “{query}”
       </blockquote>
 
-      <div className="rounded-xl bg-stone-50 px-4 py-6 text-center ring-1 ring-stone-900/10">
-        <p className="text-sm font-medium text-ink-900">Búsqueda no disponible todavía</p>
-        <p className="mt-1 text-xs text-stone-500">
-          Aquí se listarán los documentos con coincidencias para el fragmento seleccionado
-          cuando la funcionalidad esté lista.
+      {/* Tiempo de procesamiento */}
+      {elapsedMs !== null && elapsedMs !== undefined && (
+        <p
+          className={`mt-2 text-xs ${
+            elapsedMs < 1000
+              ? 'text-emerald-600'
+              : 'text-rose-600'
+          }`}
+        >
+          Procesado en {elapsedMs} ms
         </p>
-      </div>
+      )}
+
+      {/* Mientras se realiza la búsqueda */}
+      {search.isPending && (
+        <div className="mt-4 space-y-2">
+          <div className="skeleton h-20" />
+          <div className="skeleton h-20" />
+
+          <p className="text-center text-xs text-stone-500">
+            Buscando contenido relacionado…
+          </p>
+        </div>
+      )}
+
+      {/* Error */}
+      {search.isError && (
+        <div className="mt-4 rounded-lg bg-rose-50 p-3 text-xs text-rose-700 ring-1 ring-rose-600/20">
+          No fue posible realizar la revisión en el repositorio.
+          Puede continuar editando el borrador normalmente.
+        </div>
+      )}
+
+      {/* No existen coincidencias por sobre el umbral */}
+      {search.data &&
+        !search.isPending &&
+        documents.length === 0 && (
+          <div className="mt-4 rounded-lg bg-stone-50 p-4 text-center">
+            <p className="text-sm font-medium text-ink-900">
+              No se hallaron coincidencias
+            </p>
+
+            <p className="mt-1 text-xs text-stone-500">
+              No se encontraron pasajes suficientemente relacionados
+              en el repositorio. Puede continuar editando el borrador
+              normalmente.
+            </p>
+          </div>
+        )}
+
+      {/* Resultados */}
+      {documents.length > 0 && (
+        <div className="mt-4 max-h-[55vh] space-y-3 overflow-y-auto pr-1">
+          <p className="text-xs text-stone-500">
+            {documents.length}{' '}
+            {documents.length === 1
+              ? 'documento relacionado'
+              : 'documentos relacionados'}
+          </p>
+
+          {documents.map((document) => (
+            <article
+              key={document.documentId}
+              className="rounded-xl border border-stone-900/10 bg-stone-50/60 p-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <Link
+                    to={`/documents/${document.documentId}`}
+                    className="block truncate text-sm font-medium text-brand-700 hover:underline"
+                  >
+                    {document.originalName}
+                  </Link>
+
+                  {document.subcriterionCode && (
+                    <p className="mt-1 text-[11px] text-stone-500">
+                      Subcriterio {document.subcriterionCode}
+                      {document.subcriterionName
+                        ? ` — ${document.subcriterionName}`
+                        : ''}
+                    </p>
+                  )}
+                </div>
+
+                <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[10px] font-medium text-stone-600 ring-1 ring-stone-900/10">
+                  {(document.bestSimilarity * 100).toFixed(0)}%
+                </span>
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {document.fragments
+                  .slice(0, 2)
+                  .map((fragment) => (
+                    <div
+                      key={`${document.documentId}-${fragment.chunkIndex}`}
+                      className="rounded-lg bg-white p-2.5 ring-1 ring-stone-900/5"
+                    >
+                      <p className="text-xs leading-5 text-stone-700">
+                        {fragment.content.length > 280
+                          ? `${fragment.content.slice(0, 280)}…`
+                          : fragment.content}
+                      </p>
+
+                      <p className="mt-1 text-[10px] text-stone-400">
+                        Similitud semántica{' '}
+                        {(fragment.similarity * 100).toFixed(0)}%
+                      </p>
+                    </div>
+                  ))}
+              </div>
+
+              <Link
+                to={`/documents/${document.documentId}`}
+                className="mt-3 inline-block text-xs font-medium text-brand-700 hover:underline"
+              >
+                Ver documento →
+              </Link>
+            </article>
+          ))}
+        </div>
+      )}
     </aside>
   );
 }
@@ -112,6 +281,17 @@ function SaveIndicator({ status, savedAt }) {
   );
 }
 
+const MIN_SELECTION_WORDS = 4;
+const MIN_MATCH_SIMILARITY = 0.50;
+
+function countWords(text) {
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+}
+
 export default function ReportEditor() {
   const drafts = useReportDrafts();
   const [selectedId, setSelectedId] = useState(
@@ -131,6 +311,11 @@ export default function ReportEditor() {
   // `contentEditable` solo se inyecta una vez por `id` (ver DraftEditor).
   const [restoreNonce, setRestoreNonce] = useState(0);
   const [matchesQuery, setMatchesQuery] = useState(null);
+
+  const matchesSearch = useSemanticSearch();
+
+  const [selectionWarning, setSelectionWarning] = useState(null);
+  const [searchElapsedMs, setSearchElapsedMs] = useState(null);
 
   const pendingRef = useRef(null);
   const timerRef = useRef(null);
@@ -160,6 +345,41 @@ export default function ReportEditor() {
     pendingRef.current = null;
     clearTimeout(timerRef.current);
   }, [draft.data]);
+
+  async function handleOpenMatches(text) {
+    const query = text.trim();
+    const wordCount = countWords(query);
+
+    if (wordCount < MIN_SELECTION_WORDS) {
+      matchesSearch.reset();
+      setMatchesQuery(null);
+      setSearchElapsedMs(null);
+
+      setSelectionWarning(
+        'Seleccione al menos 4 palabras para disponer de contexto suficiente para la revisión.'
+      );
+
+      return;
+    }
+
+    setSelectionWarning(null);
+    setMatchesQuery(query);
+    setSearchElapsedMs(null);
+    matchesSearch.reset();
+
+    const start = performance.now();
+
+    try {
+      await matchesSearch.mutateAsync({
+        query,
+        limit: 30,
+      });
+    } finally {
+      setSearchElapsedMs(
+        Math.round(performance.now() - start)
+      );
+    }
+  }
 
   const flush = useCallback(() => {
     clearTimeout(timerRef.current);
@@ -410,8 +630,17 @@ ${draft.data?.contentHtml || ''}
                     key={`${draft.data.id}:${restoreNonce}`}
                     initialHtml={draft.data.contentHtml}
                     onChange={(html) => schedule({ contentHtml: html })}
-                    onOpenMatches={(text) => setMatchesQuery(text)}
+                    onOpenMatches={handleOpenMatches}
                   />
+
+                  {selectionWarning && (
+                    <div
+                      role="alert"
+                      className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-600/20"
+                    >
+                      {selectionWarning}
+                    </div>
+                  )}
 
                   <div className="flex flex-wrap items-center justify-between gap-3 px-1">
                     <SaveIndicator status={status} savedAt={savedAt} />
@@ -454,7 +683,15 @@ ${draft.data?.contentHtml || ''}
                 </div>
 
                 {matchesQuery !== null && (
-                  <MatchesPanel query={matchesQuery} onClose={() => setMatchesQuery(null)} />
+                  <MatchesPanel
+                    query={matchesQuery}
+                    search={matchesSearch}
+                    elapsedMs={searchElapsedMs}
+                    onClose={() => {
+                      setMatchesQuery(null);
+                      matchesSearch.reset();
+                    }}
+                  />
                 )}
               </div>
             </>
