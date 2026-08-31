@@ -122,7 +122,7 @@ function MatchesPanel({
               : 'text-rose-600'
           }`}
         >
-          Procesado en {elapsedMs} ms
+          Procesado en {(elapsedMs / 1000).toFixed(2)} s
         </p>
       )}
 
@@ -282,6 +282,7 @@ function SaveIndicator({ status, savedAt }) {
 }
 
 const MIN_SELECTION_WORDS = 4;
+const MAX_SELECTION_WORDS = 100;
 const MIN_MATCH_SIMILARITY = 0.50;
 
 function countWords(text) {
@@ -350,13 +351,27 @@ export default function ReportEditor() {
     const query = text.trim();
     const wordCount = countWords(query);
 
+    // Mínimo de palabras
     if (wordCount < MIN_SELECTION_WORDS) {
       matchesSearch.reset();
       setMatchesQuery(null);
       setSearchElapsedMs(null);
 
       setSelectionWarning(
-        'Seleccione al menos 4 palabras para disponer de contexto suficiente para la revisión.'
+        `Seleccione al menos ${MIN_SELECTION_WORDS} palabras para disponer de contexto suficiente para la revisión.`
+      );
+
+      return;
+    }
+
+    // Máximo de palabras
+    if (wordCount > MAX_SELECTION_WORDS) {
+      matchesSearch.reset();
+      setMatchesQuery(null);
+      setSearchElapsedMs(null);
+
+      setSelectionWarning(
+        `La selección no puede superar las ${MAX_SELECTION_WORDS} palabras. Seleccione un fragmento más acotado.`
       );
 
       return;
@@ -372,7 +387,7 @@ export default function ReportEditor() {
     try {
       await matchesSearch.mutateAsync({
         query,
-        limit: 30,
+        limit: 10,
       });
     } finally {
       setSearchElapsedMs(
