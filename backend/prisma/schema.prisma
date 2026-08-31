@@ -43,16 +43,6 @@ model User {
   role         String   @default("admin")
   createdAt    DateTime @default(now())
 
-<<<<<<< Updated upstream
-  documents          Document[]
-  validatedAssocs    Association[]           @relation("ValidatedBy")
-  history            AssociationHistory[]
-  cloudConns         CloudConnection[]
-  structureVersions  ReportStructureVersion[]
-  reportDrafts       ReportDraft[]
-  reportDraftVersions ReportDraftVersion[]
-  topics             Topic[]
-=======
   documents           Document[]
   validatedAssocs     Association[]            @relation("ValidatedBy")
   history             AssociationHistory[]
@@ -60,7 +50,7 @@ model User {
   structureVersions   ReportStructureVersion[]
   reportDrafts        ReportDraft[]
   reportDraftVersions ReportDraftVersion[]
->>>>>>> Stashed changes
+  topics              Topic[]
 }
 
 model Criterion {
@@ -141,24 +131,14 @@ model ReportDraft {
 /// estado anterior cuando ha pasado un intervalo mínimo desde la última
 /// instantánea, o al restaurar una versión previa.
 model ReportDraftVersion {
-<<<<<<< Updated upstream
-  id          Int      @id @default(autoincrement())
-=======
   id          Int         @id @default(autoincrement())
->>>>>>> Stashed changes
   draft       ReportDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
   draftId     Int
   version     Int
   title       String
-<<<<<<< Updated upstream
-  contentHtml String   @default("") @db.Text
-  contentText String   @default("") @db.Text
-  createdAt   DateTime @default(now())
-=======
   contentHtml String      @default("") @db.Text
   contentText String      @default("") @db.Text
   createdAt   DateTime    @default(now())
->>>>>>> Stashed changes
 
   createdBy   User? @relation(fields: [createdById], references: [id])
   createdById Int?
