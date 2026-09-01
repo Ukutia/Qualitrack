@@ -3,18 +3,15 @@ import { Link } from 'react-router-dom';
 import { useSemanticSearch, useTopics, useCreateTopic, } from '../hooks/useApi.js';
 
 export default function SemanticSearch() {
-  const [query, setQuery] = useState('');
   const search = useSemanticSearch();
   const topics = useTopics();
   const createTopic = useCreateTopic();
   const [topicName, setTopicName] = useState('');
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  async function handleTopicSearch(topicName) {
+    const value = topicName.trim();
 
-    const value = query.trim();
-
-    if (!value) return;
+    if (!value || search.isPending) return;
 
     await search.mutateAsync({
       query: value,
@@ -150,8 +147,9 @@ export default function SemanticSearch() {
               <button
                 key={topic.id}
                 type="button"
-                onClick={() => setQuery(topic.name)}
-                className="rounded-full bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 ring-1 ring-brand-100 transition hover:bg-brand-100"
+                onClick={() => handleTopicSearch(topic.name)}
+                disabled={search.isPending}
+                className="rounded-full bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 ring-1 ring-brand-100 transition hover:bg-brand-100 disabled:cursor-wait disabled:opacity-60"
               >
                 {topic.name}
               </button>
@@ -160,41 +158,11 @@ export default function SemanticSearch() {
         )}
       </section>
 
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-xl2 bg-white p-5 shadow-soft ring-1 ring-stone-200/60"
-      >
-        <label
-          htmlFor="semantic-query"
-          className="mb-2 block text-sm font-medium text-ink-900"
-        >
-          ¿Qué evidencia quieres encontrar?
-        </label>
-
-        <div className="flex gap-3">
-          <input
-            id="semantic-query"
-            type="text"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Ej: mecanismos de seguimiento de egresados"
-            className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-4 py-3 text-sm text-ink-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-          />
-
-          <button
-            type="submit"
-            disabled={!query.trim() || search.isPending}
-            className="btn rounded-lg bg-brand-600 px-5 py-3 text-sm font-medium text-white shadow-soft hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {search.isPending ? 'Buscando…' : 'Buscar'}
-          </button>
+      {search.isPending && (
+        <div className="rounded-xl2 bg-white p-5 text-sm text-stone-500 shadow-soft ring-1 ring-stone-200/60">
+          Buscando evidencia relacionada…
         </div>
-
-        <p className="mt-2 text-xs text-stone-400">
-          La búsqueda considera el contenido de los documentos, no solo su
-          nombre o subcriterio.
-        </p>
-      </form>
+      )}
 
       {search.isError && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
