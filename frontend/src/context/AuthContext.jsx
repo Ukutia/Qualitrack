@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
+import { queryClient } from '../lib/queryClient.js';
 
 const AuthContext = createContext(null);
 
@@ -16,11 +17,15 @@ export function AuthProvider({ children }) {
     api
       .get('/auth/me')
       .then((res) => setUser(res.data.user))
-      .catch(() => localStorage.removeItem('qualitrack_token'))
+      .catch(() => {
+        localStorage.removeItem('qualitrack_token');
+        queryClient.clear();
+      })
       .finally(() => setLoading(false));
   }, []);
 
   async function login(email, password) {
+    queryClient.clear();
     const res = await api.post('/auth/login', { email, password });
     localStorage.setItem('qualitrack_token', res.data.token);
     setUser(res.data.user);
@@ -29,6 +34,7 @@ export function AuthProvider({ children }) {
   function logout() {
     localStorage.removeItem('qualitrack_token');
     setUser(null);
+    queryClient.clear();
   }
 
   return (
