@@ -4,7 +4,7 @@ import { enforceRolePolicy } from '../middleware/authorize.js';
 import { requireOwnDocument, requireOwnAssociation } from '../middleware/ownership.js';
 import { upload, structureUpload } from '../middleware/upload.js';
 import { semanticSearch } from '../controllers/search.controller.js';
-import { listTopics, createTopic } from '../controllers/topics.controller.js';
+import { listTopics, createTopic, deleteTopic } from '../controllers/topics.controller.js';
 import {
   listDrafts,
   createDraft,
@@ -70,6 +70,7 @@ router.post('/search/semantic', semanticSearch);
 // Temáticas
 router.get('/topics', listTopics);
 router.post('/topics', createTopic);
+router.delete('/topics/:id', deleteTopic);
 
 // Documentos (HU07)
 router.post('/documents', upload.single('file'), uploadDocument);

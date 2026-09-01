@@ -46,6 +46,18 @@ export function useCreateTopic() {
   });
 }
 
+export function useDeleteTopic() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id) =>
+      (await api.delete(`/topics/${id}`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['topics'] });
+    },
+  });
+}
+
 export function useDocument(id) {
   return useQuery({
     queryKey: ['document', id],
