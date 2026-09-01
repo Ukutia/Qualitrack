@@ -30,6 +30,7 @@ import {
   classifyDocument,
   validateAssociation,
   rejectAssociation,
+  reassignAssociation,
 } from '../controllers/classification.controller.js';
 import { getCompliance } from '../controllers/compliance.controller.js';
 import {
@@ -85,6 +86,7 @@ router.delete('/documents/:id', destroyDocument);
 router.post('/documents/:id/classify', requireOwnDocument, classifyDocument);
 router.post('/associations/:id/validate', requireOwnAssociation, validateAssociation);
 router.post('/associations/:id/reject', requireOwnAssociation, rejectAssociation);
+router.put('/documents/:id/association', requireOwnDocument, reassignAssociation);
 
 // Cumplimiento (HU02)
 router.get('/compliance', getCompliance);
