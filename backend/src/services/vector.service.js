@@ -174,28 +174,69 @@ export async function searchSimilarChunks(
     `;
   }
 
-  const enrichedResults = await Promise.all(
-    results.map(async (result) => {
-      const association = await prisma.association.findFirst({
-        where: {
-          documentId: result.documentId,
-        },
-        include: {
-          subcriterion: true,
-        },
-        orderBy: {
-          confidence: "desc",
-        },
-      });
+    // Si no hubo resultados, no es necesario consultar asociaciones.
+  if (results.length === 0) {
+    return [];
+  }
 
-      return {
-        ...result,
-        similarity: Number(result.similarity),
-        subcriterionCode: association?.subcriterion?.code ?? null,
-        subcriterionName: association?.subcriterion?.name ?? null,
-      };
-    })
-  );
+  // Obtener los IDs de documentos sin repetir.
+  const documentIds = [
+    ...new Set(results.map((result) => result.documentId)),
+  ];
+
+  // Obtener las asociaciones de todos los documentos en UNA sola consulta.
+  const associations = await prisma.association.findMany({
+    where: {
+      documentId: {
+        in: documentIds,
+      },
+    },
+    orderBy: [
+      {
+        documentId: "asc",
+      },
+      {
+        confidence: "desc",
+      },
+    ],
+    select: {
+      documentId: true,
+      subcriterion: {
+        select: {
+          code: true,
+          name: true,
+        },
+      },
+    },
+  });
+
+  // Como vienen ordenadas por confidence descendente,
+  // guardamos solo la primera asociación de cada documento.
+  const associationByDocument = new Map();
+
+  for (const association of associations) {
+    if (!associationByDocument.has(association.documentId)) {
+      associationByDocument.set(
+        association.documentId,
+        association
+      );
+    }
+  }
+
+  // Agregar la información del subcriterio a cada resultado.
+  const enrichedResults = results.map((result) => {
+    const association =
+      associationByDocument.get(result.documentId);
+
+    return {
+      ...result,
+      similarity: Number(result.similarity),
+      subcriterionCode:
+        association?.subcriterion?.code ?? null,
+      subcriterionName:
+        association?.subcriterion?.name ?? null,
+    };
+  });
 
   return enrichedResults;
 }
