@@ -1,6 +1,6 @@
 // HU01 — Asociación de evidencia al Criterio 9 (propuesta / validar / descartar).
 import { prisma } from '../config/prisma.js';
-import { classifyDocumentByEmbeddings } from '../services/classifier.service.js';
+import { classifyText } from '../services/classifier.service.js';
 
 const CRITERION_CODE = '9';
 
@@ -14,10 +14,7 @@ export async function classifyDocument(req, res) {
     where: { criterion: { code: CRITERION_CODE } },
   });
 
-  const result = await classifyDocumentByEmbeddings(
-    documentId,
-    subcriteria
-  );
+   const result = await classifyText(doc.extractedText || '', subcriteria);
 
   if (!result.relevant) {
     return res.json({
@@ -59,7 +56,7 @@ export async function classifyDocument(req, res) {
       snapshot: {
         subcriterion: association.subcriterion.code,
         confidence: result.confidence,
-        semanticRanking: result.semanticRanking,
+        matchedKeywords: result.matchedKeywords,
       },
     },
   });
@@ -76,7 +73,6 @@ export async function classifyDocument(req, res) {
       justification: association.justification,
       evidenceFragment: association.evidenceFragment,
       confidence: association.confidence,
-      semanticRanking: result.semanticRanking,
     },
   });
 }
