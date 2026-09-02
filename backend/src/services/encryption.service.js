@@ -15,6 +15,7 @@ const IV_LEN = 12;
 const TAG_LEN = 16;
 const HEADER_LEN = MAGIC.length + IV_LEN + TAG_LEN;
 const ALGORITHM = 'aes-256-gcm';
+const TEXT_PREFIX = 'QTENC1:';
 
 let cachedKey = null;
 
@@ -79,3 +80,28 @@ export function decryptBuffer(stored) {
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
+
+/**
+ * Cifra texto para almacenarlo en una columna TEXT. El resultado nunca
+ * contiene el texto original y cada llamada usa un IV distinto.
+ */
+export function encryptText(plain) {
+  if (plain == null) return plain;
+  return TEXT_PREFIX + encryptBuffer(Buffer.from(String(plain), 'utf8')).toString('base64');
+}
+
+/**
+ * Descifra texto de PostgreSQL solamente cuando el backend necesita usarlo.
+ * Mantiene compatibilidad temporal con filas creadas antes del cifrado.
+ */
+export function decryptText(stored) {
+  if (stored == null || !stored.startsWith(TEXT_PREFIX)) return stored;
+  const payload = Buffer.from(stored.slice(TEXT_PREFIX.length), 'base64');
+  return decryptBuffer(payload).toString('utf8');
+}
+
+/** Indica si un valor de columna TEXT ya está protegido por este servicio. */
+export function isEncryptedText(value) {
+  return typeof value === 'string' && value.startsWith(TEXT_PREFIX);
+}
+
