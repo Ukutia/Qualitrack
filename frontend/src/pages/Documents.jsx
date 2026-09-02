@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useDocuments, useTrashDocument } from '../hooks/useApi.js';
+import { useDocuments, useTrashDocument, useTrashMultipleDocuments, useTrashAllDocuments } from '../hooks/useApi.js';
 
 async function openFile(docId) {
   const token = localStorage.getItem('qualitrack_token');
@@ -48,11 +48,14 @@ function OpenFileButton({ docId }) {
 }
 
 export default function Documents() {
-  const { data: docs, isLoading, refetch } = useDocuments();
+  const { data: docs, isLoading } = useDocuments();
   const trash = useTrashDocument();
+  const trashMultiple = useTrashMultipleDocuments();
+  const trashAll = useTrashAllDocuments();
   const location = useLocation();
   const navigate = useNavigate();
   const [highlightedIds] = useState(() => new Set(location.state?.importedIds || []));
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   useEffect(() => {
     if (location.state?.importedIds) {
@@ -63,9 +66,47 @@ export default function Documents() {
 
   async function handleTrash(id, name) {
     if (!confirm(`¿Mover "${name}" a la papelera?`)) return;
-
     await trash.mutateAsync(id);
-    await refetch();
+  }
+
+  function toggleSelect(id) {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  }
+
+  function selectAll() {
+    if (docs?.length) {
+      setSelectedIds(new Set(docs.map((d) => d.id)));
+    }
+  }
+
+  function deselectAll() {
+    setSelectedIds(new Set());
+  }
+
+  async function handleTrashSelected() {
+    if (selectedIds.size === 0) {
+      alert('Selecciona al menos un documento');
+      return;
+    }
+    if (!confirm(`¿Mover ${selectedIds.size} documento(s) a la papelera?`)) return;
+    await trashMultiple.mutateAsync(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  }
+
+  async function handleTrashAll() {
+    if (!docs?.length) {
+      alert('No hay documentos para mover');
+      return;
+    }
+    if (!confirm(`¿Mover TODOS los ${docs.length} documentos a la papelera?`)) return;
+    await trashAll.mutateAsync();
+    setSelectedIds(new Set());
   }
 
   return (
@@ -93,12 +134,36 @@ export default function Documents() {
         </div>
       </header>
 
+      {/* Barra de acciones masivas cuando hay selección */}
+      {selectedIds.size > 0 && (
+        <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="text-sm font-medium text-brand-900">
+            {selectedIds.size} documento(s) seleccionado(s)
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={deselectAll}
+              className="text-xs px-3 py-2 rounded-md border border-steel-200 hover:bg-steel-50 text-steel-600"
+            >
+              Deseleccionar
+            </button>
+            <button
+              onClick={handleTrashSelected}
+              disabled={trashMultiple.isPending}
+              className="text-xs px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-50"
+            >
+              {trashMultiple.isPending ? 'Moviendo…' : 'Mover a papelera'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-steel-200/60 overflow-hidden">
         {isLoading ? (
           <table className="w-full text-sm">
             <thead className="bg-steel-50/80 text-steel-500 text-left">
               <tr>
-                {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación',''].map(h => (
+                {['', 'Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación',''].map(h => (
                   <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -106,6 +171,7 @@ export default function Documents() {
             <tbody className="divide-y divide-steel-100">
               {Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>
+                  <td className="px-5 py-4"><div className="skeleton h-4 w-4" /></td>
                   <td className="px-5 py-4"><div className="skeleton h-4 w-44" /></td>
                   <td className="px-5 py-4"><div className="skeleton h-4 w-10" /></td>
                   <td className="px-5 py-4"><div className="skeleton h-4 w-14" /></td>
@@ -140,6 +206,14 @@ export default function Documents() {
           <table className="w-full text-sm">
             <thead className="bg-steel-50/80 text-steel-500 text-left">
               <tr>
+                <th className="px-5 py-3.5">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === docs.length && docs.length > 0}
+                    onChange={selectedIds.size === docs.length ? deselectAll : selectAll}
+                    className="h-4 w-4 rounded border-steel-300 text-brand-600 cursor-pointer"
+                  />
+                </th>
                 {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación',''].map((h) => (
                   <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide">{h}</th>
                 ))}
@@ -151,8 +225,16 @@ export default function Documents() {
                   key={d.id}
                   className={`transition-colors hover:bg-brand-50/40 ${
                     highlightedIds.has(d.id) ? 'animate-pulse-highlight' : ''
-                  }`}
+                  } ${selectedIds.has(d.id) ? 'bg-brand-50' : ''}`}
                 >
+                  <td className="px-5 py-3.5">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(d.id)}
+                      onChange={() => toggleSelect(d.id)}
+                      className="h-4 w-4 rounded border-steel-300 text-brand-600 cursor-pointer"
+                    />
+                  </td>
                   <td className="px-5 py-3.5">
                     <Link to={`/documents/${d.id}`} className="font-medium text-brand-600 hover:text-brand-700 hover:underline underline-offset-2">
                       {d.name}
@@ -176,7 +258,6 @@ export default function Documents() {
                   </td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
-                      {/* <OpenFileButton docId={d.id} /> */}
                       <button
                         onClick={() => handleTrash(d.id, d.name)}
                         disabled={trash.isPending}
@@ -195,6 +276,25 @@ export default function Documents() {
           </table>
         )}
       </div>
+
+      {/* Barra flotante con botones de acciones masivas */}
+      {docs?.length > 0 && selectedIds.size === 0 && (
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={selectAll}
+            className="text-xs px-4 py-2 rounded-lg border border-steel-200 hover:bg-steel-50 text-steel-600 font-medium"
+          >
+            ☑️ Seleccionar todo
+          </button>
+          <button
+            onClick={handleTrashAll}
+            disabled={trashAll.isPending}
+            className="text-xs px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium disabled:opacity-50"
+          >
+            {trashAll.isPending ? '⏳ Borrando…' : '🗑️ Borrar todo'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -46,18 +46,6 @@ export function useCreateTopic() {
   });
 }
 
-export function useDeleteTopic() {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id) =>
-      (await api.delete(`/topics/${id}`)).data,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['topics'] });
-    },
-  });
-}
-
 export function useDocument(id) {
   return useQuery({
     queryKey: ['document', id],
@@ -118,6 +106,55 @@ export function useDestroyDocument() {
   });
 }
 
+// ── Operaciones masivas de documentos ───────────────────────────────
+export function useTrashMultipleDocuments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids) => (await api.post('/documents/bulk/trash', { ids })).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['trash'] });
+      qc.invalidateQueries({ queryKey: ['compliance'] });
+    },
+  });
+}
+
+export function useTrashAllDocuments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await api.post('/documents/bulk/trash-all')).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['trash'] });
+      qc.invalidateQueries({ queryKey: ['compliance'] });
+    },
+  });
+}
+
+export function useRestoreMultipleDocuments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids) => (await api.post('/documents/bulk/restore', { ids })).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['trash'] });
+      qc.invalidateQueries({ queryKey: ['compliance'] });
+    },
+  });
+}
+
+export function useRestoreAllDocuments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await api.post('/documents/bulk/restore-all')).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['trash'] });
+      qc.invalidateQueries({ queryKey: ['compliance'] });
+    },
+  });
+}
+
 // ── Clasificación (HU01) ────────────────────────────────────────────
 export function useClassify() {
   const qc = useQueryClient();
@@ -143,29 +180,6 @@ export function useAssociationAction() {
         qc.invalidateQueries({ queryKey: ['document', variables.documentId] });
       }
     },
-  });
-}
-
-/** EP 1.2 — reasignación manual del subcriterio de un documento. */
-export function useReassignAssociation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ documentId, subcriterionId }) =>
-      (await api.put(`/documents/${documentId}/association`, { subcriterionId })).data,
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['compliance'] });
-      qc.invalidateQueries({ queryKey: ['documents'] });
-      qc.invalidateQueries({ queryKey: ['document', String(variables.documentId)] });
-      qc.invalidateQueries({ queryKey: ['document', variables.documentId] });
-    },
-  });
-}
-
-/** Criterio 9 con sus subcriterios (para elegir a mano). */
-export function useCriterion() {
-  return useQuery({
-    queryKey: ['criteria'],
-    queryFn: async () => (await api.get('/criteria')).data,
   });
 }
 

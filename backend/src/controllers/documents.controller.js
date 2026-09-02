@@ -5,8 +5,6 @@ import { extractText } from '../services/textExtraction.service.js';
 import { extractDocumentDate } from '../services/dateExtraction.service.js';
 import { vectorizeDocument } from '../services/vector.service.js';
 import { formatFromName } from '../middleware/upload.js';
-import { ownerFilter } from '../middleware/ownership.js';
-import { encryptText, decryptText } from '../services/encryption.service.js';
 
 const MIME = {
   pdf:  'application/pdf',
@@ -43,7 +41,7 @@ export async function ingestDocument({
       source,
       cloudFileId,
       cloudLocation,
-      extractedText: encryptText(extractedText),
+      extractedText,
       documentDate,
       uploadedById: userId,
     },
@@ -68,11 +66,9 @@ export async function uploadDocument(req, res) {
   const originalName = req.file.originalname;
   const onDuplicate = (req.query.onDuplicate || '').toLowerCase(); // '', 'replace', 'keep', 'restore'
 
-  // Manejo de duplicados por nombre (HU07). Para los roles acotados al dueño
-  // el duplicado se busca solo entre sus propias cargas: avisar de un archivo
-  // homónimo de otro usuario filtraría su repositorio.
+  // Manejo de duplicados por nombre (HU07).
   const existing = await prisma.document.findFirst({
-    where: { originalName, ...ownerFilter(req.user) },
+    where: { originalName },
     orderBy: { uploadedAt: 'desc' },
   });
 
@@ -143,9 +139,8 @@ export async function uploadDocument(req, res) {
 }
 
 export async function listDocuments(req, res) {
-  // Los roles acotados al dueño (EP 1.2) solo ven sus propias cargas.
   const docs = await prisma.document.findMany({
-    where: { deletedAt: null, ...ownerFilter(req.user) },
+    where: { deletedAt: null },
     orderBy: { uploadedAt: 'desc' },
     include: {
       associations: { include: { subcriterion: true } },
@@ -205,7 +200,7 @@ export async function getDocument(req, res) {
     documentDate: doc.documentDate,
     uploadedAt: doc.uploadedAt,
     uploadedBy: doc.uploadedBy?.name,
-    textPreview: (decryptText(doc.extractedText),
+    textPreview: (doc.extractedText || '').slice(0, 1500),
     associations: doc.associations.map((a) => ({
       id: a.id,
       status: a.status,
@@ -271,14 +266,10 @@ export async function trashDocument(req, res) {
 /** Lista los documentos en la papelera. */
 export async function listTrash(req, res) {
   const docs = await prisma.document.findMany({
-    where: {
-      deletedAt: { not: null },
-      ...ownerFilter(req.user),
-    },
+    where: { deletedAt: { not: null } },
     orderBy: { deletedAt: 'desc' },
     include: { uploadedBy: { select: { name: true } } },
   });
-
   return res.json(
     docs.map((d) => ({
       id: d.id,
@@ -315,4 +306,82 @@ export async function destroyDocument(req, res) {
   await deleteFile(doc.storagePath);
   await prisma.document.delete({ where: { id } });
   return res.json({ id, message: 'Documento eliminado definitivamente.' });
+}
+
+/** Mueve múltiples documentos a la papelera. */
+export async function trashMultipleDocuments(req, res) {
+  const { ids } = req.body || {};
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'ids debe ser un array no vacío.' });
+  }
+
+  const docs = await prisma.document.findMany({
+    where: { id: { in: ids }, deletedAt: null },
+  });
+
+  if (docs.length === 0) {
+    return res.status(400).json({ error: 'No hay documentos válidos para mover a papelera.' });
+  }
+
+  await prisma.document.updateMany({
+    where: { id: { in: docs.map((d) => d.id) } },
+    data: { deletedAt: new Date() },
+  });
+
+  return res.json({
+    count: docs.length,
+    message: `${docs.length} documento(s) movido(s) a la papelera.`,
+  });
+}
+
+/** Mueve todos los documentos activos a la papelera. */
+export async function trashAllDocuments(req, res) {
+  const result = await prisma.document.updateMany({
+    where: { deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
+
+  return res.json({
+    count: result.count,
+    message: `${result.count} documento(s) movido(s) a la papelera.`,
+  });
+}
+
+/** Restaura múltiples documentos desde la papelera. */
+export async function restoreMultipleDocuments(req, res) {
+  const { ids } = req.body || {};
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'ids debe ser un array no vacío.' });
+  }
+
+  const docs = await prisma.document.findMany({
+    where: { id: { in: ids }, deletedAt: { not: null } },
+  });
+
+  if (docs.length === 0) {
+    return res.status(400).json({ error: 'No hay documentos válidos para restaurar.' });
+  }
+
+  await prisma.document.updateMany({
+    where: { id: { in: docs.map((d) => d.id) } },
+    data: { deletedAt: null },
+  });
+
+  return res.json({
+    count: docs.length,
+    message: `${docs.length} documento(s) restaurado(s) al repositorio.`,
+  });
+}
+
+/** Restaura todos los documentos desde la papelera. */
+export async function restoreAllDocuments(req, res) {
+  const result = await prisma.document.updateMany({
+    where: { deletedAt: { not: null } },
+    data: { deletedAt: null },
+  });
+
+  return res.json({
+    count: result.count,
+    message: `${result.count} documento(s) restaurado(s) al repositorio.`,
+  });
 }
