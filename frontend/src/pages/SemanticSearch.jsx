@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useSemanticSearch, useTopics, useCreateTopic, } from '../hooks/useApi.js';
+import { useSemanticSearch, useTopics, useCreateTopic, useDeleteTopic } from '../hooks/useApi.js';
 
 export default function SemanticSearch() {
   const search = useSemanticSearch();
   const topics = useTopics();
   const createTopic = useCreateTopic();
+  const deleteTopic = useDeleteTopic();
   const [topicName, setTopicName] = useState('');
 
   async function handleTopicSearch(topicName) {
@@ -144,15 +145,40 @@ export default function SemanticSearch() {
         ) : (
           <div className="flex flex-wrap gap-2">
             {topics.data.topics.map((topic) => (
-              <button
+              <div
                 key={topic.id}
-                type="button"
-                onClick={() => handleTopicSearch(topic.name)}
-                disabled={search.isPending}
-                className="rounded-full bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 ring-1 ring-brand-100 transition hover:bg-brand-100 disabled:cursor-wait disabled:opacity-60"
+                className="flex items-center rounded-full bg-brand-50 text-sm font-medium text-brand-700 ring-1 ring-brand-100"
               >
-                {topic.name}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => handleTopicSearch(topic.name)}
+                  disabled={search.isPending}
+                  className="rounded-l-full px-3 py-2 transition hover:bg-brand-100 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {topic.name}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async (event) => {
+                    event.stopPropagation();
+
+                    const confirmed = window.confirm(
+                      `¿Eliminar la temática "${topic.name}"?`
+                    );
+
+                    if (!confirmed) return;
+
+                    await deleteTopic.mutateAsync(topic.id);
+                  }}
+                  disabled={deleteTopic.isPending}
+                  aria-label={`Eliminar temática ${topic.name}`}
+                  title="Eliminar temática"
+                  className="rounded-r-full px-2.5 py-2 text-brand-500 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-wait disabled:opacity-50"
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
         )}

@@ -62,3 +62,40 @@ export async function createTopic(req, res, next) {
     return next(error);
   }
 }
+
+export async function deleteTopic(req, res, next) {
+  try {
+    const topicId = Number(req.params.id);
+
+    if (!Number.isInteger(topicId) || topicId <= 0) {
+      return res.status(400).json({
+        error: 'ID de temática inválido.',
+      });
+    }
+
+    const topic = await prisma.topic.findFirst({
+      where: {
+        id: topicId,
+        createdById: req.user.id,
+      },
+    });
+
+    if (!topic) {
+      return res.status(404).json({
+        error: 'Temática no encontrada.',
+      });
+    }
+
+    await prisma.topic.delete({
+      where: {
+        id: topicId,
+      },
+    });
+
+    return res.json({
+      message: 'Temática eliminada correctamente.',
+    });
+  } catch (error) {
+    return next(error);
+  }
+}

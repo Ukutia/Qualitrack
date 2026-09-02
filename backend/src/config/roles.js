@@ -52,6 +52,11 @@ const USER_RULES = [
   rule('GET', /^\/cloud\/(google|dropbox)\/(status|auth-url|files)$/),
   rule('POST', /^\/cloud\/(google|dropbox)\/import$/),
   rule('DELETE', /^\/cloud\/(google|dropbox)\/disconnect$/),
+  // Papelera
+  rule('GET', /^\/documents\/trash$/),
+  rule('POST', /^\/documents\/\d+\/trash$/),
+  rule('POST', /^\/documents\/\d+\/restore$/),
+  rule('DELETE', /^\/documents\/\d+$/),
 ];
 
 const ROLE_RULES = {

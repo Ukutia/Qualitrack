@@ -4,7 +4,7 @@ import { enforceRolePolicy } from '../middleware/authorize.js';
 import { requireOwnDocument, requireOwnAssociation } from '../middleware/ownership.js';
 import { upload, structureUpload } from '../middleware/upload.js';
 import { semanticSearch } from '../controllers/search.controller.js';
-import { listTopics, createTopic } from '../controllers/topics.controller.js';
+import { listTopics, createTopic, deleteTopic } from '../controllers/topics.controller.js';
 import {
   listDrafts,
   createDraft,
@@ -70,6 +70,7 @@ router.post('/search/semantic', semanticSearch);
 // Temáticas
 router.get('/topics', listTopics);
 router.post('/topics', createTopic);
+router.delete('/topics/:id', deleteTopic);
 
 // Documentos (HU07)
 router.post('/documents', upload.single('file'), uploadDocument);
@@ -78,9 +79,9 @@ router.get('/documents/trash', listTrash);
 router.get('/documents/:id', requireOwnDocument, getDocument);
 router.get('/documents/:id/file', requireOwnDocument, serveFile);
 router.patch('/documents/:id/date', requireOwnDocument, updateDocumentDate);
-router.post('/documents/:id/trash', trashDocument);
-router.post('/documents/:id/restore', restoreDocument);
-router.delete('/documents/:id', destroyDocument);
+router.post('/documents/:id/trash', requireOwnDocument, trashDocument);
+router.post('/documents/:id/restore', requireOwnDocument, restoreDocument);
+router.delete('/documents/:id', requireOwnDocument, destroyDocument);
 
 // Clasificación (HU01)
 router.post('/documents/:id/classify', requireOwnDocument, classifyDocument);

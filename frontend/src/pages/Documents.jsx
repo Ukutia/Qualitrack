@@ -48,7 +48,7 @@ function OpenFileButton({ docId }) {
 }
 
 export default function Documents() {
-  const { data: docs, isLoading } = useDocuments();
+  const { data: docs, isLoading, refetch } = useDocuments();
   const trash = useTrashDocument();
   const location = useLocation();
   const navigate = useNavigate();
@@ -63,7 +63,9 @@ export default function Documents() {
 
   async function handleTrash(id, name) {
     if (!confirm(`¿Mover "${name}" a la papelera?`)) return;
+
     await trash.mutateAsync(id);
+    await refetch();
   }
 
   return (

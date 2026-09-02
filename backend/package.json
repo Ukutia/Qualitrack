@@ -10,6 +10,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
+    "db:encrypt-legacy-text": "node scripts/encrypt-existing-text.js",
     "test": "vitest run"
   },
   "prisma": {
