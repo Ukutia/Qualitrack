@@ -18,6 +18,22 @@ afterAll(async () => {
 });
 
 describe('almacenamiento cifrado', () => {
+  it('cifra el texto de PostgreSQL y recupera exactamente el original', async () => {
+    const { encryptText, decryptText, isEncryptedText } = await import('../src/services/encryption.service.js');
+    const plain = 'Texto extraído confidencial: acreditación 2026.';
+
+    const stored = encryptText(plain);
+    expect(stored).toMatch(/^QTENC1:/);
+    expect(stored).not.toContain('acreditación');
+    expect(isEncryptedText(stored)).toBe(true);
+    expect(decryptText(stored)).toBe(plain);
+  });
+
+  it('permite migrar registros TEXT históricos que aún estaban en claro', async () => {
+    const { decryptText } = await import('../src/services/encryption.service.js');
+    expect(decryptText('registro histórico en claro')).toBe('registro histórico en claro');
+  });
+
   it('escribe en disco un contenido ilegible y lo devuelve en claro al leerlo', async () => {
     const { saveFile, readFile } = await import('../src/services/storage.service.js');
     const plain = Buffer.from('Informe de autoevaluación — dato institucional sensible');
