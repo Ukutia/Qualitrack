@@ -15,6 +15,11 @@ async function openFile(docId) {
 
 const fmtSize = (b) => `${(b / 1024).toFixed(0)} KB`;
 const fmtDate = (d) => new Date(d).toLocaleString('es-CL');
+const sourceLabel = (source) => ({
+  GOOGLE_DRIVE: 'Google Drive',
+  DROPBOX: 'Dropbox',
+  UPLOAD: 'Carga directa',
+}[source] || '—');
 
 const STATUS_STYLE = {
   Validada: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
@@ -251,7 +256,7 @@ export default function Documents() {
                   <td className="px-5 py-3.5 uppercase text-steel-500">{d.format}</td>
                   <td className="px-5 py-3.5 tnum text-steel-500">{fmtSize(d.sizeBytes)}</td>
                   <td className="px-5 py-3.5 text-steel-500">
-                    {d.source === 'GOOGLE_DRIVE' ? 'Google Drive' : 'Carga directa'}
+                    {sourceLabel(d.source)}
                   </td>
                   <td className="px-5 py-3.5 tnum text-steel-500">{fmtDate(d.uploadedAt)}</td>
                   <td className="px-5 py-3.5">
