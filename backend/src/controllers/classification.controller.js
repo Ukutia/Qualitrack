@@ -8,7 +8,12 @@ const CRITERION_CODE = '9';
 /** POST /documents/:id/classify — genera (o regenera) la propuesta automática. */
 export async function classifyDocument(req, res) {
   const documentId = Number(req.params.id);
-  const doc = await prisma.document.findUnique({ where: { id: documentId } });
+  const doc = await prisma.document.findFirst({
+    where: {
+      id: documentId,
+      deletedAt: null,
+    },
+  });
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
 
   const subcriteria = await prisma.subcriterion.findMany({

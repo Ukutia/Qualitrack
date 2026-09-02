@@ -56,7 +56,11 @@ async function importFromCloud(req, res, provider) {
   }
 
   const existing = await prisma.document.findFirst({
-    where: { originalName: meta.name },
+    where: {
+      originalName: meta.name,
+      deletedAt: null,
+      uploadedById: req.user.id,
+    },
     orderBy: { uploadedAt: 'desc' },
   });
 

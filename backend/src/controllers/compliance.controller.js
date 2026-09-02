@@ -11,7 +11,12 @@ export async function getCompliance(req, res) {
       subcriteria: {
         include: {
           associations: {
-            where: { status: 'VALIDATED' },
+            where: {
+              status: 'VALIDATED',
+              document: {
+                deletedAt: null,
+              },
+            },
             include: { document: true },
           },
         },

@@ -38,7 +38,14 @@ export async function createTopic(req, res, next) {
       });
     }
 
-    const documentCount = await prisma.documentChunk.count();
+    const documentCount = await prisma.documentChunk.count({
+      where: {
+        document: {
+          deletedAt: null,
+          uploadedById: req.user.id,
+        },
+      },
+    });
 
     if (documentCount === 0) {
       return res.status(409).json({

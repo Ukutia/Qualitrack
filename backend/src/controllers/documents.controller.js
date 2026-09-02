@@ -72,7 +72,11 @@ export async function uploadDocument(req, res) {
   // el duplicado se busca solo entre sus propias cargas: avisar de un archivo
   // homónimo de otro usuario filtraría su repositorio.
   const existing = await prisma.document.findFirst({
-    where: { originalName, ...ownerFilter(req.user) },
+    where: {
+      originalName,
+      deletedAt: null,
+      ...ownerFilter(req.user),
+    },
     orderBy: { uploadedAt: 'desc' },
   });
 
@@ -295,12 +299,82 @@ export async function listTrash(req, res) {
 /** Restaura un documento desde la papelera al repositorio. */
 export async function restoreDocument(req, res) {
   const id = Number(req.params.id);
-  const doc = await prisma.document.findUnique({ where: { id } });
-  if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
-  if (!doc.deletedAt) return res.status(409).json({ error: 'El documento no está en la papelera.' });
 
-  await prisma.document.update({ where: { id }, data: { deletedAt: null } });
-  return res.json({ id, message: 'Documento restaurado al repositorio.' });
+  const doc = await prisma.document.findUnique({
+    where: { id },
+  });
+
+  if (!doc) {
+    return res.status(404).json({
+      error: 'Documento no encontrado.',
+    });
+  }
+
+  if (!doc.deletedAt) {
+    return res.status(409).json({
+      error: 'El documento no está en la papelera.',
+    });
+  }
+
+  let restoredName = doc.originalName;
+
+  // Verificar si ya existe un documento activo con el mismo nombre.
+  const conflict = await prisma.document.findFirst({
+    where: {
+      originalName: restoredName,
+      deletedAt: null,
+      id: { not: id },
+      ...ownerFilter(req.user),
+    },
+  });
+
+  // Si existe, buscar el siguiente nombre disponible: (1), (2), (3)...
+  if (conflict) {
+    const dotIndex = doc.originalName.lastIndexOf('.');
+
+    const baseName =
+      dotIndex !== -1
+        ? doc.originalName.slice(0, dotIndex)
+        : doc.originalName;
+
+    const extension =
+      dotIndex !== -1
+        ? doc.originalName.slice(dotIndex)
+        : '';
+
+    let counter = 1;
+
+    do {
+      restoredName = `${baseName} (${counter})${extension}`;
+      counter++;
+    } while (
+      await prisma.document.findFirst({
+        where: {
+          originalName: restoredName,
+          deletedAt: null,
+          ...ownerFilter(req.user),
+        },
+      })
+    );
+  }
+
+  await prisma.document.update({
+    where: { id },
+    data: {
+      deletedAt: null,
+      originalName: restoredName,
+    },
+  });
+
+  return res.json({
+    id,
+    name: restoredName,
+    renamed: restoredName !== doc.originalName,
+    message:
+      restoredName !== doc.originalName
+        ? `Documento restaurado como "${restoredName}" porque ya existía un archivo con el mismo nombre.`
+        : 'Documento restaurado al repositorio.',
+  });
 }
 
 /** Elimina definitivamente un documento de la papelera. */

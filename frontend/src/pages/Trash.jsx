@@ -10,6 +10,7 @@ export default function Trash() {
   const restore = useRestoreDocument();
   const destroy = useDestroyDocument();
   const [confirmId, setConfirmId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   async function handleRestore(id) {
     await restore.mutateAsync(id);
@@ -18,6 +19,60 @@ export default function Trash() {
   async function handleDestroy(id) {
     await destroy.mutateAsync(id);
     setConfirmId(null);
+  }
+
+  function toggleSelect(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => {
+      if (prev.size === docs.length) {
+        return new Set();
+      }
+
+      return new Set(docs.map((d) => d.id));
+    });
+  }
+
+  async function handleRestoreSelected() {
+    if (selectedIds.size === 0) return;
+
+    if (!confirm(`¿Restaurar ${selectedIds.size} documento(s)?`)) return;
+
+    for (const id of selectedIds) {
+      await restore.mutateAsync(id);
+    }
+
+    setSelectedIds(new Set());
+  }
+
+  async function handleDestroySelected() {
+    if (selectedIds.size === 0) return;
+
+    if (
+      !confirm(
+        `¿Eliminar definitivamente ${selectedIds.size} documento(s)? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+
+    for (const id of selectedIds) {
+      await destroy.mutateAsync(id);
+    }
+
+    setSelectedIds(new Set());
   }
 
   return (
@@ -39,6 +94,32 @@ export default function Trash() {
         </Link>
       </header>
 
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-steel-50 px-4 py-3 ring-1 ring-steel-200">
+          <span className="text-sm font-medium text-steel-600">
+            {selectedIds.size} documento(s) seleccionado(s)
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRestoreSelected}
+              disabled={restore.isPending || destroy.isPending}
+              className="rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200 px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+            >
+              Restaurar seleccionados
+            </button>
+
+            <button
+              onClick={handleDestroySelected}
+              disabled={restore.isPending || destroy.isPending}
+              className="rounded-md bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+            >
+              Eliminar seleccionados
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-steel-200/60 overflow-hidden">
         {isLoading ? (
           <p className="px-6 py-10 text-sm text-steel-400">Cargando papelera…</p>
@@ -56,14 +137,37 @@ export default function Trash() {
           <table className="w-full text-sm">
             <thead className="bg-steel-50/80 text-steel-500 text-left">
               <tr>
+                <th className="px-5 py-3.5 w-10">
+                  <input
+                    type="checkbox"
+                    checked={docs.length > 0 && selectedIds.size === docs.length}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-steel-300"
+                    aria-label="Seleccionar todos"
+                  />
+                </th>
                 {['Nombre', 'Formato', 'Tamaño', 'Eliminado el', ''].map((h) => (
-                  <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide">{h}</th>
+                  <th
+                    key={h}
+                    className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide"
+                  >
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-steel-100">
               {docs.map((d) => (
                 <tr key={d.id} className="hover:bg-steel-50/60">
+                  <td className="px-5 py-3.5">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(d.id)}
+                      onChange={() => toggleSelect(d.id)}
+                      className="h-4 w-4 rounded border-steel-300"
+                      aria-label={`Seleccionar ${d.name}`}
+                    />
+                  </td>
                   <td className="px-5 py-3.5 font-medium text-ink-900">{d.name}</td>
                   <td className="px-5 py-3.5 uppercase text-steel-500">{d.format}</td>
                   <td className="px-5 py-3.5 tnum text-steel-500">{fmtSize(d.sizeBytes)}</td>
