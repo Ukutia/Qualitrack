@@ -22,6 +22,9 @@ vi.mock('../src/config/prisma.js', () => ({
       delete: vi.fn(),
       deleteMany: vi.fn(),
     },
+    cloudConnection: {
+      deleteMany: vi.fn(),
+    },
   },
 }));
 
@@ -152,6 +155,10 @@ describe('importación desde Google Drive (HU09)', () => {
     expect(res.statusCode).toBe(400);
     expect(res.body.code).toBe('CLOUD_CONNECTION_ERROR');
     expect(res.body.retryable).toBe(true);
+    expect(res.body.connected).toBe(false);
+    expect(prisma.cloudConnection.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 1, provider: 'google' },
+    });
     expect(res.body.error).toMatch(/Reconecte la cuenta/);
   });
 

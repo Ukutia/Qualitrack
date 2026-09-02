@@ -53,7 +53,11 @@ function useImportProgress(provider) {
       if (!saved) return { fileStatuses: new Map(), importedIds: [] };
       const entries = (saved.fileStatuses || []).map(([id, entry]) => [
         id,
-        { ...entry, status: entry.status === 'subiendo' ? 'pendiente' : entry.status },
+        {
+          ...entry,
+          status: entry.status === 'subiendo' ? 'pendiente' : entry.status,
+          code: entry.reason?.includes('No autenticado') ? 'NETWORK_ERROR' : entry.code,
+        },
       ]);
       return { fileStatuses: new Map(entries), importedIds: saved.importedIds || [] };
     } catch {
@@ -90,6 +94,9 @@ function useImportProgress(provider) {
 function classifyImportError(err) {
   if (!err.response) {
     return { code: 'NETWORK_ERROR', reason: 'Error de conexión. Verifique su red e inténtelo nuevamente.' };
+  }
+  if (err.response.status === 401) {
+    return { code: 'NETWORK_ERROR', reason: 'Sesión no autenticada. Inicie sesión nuevamente para reintentar.' };
   }
   const data = err.response.data;
   if (data?.retryable || data?.code === 'CLOUD_CONNECTION_ERROR') {
@@ -474,14 +481,15 @@ function GoogleDriveTab({ initialFeedback }) {
     }
   }
 
-  async function runImportBatch(files) {
+  async function runImportBatch(files, isRetry = false) {
     setFeedback(null);
     setImportingSelected(true);
     setFileStatuses((prev) => {
-      const next = new Map(prev);
+      const next = isRetry ? new Map(prev) : new Map();
       files.forEach((file) => next.set(file.id, { file, status: 'pendiente' }));
       return next;
     });
+    if (!isRetry) setImportedIds([]);
     const newlyImported = [];
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
@@ -529,7 +537,7 @@ function GoogleDriveTab({ initialFeedback }) {
         (e.status === 'error' && ['NETWORK_ERROR', 'CLOUD_CONNECTION_ERROR'].includes(e.code)))
       .map((e) => e.file);
     if (pending.length === 0) return;
-    await runImportBatch(pending);
+    await runImportBatch(pending, true);
   }
 
   function goToDocuments() {
@@ -699,14 +707,15 @@ function DropboxTab({ initialFeedback }) {
     }
   }
 
-  async function runImportBatch(files) {
+  async function runImportBatch(files, isRetry = false) {
     setFeedback(null);
     setImportingSelected(true);
     setFileStatuses((prev) => {
-      const next = new Map(prev);
+      const next = isRetry ? new Map(prev) : new Map();
       files.forEach((file) => next.set(file.id, { file, status: 'pendiente' }));
       return next;
     });
+    if (!isRetry) setImportedIds([]);
     const newlyImported = [];
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
@@ -754,7 +763,7 @@ function DropboxTab({ initialFeedback }) {
         (e.status === 'error' && ['NETWORK_ERROR', 'CLOUD_CONNECTION_ERROR'].includes(e.code)))
       .map((e) => e.file);
     if (pending.length === 0) return;
-    await runImportBatch(pending);
+    await runImportBatch(pending, true);
   }
 
   function goToDocuments() {

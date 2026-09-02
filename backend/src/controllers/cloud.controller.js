@@ -8,6 +8,11 @@ import { deleteFile } from '../services/storage.service.js';
 import { isDropboxConfigured } from '../config/env.js';
 import * as dropbox from '../services/dropbox.service.js';
 
+function isCredentialError(err) {
+  const message = `${err?.message || ''} ${err?.response?.data?.error || ''}`.toLowerCase();
+  return /invalid_grant|invalid[_ -]?access[_ -]?token|expired[_ -]?access[_ -]?token|unauthorized|401/.test(message);
+}
+
 /**
  * Importación de un archivo desde un proveedor de nube conectado.
  * Comparte con la carga manual (HU07) las validaciones de formato/tamaño y el
@@ -27,12 +32,16 @@ async function importFromCloud(req, res, provider) {
     meta = await service.getFileMeta(req.user.id, fileId);
   } catch (err) {
     console.error(`${label} meta error:`, err.message);
+    if (isCredentialError(err)) {
+      await prisma.cloudConnection.deleteMany({ where: { userId: req.user.id, provider: source === 'GOOGLE_DRIVE' ? 'google' : 'dropbox' } });
+    }
     meta = null;
   }
   if (!meta) {
     return res.status(400).json({
       code: 'CLOUD_CONNECTION_ERROR',
       retryable: true,
+      connected: false,
       error: `No fue posible obtener la información del archivo en ${label}. Reconecte la cuenta e inténtelo nuevamente.`,
     });
   }
@@ -121,9 +130,13 @@ async function importFromCloud(req, res, provider) {
     file = await service.downloadFile(req.user.id, fileId);
   } catch (err) {
     console.error(`${label} import error:`, err.message);
+    if (isCredentialError(err)) {
+      await prisma.cloudConnection.deleteMany({ where: { userId: req.user.id, provider: source === 'GOOGLE_DRIVE' ? 'google' : 'dropbox' } });
+    }
     return res.status(400).json({
       code: 'CLOUD_CONNECTION_ERROR',
       retryable: true,
+      connected: false,
       error: `No fue posible importar el archivo desde ${label}. Reconecte la cuenta e inténtelo nuevamente.`,
     });
   }
