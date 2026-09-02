@@ -4,6 +4,7 @@ import {
   EMBEDDING_MODEL,
 } from "./embedding.service.js";
 import { chunkText } from "./chunking.service.js";
+import { encryptText, decryptText } from "./encryption.service.js";
 
 
 function toPgVector(embedding) {
@@ -50,6 +51,7 @@ export async function vectorizeDocument(documentId, text) {
           ${documentId},
           ${i},
           ${content},
+          ${encryptText(content)},
           ${vector}::vector,
           ${EMBEDDING_MODEL}
         )
@@ -230,6 +232,7 @@ export async function searchSimilarChunks(
 
     return {
       ...result,
+      content: decryptText(result.content),
       similarity: Number(result.similarity),
       subcriterionCode:
         association?.subcriterion?.code ?? null,
