@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const baseURL = import.meta.env.VITE_API_URL || '/api';
 
-export const api = axios.create({ baseURL });
+export const api = axios.create({ baseURL, timeout: 60000 });
 
 // Adjunta el JWT guardado en localStorage a cada petición.
 api.interceptors.request.use((config) => {

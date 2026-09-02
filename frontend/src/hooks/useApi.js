@@ -63,7 +63,11 @@ export function useUploadDocument() {
       const q = onDuplicate ? `?onDuplicate=${onDuplicate}` : '';
       return (await api.post(`/documents${q}`, form)).data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: () => {
+      // No bloquear la resolución de mutateAsync (y por tanto el mensaje de
+      // éxito) esperando el refetch de la lista de documentos.
+      qc.invalidateQueries({ queryKey: ['documents'] });
+    },
   });
 }
 
