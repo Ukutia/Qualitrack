@@ -53,6 +53,7 @@ export default function Documents() {
   const location = useLocation();
   const navigate = useNavigate();
   const [highlightedIds] = useState(() => new Set(location.state?.importedIds || []));
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   useEffect(() => {
     if (location.state?.importedIds) {
@@ -65,6 +66,49 @@ export default function Documents() {
     if (!confirm(`¿Mover "${name}" a la papelera?`)) return;
 
     await trash.mutateAsync(id);
+    await refetch();
+  }
+
+  function toggleSelect(id) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (!docs?.length) return;
+
+    if (selectedIds.size === docs.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(docs.map((doc) => doc.id)));
+    }
+  }
+
+  async function handleTrashSelected() {
+    if (selectedIds.size === 0) return;
+
+    if (
+      !confirm(
+        `¿Mover ${selectedIds.size} documento(s) seleccionado(s) a la papelera?`
+      )
+    ) {
+      return;
+    }
+
+    for (const id of selectedIds) {
+      await trash.mutateAsync(id);
+    }
+
+    setSelectedIds(new Set());
     await refetch();
   }
 
@@ -93,6 +137,33 @@ export default function Documents() {
         </div>
       </header>
 
+      {selectedIds.size > 0 && (
+        <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 flex items-center justify-between">
+          <span className="text-sm font-medium text-brand-900">
+            {selectedIds.size} documento(s) seleccionado(s)
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs px-3 py-2 rounded-md border border-steel-200 hover:bg-steel-50 text-steel-600"
+            >
+              Deseleccionar
+            </button>
+
+            <button
+              onClick={handleTrashSelected}
+              disabled={trash.isPending}
+              className="text-xs px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-50"
+            >
+              {trash.isPending
+                ? 'Moviendo…'
+                : `Mover ${selectedIds.size} a papelera`}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-steel-200/60 overflow-hidden">
         {isLoading ? (
           <table className="w-full text-sm">
@@ -106,6 +177,7 @@ export default function Documents() {
             <tbody className="divide-y divide-steel-100">
               {Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>
+                  <td className="px-5 py-4"> <div className="skeleton h-4 w-4" /></td>
                   <td className="px-5 py-4"><div className="skeleton h-4 w-44" /></td>
                   <td className="px-5 py-4"><div className="skeleton h-4 w-10" /></td>
                   <td className="px-5 py-4"><div className="skeleton h-4 w-14" /></td>
@@ -140,6 +212,14 @@ export default function Documents() {
           <table className="w-full text-sm">
             <thead className="bg-steel-50/80 text-steel-500 text-left">
               <tr>
+                <th className="px-5 py-3.5">
+                  <input
+                    type="checkbox"
+                    checked={docs.length > 0 && selectedIds.size === docs.length}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-steel-300 cursor-pointer"
+                  />
+                </th>
                 {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación',''].map((h) => (
                   <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide">{h}</th>
                 ))}
@@ -151,8 +231,18 @@ export default function Documents() {
                   key={d.id}
                   className={`transition-colors hover:bg-brand-50/40 ${
                     highlightedIds.has(d.id) ? 'animate-pulse-highlight' : ''
+                  } ${
+                    selectedIds.has(d.id) ? 'bg-brand-50' : ''
                   }`}
                 >
+                  <td className="px-5 py-3.5">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(d.id)}
+                      onChange={() => toggleSelect(d.id)}
+                      className="h-4 w-4 rounded border-steel-300 cursor-pointer"
+                    />
+                  </td>
                   <td className="px-5 py-3.5">
                     <Link to={`/documents/${d.id}`} className="font-medium text-brand-600 hover:text-brand-700 hover:underline underline-offset-2">
                       {d.name}
