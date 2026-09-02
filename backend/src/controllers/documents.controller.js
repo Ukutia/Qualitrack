@@ -6,6 +6,7 @@ import { extractDocumentDate } from '../services/dateExtraction.service.js';
 import { vectorizeDocument } from '../services/vector.service.js';
 import { formatFromName } from '../middleware/upload.js';
 import { ownerFilter } from '../middleware/ownership.js';
+import { encryptText, decryptText } from '../services/encryption.service.js';
 
 const MIME = {
   pdf:  'application/pdf',
@@ -42,7 +43,7 @@ export async function ingestDocument({
       source,
       cloudFileId,
       cloudLocation,
-      extractedText,
+      extractedText: encryptText(extractedText),
       documentDate,
       uploadedById: userId,
     },
@@ -204,7 +205,7 @@ export async function getDocument(req, res) {
     documentDate: doc.documentDate,
     uploadedAt: doc.uploadedAt,
     uploadedBy: doc.uploadedBy?.name,
-    textPreview: (doc.extractedText || '').slice(0, 1500),
+    textPreview: (decryptText(doc.extractedText),
     associations: doc.associations.map((a) => ({
       id: a.id,
       status: a.status,
