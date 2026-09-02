@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
+import time
 
 app = FastAPI()
 
@@ -26,6 +27,7 @@ def health():
 
 @app.post("/embed")
 def embed(request: EmbedRequest):
+    start = time.perf_counter()
 
     if request.type == "query":
         embedding = model.encode(
@@ -40,6 +42,15 @@ def embed(request: EmbedRequest):
             normalize_embeddings=True,
             truncate_dim=EMBEDDING_DIMENSIONS
         )
+
+    elapsed = time.perf_counter() - start
+
+    print(
+        f"[TIMING] embedding type={request.type} "
+        f"chars={len(request.text)} "
+        f"time={elapsed:.3f}s",
+        flush=True
+    )
 
     return {
         "model": MODEL_NAME,
