@@ -130,6 +130,7 @@ async function importFromCloud(req, res, provider) {
     name: doc.originalName,
     format: doc.format,
     sizeBytes: doc.sizeBytes,
+    source: doc.source,
     uploadedAt: doc.uploadedAt,
     message: `"${doc.originalName}" importado desde ${label}.`,
   });
