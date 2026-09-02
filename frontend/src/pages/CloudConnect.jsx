@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import {
@@ -45,6 +45,43 @@ const STATUS_STYLES = {
   error: 'text-rose-600',
 };
 
+function useImportProgress(provider) {
+  const storageKey = `qualitrack-cloud-import-${provider}`;
+  const [progress, setProgress] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+      if (!saved) return { fileStatuses: new Map(), importedIds: [] };
+      const entries = (saved.fileStatuses || []).map(([id, entry]) => [
+        id,
+        { ...entry, status: entry.status === 'subiendo' ? 'pendiente' : entry.status },
+      ]);
+      return { fileStatuses: new Map(entries), importedIds: saved.importedIds || [] };
+    } catch {
+      return { fileStatuses: new Map(), importedIds: [] };
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        fileStatuses: Array.from(progress.fileStatuses.entries()),
+        importedIds: progress.importedIds,
+      }));
+    } catch {
+    }
+  }, [progress, storageKey]);
+
+  const setFileStatuses = (update) => setProgress((previous) => ({
+    ...previous,
+    fileStatuses: typeof update === 'function' ? update(previous.fileStatuses) : update,
+  }));
+  const setImportedIds = (update) => setProgress((previous) => ({
+    ...previous,
+    importedIds: typeof update === 'function' ? update(previous.importedIds) : update,
+  }));
+  return { fileStatuses: progress.fileStatuses, setFileStatuses, importedIds: progress.importedIds, setImportedIds };
+}
+
 /**
  * Clasifica el error de una importación individual para poder mostrar un
  * motivo específico (y, en el caso de error de red, permitir reintentar
@@ -55,6 +92,12 @@ function classifyImportError(err) {
     return { code: 'NETWORK_ERROR', reason: 'Error de conexión. Verifique su red e inténtelo nuevamente.' };
   }
   const data = err.response.data;
+  if (data?.retryable || data?.code === 'CLOUD_CONNECTION_ERROR') {
+    return {
+      code: 'CLOUD_CONNECTION_ERROR',
+      reason: data.error || 'La conexión expiró. Reconecte la cuenta e inténtelo nuevamente.',
+    };
+  }
   if (data?.code === 'DUPLICATE_NAME') {
     return {
       code: 'DUPLICATE_NAME',
@@ -72,10 +115,14 @@ function classifyImportError(err) {
   return { code: 'ERROR', reason: data?.error || 'Error al importar.' };
 }
 
-function ImportSummary({ statuses, onRetryPending, onGoToDocuments, importedIds, busy }) {
+function ImportSummary({ statuses, onRetryPending, onReconnect, onGoToDocuments, importedIds, busy }) {
   const entries = Array.from(statuses.values());
   if (entries.length === 0) return null;
-  const hasNetworkErrors = entries.some((e) => e.status === 'error' && e.code === 'NETWORK_ERROR');
+  const hasPending = entries.some((e) =>
+    e.status === 'pendiente' ||
+    (e.status === 'error' && ['NETWORK_ERROR', 'CLOUD_CONNECTION_ERROR'].includes(e.code))
+  );
+  const hasCloudError = entries.some((e) => e.status === 'error' && e.code === 'CLOUD_CONNECTION_ERROR');
 
   return (
     <div className="rounded-xl border border-steel-200 p-4 space-y-3">
@@ -92,7 +139,16 @@ function ImportSummary({ statuses, onRetryPending, onGoToDocuments, importedIds,
         ))}
       </ul>
       <div className="flex flex-wrap gap-3 pt-1">
-        {hasNetworkErrors && (
+        {hasCloudError && (
+          <button
+            onClick={onReconnect}
+            disabled={busy}
+            className="rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+          >
+            Reconectar cuenta
+          </button>
+        )}
+        {hasPending && (
           <button
             onClick={onRetryPending}
             disabled={busy}
@@ -345,8 +401,7 @@ function GoogleDriveTab({ initialFeedback }) {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(new Map());
   const [importingSelected, setImportingSelected] = useState(false);
-  const [fileStatuses, setFileStatuses] = useState(new Map());
-  const [importedIds, setImportedIds] = useState([]);
+  const { fileStatuses, setFileStatuses, importedIds, setImportedIds } = useImportProgress('google');
   const filesQuery = useCloudFiles(folderId, !!connected);
   const importFile = useImportCloudFile();
 
@@ -428,7 +483,8 @@ function GoogleDriveTab({ initialFeedback }) {
       return next;
     });
     const newlyImported = [];
-    for (const file of files) {
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
       setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'subiendo' }));
       try {
         const res = await importFile.mutateAsync({ fileId: file.id, location: file.location });
@@ -437,6 +493,16 @@ function GoogleDriveTab({ initialFeedback }) {
       } catch (err) {
         const { code, reason } = classifyImportError(err);
         setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'error', code, reason }));
+        if (code === 'NETWORK_ERROR' || code === 'CLOUD_CONNECTION_ERROR') {
+          setFileStatuses((prev) => {
+            const next = new Map(prev);
+            files.slice(index + 1).forEach((pendingFile) =>
+              next.set(pendingFile.id, { file: pendingFile, status: 'pendiente' })
+            );
+            return next;
+          });
+          break;
+        }
       }
     }
     setImportingSelected(false);
@@ -454,8 +520,13 @@ function GoogleDriveTab({ initialFeedback }) {
   }
 
   async function retryPending() {
+    if (!connected) {
+      setFeedback({ type: 'error', text: 'Reconecte la cuenta antes de reintentar los pendientes.' });
+      return;
+    }
     const pending = Array.from(fileStatuses.values())
-      .filter((e) => e.status === 'error' && e.code === 'NETWORK_ERROR')
+      .filter((e) => e.status === 'pendiente' ||
+        (e.status === 'error' && ['NETWORK_ERROR', 'CLOUD_CONNECTION_ERROR'].includes(e.code)))
       .map((e) => e.file);
     if (pending.length === 0) return;
     await runImportBatch(pending);
@@ -506,6 +577,7 @@ function GoogleDriveTab({ initialFeedback }) {
         statuses={fileStatuses}
         importedIds={importedIds}
         busy={importingSelected}
+        onReconnect={connect}
         onRetryPending={retryPending}
         onGoToDocuments={goToDocuments}
       />
@@ -554,8 +626,7 @@ function DropboxTab({ initialFeedback }) {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(new Map());
   const [importingSelected, setImportingSelected] = useState(false);
-  const [fileStatuses, setFileStatuses] = useState(new Map());
-  const [importedIds, setImportedIds] = useState([]);
+  const { fileStatuses, setFileStatuses, importedIds, setImportedIds } = useImportProgress('dropbox');
   const filesQuery = useDropboxFiles(folderPath, !!connected);
   const importFile = useImportDropboxFile();
 
@@ -637,7 +708,8 @@ function DropboxTab({ initialFeedback }) {
       return next;
     });
     const newlyImported = [];
-    for (const file of files) {
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
       setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'subiendo' }));
       try {
         const res = await importFile.mutateAsync({ fileId: file.id, location: file.location });
@@ -646,6 +718,16 @@ function DropboxTab({ initialFeedback }) {
       } catch (err) {
         const { code, reason } = classifyImportError(err);
         setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'error', code, reason }));
+        if (code === 'NETWORK_ERROR' || code === 'CLOUD_CONNECTION_ERROR') {
+          setFileStatuses((prev) => {
+            const next = new Map(prev);
+            files.slice(index + 1).forEach((pendingFile) =>
+              next.set(pendingFile.id, { file: pendingFile, status: 'pendiente' })
+            );
+            return next;
+          });
+          break;
+        }
       }
     }
     setImportingSelected(false);
@@ -663,8 +745,13 @@ function DropboxTab({ initialFeedback }) {
   }
 
   async function retryPending() {
+    if (!connected) {
+      setFeedback({ type: 'error', text: 'Reconecte la cuenta antes de reintentar los pendientes.' });
+      return;
+    }
     const pending = Array.from(fileStatuses.values())
-      .filter((e) => e.status === 'error' && e.code === 'NETWORK_ERROR')
+      .filter((e) => e.status === 'pendiente' ||
+        (e.status === 'error' && ['NETWORK_ERROR', 'CLOUD_CONNECTION_ERROR'].includes(e.code)))
       .map((e) => e.file);
     if (pending.length === 0) return;
     await runImportBatch(pending);
@@ -715,6 +802,7 @@ function DropboxTab({ initialFeedback }) {
         statuses={fileStatuses}
         importedIds={importedIds}
         busy={importingSelected}
+        onReconnect={connect}
         onRetryPending={retryPending}
         onGoToDocuments={goToDocuments}
       />

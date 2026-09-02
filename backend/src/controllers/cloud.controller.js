@@ -31,6 +31,8 @@ async function importFromCloud(req, res, provider) {
   }
   if (!meta) {
     return res.status(400).json({
+      code: 'CLOUD_CONNECTION_ERROR',
+      retryable: true,
       error: `No fue posible obtener la información del archivo en ${label}. Reconecte la cuenta e inténtelo nuevamente.`,
     });
   }
@@ -53,6 +55,28 @@ async function importFromCloud(req, res, provider) {
   });
   if (meta.sizeBytes && meta.sizeBytes > maxBytes) {
     return res.status(400).json(tooBig(meta.sizeBytes));
+  }
+
+  const importedDocument = await prisma.document.findFirst({
+    where: {
+      uploadedById: req.user.id,
+      source,
+      cloudFileId: fileId,
+    },
+    orderBy: { uploadedAt: 'desc' },
+  });
+
+  if (importedDocument && importedDocument.deletedAt === null &&
+      importedDocument.source === source && importedDocument.cloudFileId === fileId) {
+    return res.status(200).json({
+      id: importedDocument.id,
+      name: importedDocument.originalName,
+      format: importedDocument.format,
+      sizeBytes: importedDocument.sizeBytes,
+      uploadedAt: importedDocument.uploadedAt,
+      alreadyImported: true,
+      message: `"${importedDocument.originalName}" ya estaba importado desde ${label}.`,
+    });
   }
 
   const existing = await prisma.document.findFirst({
@@ -97,7 +121,11 @@ async function importFromCloud(req, res, provider) {
     file = await service.downloadFile(req.user.id, fileId);
   } catch (err) {
     console.error(`${label} import error:`, err.message);
-    return res.status(400).json({ error: `No fue posible importar el archivo desde ${label}.` });
+    return res.status(400).json({
+      code: 'CLOUD_CONNECTION_ERROR',
+      retryable: true,
+      error: `No fue posible importar el archivo desde ${label}. Reconecte la cuenta e inténtelo nuevamente.`,
+    });
   }
 
   if (file.buffer.length > maxBytes) return res.status(400).json(tooBig(file.buffer.length));
