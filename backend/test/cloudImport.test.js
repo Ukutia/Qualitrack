@@ -107,6 +107,12 @@ describe('importación desde Google Drive (HU09)', () => {
       })
     );
     expect(res.body.message).toContain('Google Drive');
+    expect(res.body).toMatchObject({
+      name: 'informe.pdf',
+      format: 'pdf',
+      sizeBytes: 1024,
+      source: 'GOOGLE_DRIVE',
+    });
   });
 
   it('rechaza formatos no aceptados sin descargar el archivo', async () => {
