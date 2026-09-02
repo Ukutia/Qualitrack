@@ -79,9 +79,9 @@ router.get('/documents/trash', listTrash);
 router.get('/documents/:id', requireOwnDocument, getDocument);
 router.get('/documents/:id/file', requireOwnDocument, serveFile);
 router.patch('/documents/:id/date', requireOwnDocument, updateDocumentDate);
-router.post('/documents/:id/trash', trashDocument);
-router.post('/documents/:id/restore', restoreDocument);
-router.delete('/documents/:id', destroyDocument);
+router.post('/documents/:id/trash', requireOwnDocument, trashDocument);
+router.post('/documents/:id/restore', requireOwnDocument, restoreDocument);
+router.delete('/documents/:id', requireOwnDocument, destroyDocument);
 
 // Clasificación (HU01)
 router.post('/documents/:id/classify', requireOwnDocument, classifyDocument);

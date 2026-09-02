@@ -270,10 +270,14 @@ export async function trashDocument(req, res) {
 /** Lista los documentos en la papelera. */
 export async function listTrash(req, res) {
   const docs = await prisma.document.findMany({
-    where: { deletedAt: { not: null } },
+    where: {
+      deletedAt: { not: null },
+      ...ownerFilter(req.user),
+    },
     orderBy: { deletedAt: 'desc' },
     include: { uploadedBy: { select: { name: true } } },
   });
+
   return res.json(
     docs.map((d) => ({
       id: d.id,
