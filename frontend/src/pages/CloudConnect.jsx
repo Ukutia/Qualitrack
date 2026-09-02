@@ -18,6 +18,8 @@ const TYPE_OPTIONS = [
   { label: 'Carpeta', value: 'folder' },
 ];
 
+const MAX_BATCH_IMPORT = 10;
+
 function matchesType(file, typeFilter) {
   if (!typeFilter) return true;
   if (typeFilter === 'folder') return file.isFolder;
@@ -44,6 +46,26 @@ const STATUS_STYLES = {
   ok: 'text-emerald-600',
   error: 'text-rose-600',
 };
+
+// El listado de la nube ya entrega el nombre del archivo; para la
+// confirmación basta su extensión, sin depender de que el proveedor informe
+// correctamente el MIME type.
+const formatFromFileName = (name = '') => {
+  const extension = name.split('.').pop();
+  return extension && extension !== name ? extension.toUpperCase() : '—';
+};
+
+const formatSize = (sizeBytes) => {
+  if (sizeBytes == null) return '—';
+  const size = Number(sizeBytes);
+  return Number.isFinite(size) ? `${(size / 1024).toFixed(0)} KB` : '—';
+};
+
+const sourceLabel = (source, fallback) => ({
+  GOOGLE_DRIVE: 'Google Drive',
+  DROPBOX: 'Dropbox',
+  UPLOAD: 'Carga directa',
+}[source] || fallback || '—');
 
 /**
  * Clasifica el error de una importación individual para poder mostrar un
@@ -72,7 +94,7 @@ function classifyImportError(err) {
   return { code: 'ERROR', reason: data?.error || 'Error al importar.' };
 }
 
-function ImportSummary({ statuses, onRetryPending, onGoToDocuments, importedIds, busy }) {
+function ImportSummary({ statuses, onRetryPending, onGoToDocuments, importedIds, busy, providerLabel }) {
   const entries = Array.from(statuses.values());
   if (entries.length === 0) return null;
   const hasNetworkErrors = entries.some((e) => e.status === 'error' && e.code === 'NETWORK_ERROR');
@@ -80,17 +102,33 @@ function ImportSummary({ statuses, onRetryPending, onGoToDocuments, importedIds,
   return (
     <div className="rounded-xl border border-steel-200 p-4 space-y-3">
       <h3 className="text-sm font-semibold text-steel-700">Resultado de la importación</h3>
-      <ul className="divide-y divide-steel-100">
-        {entries.map(({ file, status, reason }) => (
-          <li key={file.id} className="py-1.5 flex items-center justify-between gap-3 text-sm">
-            <span className="truncate text-steel-700">{file.name}</span>
-            <span className={`shrink-0 text-xs font-medium ${STATUS_STYLES[status]}`}>
-              {STATUS_LABELS[status]}
-              {reason ? ` — ${reason}` : ''}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm text-left">
+          <thead className="text-xs uppercase tracking-wide text-steel-500">
+            <tr>
+              {['Nombre', 'Formato', 'Tamaño', 'Origen', 'Estado'].map((heading) => (
+                <th key={heading} className="px-2 py-2 font-semibold">{heading}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-steel-100">
+            {entries.map(({ file, status, reason, result }) => {
+              const name = result?.name || file.name;
+              return (
+                <tr key={file.id}>
+                  <td className="max-w-56 truncate px-2 py-2 text-steel-700" title={name}>{name}</td>
+                  <td className="px-2 py-2 uppercase text-steel-500">{formatFromFileName(name)}</td>
+                  <td className="px-2 py-2 tnum text-steel-500">{formatSize(result?.sizeBytes ?? file.sizeBytes)}</td>
+                  <td className="px-2 py-2 text-steel-500">{sourceLabel(result?.source, providerLabel)}</td>
+                  <td className={`px-2 py-2 text-xs font-medium ${STATUS_STYLES[status]}`}>
+                    {STATUS_LABELS[status]}{reason ? ` — ${reason}` : ''}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
       <div className="flex flex-wrap gap-3 pt-1">
         {hasNetworkErrors && (
           <button
@@ -197,7 +235,7 @@ function FileBrowser({
         <div className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4 pointer-events-none">
           <div className="pointer-events-auto flex w-full max-w-xl items-center justify-between gap-3 rounded-xl bg-brand-50 border border-brand-200 shadow-lg px-4 py-3">
             <span className="text-sm text-brand-800 font-medium">
-              {selectedCount} archivo{selectedCount === 1 ? '' : 's'} seleccionado{selectedCount === 1 ? '' : 's'}
+              {selectedCount} de {MAX_BATCH_IMPORT} archivo{selectedCount === 1 ? '' : 's'} seleccionado{selectedCount === 1 ? '' : 's'}
             </span>
             <button
               onClick={onImportSelected}
@@ -232,8 +270,10 @@ function FileBrowser({
                   <input
                     type="checkbox"
                     checked={selected.has(f.id)}
+                    disabled={!selected.has(f.id) && selectedCount >= MAX_BATCH_IMPORT}
                     onChange={() => onToggleSelect(f)}
-                    className="h-4 w-4 rounded border-steel-300 text-brand-600 focus:ring-brand-400"
+                    className="h-4 w-4 rounded border-steel-300 text-brand-600 focus:ring-brand-400 disabled:opacity-50"
+                    title={selectedCount >= MAX_BATCH_IMPORT && !selected.has(f.id) ? `Máximo ${MAX_BATCH_IMPORT} documentos por importación.` : undefined}
                   />
                 )}
                 <button
@@ -433,7 +473,7 @@ function GoogleDriveTab({ initialFeedback }) {
       try {
         const res = await importFile.mutateAsync({ fileId: file.id, location: file.location });
         newlyImported.push(res.id);
-        setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'ok' }));
+        setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'ok', result: res }));
       } catch (err) {
         const { code, reason } = classifyImportError(err);
         setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'error', code, reason }));
@@ -506,6 +546,7 @@ function GoogleDriveTab({ initialFeedback }) {
         statuses={fileStatuses}
         importedIds={importedIds}
         busy={importingSelected}
+        providerLabel="Google Drive"
         onRetryPending={retryPending}
         onGoToDocuments={goToDocuments}
       />
@@ -642,7 +683,7 @@ function DropboxTab({ initialFeedback }) {
       try {
         const res = await importFile.mutateAsync({ fileId: file.id, location: file.location });
         newlyImported.push(res.id);
-        setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'ok' }));
+        setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'ok', result: res }));
       } catch (err) {
         const { code, reason } = classifyImportError(err);
         setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'error', code, reason }));
@@ -715,6 +756,7 @@ function DropboxTab({ initialFeedback }) {
         statuses={fileStatuses}
         importedIds={importedIds}
         busy={importingSelected}
+        providerLabel="Dropbox"
         onRetryPending={retryPending}
         onGoToDocuments={goToDocuments}
       />
