@@ -49,7 +49,7 @@ export default function App() {
         <Route path="/structure" element={<Guard roles={ADMIN_ONLY}><CriteriaStructure /></Guard>} />
         <Route path="/report" element={<Guard roles={ADMIN_ONLY}><ReportEditor /></Guard>} />
         <Route path="/cloud" element={<Guard roles={ADMIN_AND_USER}><CloudConnect /></Guard>} />
-        <Route path="/trash" element={<Guard roles={ADMIN_ONLY}><Trash /></Guard>} />
+        <Route path="/trash" element={<Guard roles={ADMIN_AND_USER}><Trash /></Guard>} />
       </Route>
     </Routes>
   );
