@@ -59,18 +59,9 @@ export default function Upload() {
     const item = current[idx];
     updateItem(item.id, { status: 'uploading' });
     try {
-<<<<<<< Updated upstream
-      const res = await upload.mutateAsync({ file, onDuplicate });
-      setMessage({ type: 'success', text: res.message });
-      setFile(null);
-      setDuplicate(null);
-      if (inputRef.current) inputRef.current.value = '';
-      setTimeout(() => navigate('/documents'), 900);
-=======
       const res = await upload.mutateAsync({ file: item.file });
       updateItem(item.id, { status: 'success', message: res.message });
       await processNext();
->>>>>>> Stashed changes
     } catch (err) {
       const data = err.response?.data;
       if (data?.code === 'DUPLICATE_NAME') {

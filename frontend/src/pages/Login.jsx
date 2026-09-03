@@ -2,12 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { LEVEL_ORDER, levelMeta } from '../lib/levels.js';
-<<<<<<< Updated upstream
-=======
-import { homeFor } from '../lib/roles.js';
 import fullLogo from '../assets/fulllogo.svg';
 import fullLogoDark from '../assets/fulllogo_darkmode.svg';
->>>>>>> Stashed changes
 
 export default function Login() {
   const { login, user } = useAuth();
