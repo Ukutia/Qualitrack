@@ -66,6 +66,28 @@ async function importFromCloud(req, res, provider) {
     return res.status(400).json(tooBig(meta.sizeBytes));
   }
 
+  const importedDocument = await prisma.document.findFirst({
+    where: {
+      uploadedById: req.user.id,
+      source,
+      cloudFileId: fileId,
+    },
+    orderBy: { uploadedAt: 'desc' },
+  });
+
+  if (importedDocument && importedDocument.deletedAt === null &&
+      importedDocument.source === source && importedDocument.cloudFileId === fileId) {
+    return res.status(200).json({
+      id: importedDocument.id,
+      name: importedDocument.originalName,
+      format: importedDocument.format,
+      sizeBytes: importedDocument.sizeBytes,
+      uploadedAt: importedDocument.uploadedAt,
+      alreadyImported: true,
+      message: `"${importedDocument.originalName}" ya estaba importado desde ${label}.`,
+    });
+  }
+
   const existing = await prisma.document.findFirst({
     where: {
       originalName: meta.name,
