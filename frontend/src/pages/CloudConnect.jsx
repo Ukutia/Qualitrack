@@ -36,15 +36,19 @@ function matchesType(file, typeFilter) {
 const STATUS_LABELS = {
   pendiente: 'Pendiente',
   subiendo: 'Subiendo…',
+  duplicate: 'Requiere decisión',
   ok: 'Importado',
   error: 'Error',
+  cancelado: 'Cancelado',
 };
 
 const STATUS_STYLES = {
   pendiente: 'text-steel-400',
   subiendo: 'text-brand-600',
+  duplicate: 'text-amber-700',
   ok: 'text-emerald-600',
   error: 'text-rose-600',
+  cancelado: 'text-steel-400',
 };
 
 // El listado de la nube ya entrega el nombre del archivo; para la
@@ -365,7 +369,7 @@ function DuplicatePrompt({ duplicate, onResolve, onCancel, busy }) {
           disabled={busy}
           className="btn rounded-lg bg-steel-100 hover:bg-steel-200 transition-colors duration-150 text-steel-700 px-4 py-2 text-sm disabled:opacity-50"
         >
-          Cancelar
+          {duplicate.batch ? 'Cancelar este archivo' : 'Cancelar'}
         </button>
       </div>
     </div>
@@ -468,13 +472,26 @@ function GoogleDriveTab({ initialFeedback }) {
       return next;
     });
     const newlyImported = [];
-    for (const file of files) {
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
       setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'subiendo' }));
       try {
         const res = await importFile.mutateAsync({ fileId: file.id, location: file.location });
         newlyImported.push(res.id);
         setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'ok', result: res }));
       } catch (err) {
+        const data = err.response?.data;
+        if (data?.code === 'DUPLICATE_NAME') {
+          setFileStatuses((prev) => new Map(prev).set(file.id, {
+            file, status: 'duplicate', code: data.code, reason: 'Seleccione cómo resolver este duplicado.',
+          }));
+          setDuplicate({ file, existing: data.existing, batch: { remaining: files.slice(index + 1) } });
+          setImportingSelected(false);
+          setSelectMode(false);
+          setSelected(new Map());
+          if (newlyImported.length > 0) setImportedIds((prev) => [...prev, ...newlyImported]);
+          return;
+        }
         const { code, reason } = classifyImportError(err);
         setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'error', code, reason }));
       }
@@ -487,6 +504,39 @@ function GoogleDriveTab({ initialFeedback }) {
     }
   }
 
+  async function resolveBatchDuplicate(action) {
+    const current = duplicate;
+    if (!current?.batch) return;
+    setImportingSelected(true);
+    try {
+      const res = await importFile.mutateAsync({
+        fileId: current.file.id, location: current.file.location, onDuplicate: action,
+      });
+      setFileStatuses((prev) => new Map(prev).set(current.file.id, { file: current.file, status: 'ok', result: res }));
+      setImportedIds((prev) => [...prev, res.id]);
+    } catch (err) {
+      const { code, reason } = classifyImportError(err);
+      setFileStatuses((prev) => new Map(prev).set(current.file.id, { file: current.file, status: 'error', code, reason }));
+    }
+    setDuplicate(null);
+    if (current.batch.remaining.length > 0) {
+      await runImportBatch(current.batch.remaining);
+    } else {
+      setImportingSelected(false);
+    }
+  }
+
+  async function cancelBatchFile() {
+    const current = duplicate;
+    if (!current?.batch) { setDuplicate(null); return; }
+    setFileStatuses((prev) => new Map(prev).set(current.file.id, {
+      file: current.file, status: 'cancelado', reason: 'Cancelado por el usuario.',
+    }));
+    setDuplicate(null);
+    if (current.batch.remaining.length > 0) await runImportBatch(current.batch.remaining);
+    else setImportingSelected(false);
+  }
+  
   async function importSelected() {
     const files = Array.from(selected.values());
     if (files.length === 0) return;
@@ -537,8 +587,8 @@ function GoogleDriveTab({ initialFeedback }) {
         <DuplicatePrompt
           duplicate={duplicate}
           busy={importFile.isPending}
-          onResolve={(action) => doImport(duplicate.file, action)}
-          onCancel={() => setDuplicate(null)}
+          onResolve={(action) => duplicate.batch ? resolveBatchDuplicate(action) : doImport(duplicate.file, action)}
+          onCancel={duplicate.batch ? cancelBatchFile : () => setDuplicate(null)}
         />
       )}
 
@@ -678,13 +728,26 @@ function DropboxTab({ initialFeedback }) {
       return next;
     });
     const newlyImported = [];
-    for (const file of files) {
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
       setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'subiendo' }));
       try {
         const res = await importFile.mutateAsync({ fileId: file.id, location: file.location });
         newlyImported.push(res.id);
         setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'ok', result: res }));
       } catch (err) {
+        const data = err.response?.data;
+        if (data?.code === 'DUPLICATE_NAME') {
+          setFileStatuses((prev) => new Map(prev).set(file.id, {
+            file, status: 'duplicate', code: data.code, reason: 'Seleccione cómo resolver este duplicado.',
+          }));
+          setDuplicate({ file, existing: data.existing, batch: { remaining: files.slice(index + 1) } });
+          setImportingSelected(false);
+          setSelectMode(false);
+          setSelected(new Map());
+          if (newlyImported.length > 0) setImportedIds((prev) => [...prev, ...newlyImported]);
+          return;
+        }
         const { code, reason } = classifyImportError(err);
         setFileStatuses((prev) => new Map(prev).set(file.id, { file, status: 'error', code, reason }));
       }
@@ -697,6 +760,39 @@ function DropboxTab({ initialFeedback }) {
     }
   }
 
+  async function resolveBatchDuplicate(action) {
+    const current = duplicate;
+    if (!current?.batch) return;
+    setImportingSelected(true);
+    try {
+      const res = await importFile.mutateAsync({
+        fileId: current.file.id, location: current.file.location, onDuplicate: action,
+      });
+      setFileStatuses((prev) => new Map(prev).set(current.file.id, { file: current.file, status: 'ok', result: res }));
+      setImportedIds((prev) => [...prev, res.id]);
+    } catch (err) {
+      const { code, reason } = classifyImportError(err);
+      setFileStatuses((prev) => new Map(prev).set(current.file.id, { file: current.file, status: 'error', code, reason }));
+    }
+    setDuplicate(null);
+    if (current.batch.remaining.length > 0) {
+      await runImportBatch(current.batch.remaining);
+    } else {
+      setImportingSelected(false);
+    }
+  }
+
+  async function cancelBatchFile() {
+    const current = duplicate;
+    if (!current?.batch) { setDuplicate(null); return; }
+    setFileStatuses((prev) => new Map(prev).set(current.file.id, {
+      file: current.file, status: 'cancelado', reason: 'Cancelado por el usuario.',
+    }));
+    setDuplicate(null);
+    if (current.batch.remaining.length > 0) await runImportBatch(current.batch.remaining);
+    else setImportingSelected(false);
+  }
+  
   async function importSelected() {
     const files = Array.from(selected.values());
     if (files.length === 0) return;
@@ -747,8 +843,8 @@ function DropboxTab({ initialFeedback }) {
         <DuplicatePrompt
           duplicate={duplicate}
           busy={importFile.isPending}
-          onResolve={(action) => doImport(duplicate.file, action)}
-          onCancel={() => setDuplicate(null)}
+          onResolve={(action) => duplicate.batch ? resolveBatchDuplicate(action) : doImport(duplicate.file, action)}
+          onCancel={duplicate.batch ? cancelBatchFile : () => setDuplicate(null)}
         />
       )}
 
