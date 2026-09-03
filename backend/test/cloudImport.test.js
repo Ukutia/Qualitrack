@@ -182,7 +182,7 @@ describe('importación desde Google Drive (HU09)', () => {
     expect(prisma.cloudConnection.deleteMany).not.toHaveBeenCalled();
   });
 
-  it('hace idempotente el reintento si el documento ya fue incorporado', async () => {
+  it('pide resolver el nombre aunque sea exactamente el mismo archivo remoto', async () => {
     drive.getFileMeta.mockResolvedValue(PDF());
     prisma.document.findFirst.mockResolvedValue({
       id: 44,
@@ -198,9 +198,9 @@ describe('importación desde Google Drive (HU09)', () => {
     const res = makeRes();
     await importFile(makeReq({ fileId: 'abc' }), res);
 
-    expect(res.statusCode).toBe(200);
-    expect(res.body.alreadyImported).toBe(true);
-    expect(res.body.id).toBe(44);
+    expect(res.statusCode).toBe(409);
+    expect(res.body.code).toBe('DUPLICATE_NAME');
+    expect(res.body.existing.id).toBe(44);
     expect(drive.downloadFile).not.toHaveBeenCalled();
     expect(ingestDocument).not.toHaveBeenCalled();
   });
