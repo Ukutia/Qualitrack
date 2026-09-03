@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { enforceRolePolicy } from '../middleware/authorize.js';
-import { requireOwnDocument, requireOwnAssociation } from '../middleware/ownership.js';
+import {
+  requireOwnDocument,
+  requireOwnAssociation,
+  requireViewableDocument,
+} from '../middleware/ownership.js';
 import { upload, structureUpload } from '../middleware/upload.js';
 import { semanticSearch } from '../controllers/search.controller.js';
 import { listTopics, createTopic, deleteTopic } from '../controllers/topics.controller.js';
@@ -76,8 +80,8 @@ router.delete('/topics/:id', deleteTopic);
 router.post('/documents', upload.single('file'), uploadDocument);
 router.get('/documents', listDocuments);
 router.get('/documents/trash', listTrash);
-router.get('/documents/:id', requireOwnDocument, getDocument);
-router.get('/documents/:id/file', requireOwnDocument, serveFile);
+router.get('/documents/:id', requireViewableDocument, getDocument);
+router.get('/documents/:id/file', requireViewableDocument, serveFile);
 router.patch('/documents/:id/date', requireOwnDocument, updateDocumentDate);
 router.post('/documents/:id/trash', requireOwnDocument, trashDocument);
 router.post('/documents/:id/restore', requireOwnDocument, restoreDocument);

@@ -12,11 +12,10 @@ vi.mock('../src/config/prisma.js', () => ({
 }));
 
 const { prisma } = await import('../src/config/prisma.js');
-const { ROLES, canAccess, isOwnerScoped } = await import('../src/config/roles.js');
+const { ROLES, canAccess, isOwnerScoped, isViewScoped } = await import('../src/config/roles.js');
 const { enforceRolePolicy } = await import('../src/middleware/authorize.js');
-const { requireOwnDocument, requireOwnAssociation, ownerFilter } = await import(
-  '../src/middleware/ownership.js'
-);
+const { requireOwnDocument, requireOwnAssociation, requireViewableDocument, ownerFilter, viewFilter } =
+  await import('../src/middleware/ownership.js');
 
 function mockRes() {
   const res = {};
@@ -101,10 +100,24 @@ describe('enforceRolePolicy', () => {
 });
 
 describe('pertenencia de documentos', () => {
-  it('solo el admin ve el repositorio completo', () => {
+  it('el user edita solo lo suyo, aunque admin y user ven todo el repositorio', () => {
     expect(ownerFilter({ id: 7, role: ROLES.ADMIN })).toEqual({});
     expect(ownerFilter({ id: 7, role: ROLES.USER })).toEqual({ uploadedById: 7 });
     expect(isOwnerScoped(ROLES.INGESTOR)).toBe(true);
+
+    expect(viewFilter({ id: 7, role: ROLES.ADMIN })).toEqual({});
+    expect(viewFilter({ id: 7, role: ROLES.USER })).toEqual({});
+    expect(isViewScoped(ROLES.USER)).toBe(false);
+    expect(isViewScoped(ROLES.INGESTOR)).toBe(true);
+  });
+
+  it('el user ve el documento de otro usuario (solo lectura)', async () => {
+    prisma.document.findUnique.mockResolvedValue({ uploadedById: 99 });
+    const next = vi.fn();
+    const res = mockRes();
+    await requireViewableDocument({ user: { id: 7, role: ROLES.USER }, params: { id: '3' } }, res, next);
+    expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
   });
 
   it('el user pasa sobre su propio documento', async () => {

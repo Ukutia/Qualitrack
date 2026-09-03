@@ -4,7 +4,7 @@
 // acceder al documento de otro usuario responde "Acceso denegado" —y no un 404—
 // porque el criterio de aceptación pide ese mensaje explícito.
 import { prisma } from '../config/prisma.js';
-import { isOwnerScoped } from '../config/roles.js';
+import { isOwnerScoped, isViewScoped } from '../config/roles.js';
 import { ACCESS_DENIED } from './authorize.js';
 
 const DENIED_DOCUMENT = {
@@ -17,9 +17,27 @@ export function ownerFilter(user) {
   return isOwnerScoped(user.role) ? { uploadedById: user.id } : {};
 }
 
+/** Filtro Prisma para listados de solo lectura: el User ve todo el repositorio. */
+export function viewFilter(user) {
+  return isViewScoped(user.role) ? { uploadedById: user.id } : {};
+}
+
 /** Exige que :id sea un documento del usuario (el admin pasa siempre). */
 export async function requireOwnDocument(req, res, next) {
   if (!isOwnerScoped(req.user.role)) return next();
+
+  const doc = await prisma.document.findUnique({
+    where: { id: Number(req.params.id) },
+    select: { uploadedById: true },
+  });
+  if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
+  if (doc.uploadedById !== req.user.id) return res.status(403).json(DENIED_DOCUMENT);
+  return next();
+}
+
+/** Exige que :id sea un documento visible (el admin y el User ven todo). */
+export async function requireViewableDocument(req, res, next) {
+  if (!isViewScoped(req.user.role)) return next();
 
   const doc = await prisma.document.findUnique({
     where: { id: Number(req.params.id) },

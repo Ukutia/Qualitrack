@@ -76,3 +76,12 @@ export function canAccess(role, method, path) {
 export function isOwnerScoped(role) {
   return role !== ROLES.ADMIN;
 }
+
+// El User puede leer todo el repositorio (listado, detalle, archivo) aunque
+// solo pueda editar/clasificar/validar lo que él mismo cargó — ownerFilter e
+// isOwnerScoped siguen rigiendo esas acciones de escritura. El Ingestor no
+// tiene rutas de lectura, pero de tenerlas seguiría acotado a lo propio.
+/** Roles que solo VEN los documentos que ellos mismos cargaron. */
+export function isViewScoped(role) {
+  return role !== ROLES.ADMIN && role !== ROLES.USER;
+}

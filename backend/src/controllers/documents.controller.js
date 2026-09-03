@@ -5,7 +5,7 @@ import { extractText } from '../services/textExtraction.service.js';
 import { extractDocumentDate } from '../services/dateExtraction.service.js';
 import { vectorizeDocument } from '../services/vector.service.js';
 import { formatFromName } from '../middleware/upload.js';
-import { ownerFilter } from '../middleware/ownership.js';
+import { ownerFilter, viewFilter } from '../middleware/ownership.js';
 import { encryptText, decryptText } from '../services/encryption.service.js';
 
 const MIME = {
@@ -147,9 +147,10 @@ export async function uploadDocument(req, res) {
 }
 
 export async function listDocuments(req, res) {
-  // Los roles acotados al dueño (EP 1.2) solo ven sus propias cargas.
+  // El User ve todo el repositorio (solo lectura); ownerFilter sigue acotando
+  // las acciones de escritura (clasificar, validar, papelera, etc.).
   const docs = await prisma.document.findMany({
-    where: { deletedAt: null, ...ownerFilter(req.user) },
+    where: { deletedAt: null, ...viewFilter(req.user) },
     orderBy: { uploadedAt: 'desc' },
     include: {
       associations: { include: { subcriterion: true } },
