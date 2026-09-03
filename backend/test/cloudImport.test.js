@@ -22,6 +22,9 @@ vi.mock('../src/config/prisma.js', () => ({
       delete: vi.fn(),
       deleteMany: vi.fn(),
     },
+    cloudConnection: {
+      deleteMany: vi.fn(),
+    },
   },
 }));
 
@@ -156,7 +159,37 @@ describe('importación desde Google Drive (HU09)', () => {
     await importFile(makeReq({ fileId: 'abc' }), res);
 
     expect(res.statusCode).toBe(400);
+
+    expect(res.body.code).toBe('CLOUD_CONNECTION_ERROR');
+    expect(res.body.retryable).toBe(true);
+    expect(res.body.connected).toBe(false);
+    expect(prisma.cloudConnection.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 1, provider: 'google' },
+    });
     expect(res.body.error).toMatch(/Reconecte la cuenta/);
+  });
+
+  it('hace idempotente el reintento si el documento ya fue incorporado', async () => {
+    drive.getFileMeta.mockResolvedValue(PDF());
+    prisma.document.findFirst.mockResolvedValue({
+      id: 44,
+      originalName: 'informe.pdf',
+      format: 'pdf',
+      sizeBytes: 1024,
+      uploadedAt: new Date(),
+      deletedAt: null,
+      source: 'GOOGLE_DRIVE',
+      cloudFileId: 'abc',
+    });
+
+    const res = makeRes();
+    await importFile(makeReq({ fileId: 'abc' }), res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.alreadyImported).toBe(true);
+    expect(res.body.id).toBe(44);
+    expect(drive.downloadFile).not.toHaveBeenCalled();
+    expect(ingestDocument).not.toHaveBeenCalled();
   });
 });
 
