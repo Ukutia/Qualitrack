@@ -180,3 +180,47 @@ export default function Upload() {
     </div>
   );
 }
+<<<<<<< Updated upstream
+=======
+
+function StatusIcon({ status }) {
+  const base = 'grid h-6 w-6 shrink-0 place-items-center rounded-full ring-1';
+  if (status === 'success') {
+    return (
+      <span className={`${base} bg-emerald-50 ring-emerald-200`}>
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <span className={`${base} bg-rose-50 ring-rose-200`}>
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-rose-600" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+    );
+  }
+  if (status === 'uploading') {
+    return (
+      <span className={`${base} bg-brand-50 ring-brand-100`}>
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-brand-500 animate-spin" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <path d="M12 3a9 9 0 1 0 9 9" strokeLinecap="round" />
+        </svg>
+      </span>
+    );
+  }
+  if (status === 'duplicate') {
+    return (
+      <span className={`${base} bg-amber-50 ring-amber-200`}>
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-amber-600" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <path d="M12 9v4m0 4h.01M10.3 3.9L2.7 17a1.6 1.6 0 0 0 1.4 2.4h15.8a1.6 1.6 0 0 0 1.4-2.4L13.7 3.9a1.6 1.6 0 0 0-2.8 0z" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+    );
+  }
+  return <span className={`${base} bg-steel-100 ring-steel-200`} />;
+}
+>>>>>>> Stashed changes
