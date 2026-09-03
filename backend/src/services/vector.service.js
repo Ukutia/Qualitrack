@@ -65,7 +65,10 @@ export async function vectorizeDocument(documentId, text) {
 
 
 /**
- * Busca los chunks semánticamente más similares a una consulta.
+ * Busca resultados semánticamente similares a una consulta.
+ * En la búsqueda global retorna el mejor chunk de cada documento, por lo que
+ * el límite representa documentos distintos. Al filtrar por documentId, el
+ * límite sigue representando chunks de ese documento.
  *
  * @param {string} query
  * @param {Object} options
@@ -145,31 +148,49 @@ export async function searchSimilarChunks(
     results = await prisma.$queryRaw`
       WITH query_vector AS (
         SELECT ${vector}::vector AS embedding
+      ),
+      ranked_chunks AS (
+        SELECT
+          dc.id,
+          dc."documentId",
+          dc."chunkIndex",
+          d."originalName",
+          dc.content,
+          dc."embeddingModel",
+          1 - (dc.embedding <=> query_vector.embedding) AS similarity,
+          ROW_NUMBER() OVER (
+            PARTITION BY dc."documentId"
+            ORDER BY dc.embedding <=> query_vector.embedding
+          ) AS document_rank
+
+        FROM "DocumentChunk" dc
+
+        JOIN "Document" d
+          ON d.id = dc."documentId"
+
+        CROSS JOIN query_vector
+
+        WHERE
+          dc.embedding IS NOT NULL
+          AND dc."embeddingModel" = ${EMBEDDING_MODEL}
+          AND d."deletedAt" IS NULL
       )
 
       SELECT
-        dc.id,
-        dc."documentId",
-        dc."chunkIndex",
-        d."originalName",
-        dc.content,
-        dc."embeddingModel",
-        1 - (dc.embedding <=> query_vector.embedding) AS similarity
+        id,
+        "documentId",
+        "chunkIndex",
+        "originalName",
+        content,
+        "embeddingModel",
+        similarity
 
-      FROM "DocumentChunk" dc
+      FROM ranked_chunks
 
-      JOIN "Document" d
-        ON d.id = dc."documentId"
-
-      CROSS JOIN query_vector
-
-      WHERE
-        dc.embedding IS NOT NULL
-        AND dc."embeddingModel" = ${EMBEDDING_MODEL}
-        AND d."deletedAt" IS NULL
+      WHERE document_rank = 1
 
       ORDER BY
-        dc.embedding <=> query_vector.embedding
+        similarity DESC
 
       LIMIT ${safeLimit}
     `;
