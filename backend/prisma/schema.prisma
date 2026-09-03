@@ -187,7 +187,7 @@ model Association {
 
   history AssociationHistory[]
 
-  @@unique([documentId, subcriterionId])
+  @@index([documentId, subcriterionId])
 }
 
 model AssociationHistory {
