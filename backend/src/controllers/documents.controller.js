@@ -209,6 +209,7 @@ export async function getDocument(req, res) {
     cloudLocation: doc.cloudLocation,
     documentDate: doc.documentDate,
     uploadedAt: doc.uploadedAt,
+    uploadedById: doc.uploadedById,
     uploadedBy: doc.uploadedBy?.name,
     textPreview: (decryptText(doc.extractedText) || '').slice(0, 1500),
     associations: doc.associations.map((a) => ({
