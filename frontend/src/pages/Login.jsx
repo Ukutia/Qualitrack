@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { LEVEL_ORDER, levelMeta } from '../lib/levels.js';
+<<<<<<< Updated upstream
+=======
+import { homeFor } from '../lib/roles.js';
+import fullLogo from '../assets/fulllogo.svg';
+import fullLogoDark from '../assets/fulllogo_darkmode.svg';
+>>>>>>> Stashed changes
 
 export default function Login() {
   const { login, user } = useAuth();
@@ -37,14 +43,8 @@ export default function Login() {
         <span className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-brand-500/20 blur-3xl" />
         <span className="pointer-events-none absolute -left-20 bottom-10 h-72 w-72 rounded-full bg-gold-500/10 blur-3xl" />
 
-        <div className="relative flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/5 ring-1 ring-white/10">
-            <svg viewBox="0 0 32 32" className="h-6 w-6" aria-hidden="true">
-              <circle cx="16" cy="16" r="10" fill="none" stroke="#c9a368" strokeWidth="2" />
-              <path d="M11 16.5l3.4 3.4L21 13" fill="none" stroke="#c9a368" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <span className="font-display text-2xl font-semibold tracking-tight text-steel-50">Qualitrack</span>
+        <div className="relative flex items-center">
+          <img src={fullLogoDark} alt="Qualitrack" className="h-16 w-auto" />
         </div>
 
         <div className="relative max-w-md">
@@ -83,14 +83,8 @@ export default function Login() {
       {/* Formulario */}
       <div className="flex items-center justify-center p-6 sm:p-10">
         <form onSubmit={handleSubmit} className="card-drop-in w-full max-w-sm">
-          <div className="lg:hidden mb-6 flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-ink-900 ring-1 ring-black/5">
-              <svg viewBox="0 0 32 32" className="h-6 w-6" aria-hidden="true">
-                <circle cx="16" cy="16" r="10" fill="none" stroke="#c9a368" strokeWidth="2" />
-                <path d="M11 16.5l3.4 3.4L21 13" fill="none" stroke="#c9a368" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <span className="font-display text-2xl font-semibold text-ink-900">Qualitrack</span>
+          <div className="lg:hidden mb-6 flex items-center">
+            <img src={fullLogo} alt="Qualitrack" className="h-10 w-auto" />
           </div>
 
           <h1 className="font-display text-3xl font-semibold text-ink-900">Bienvenido de vuelta</h1>
