@@ -82,28 +82,9 @@ async function importFromCloud(req, res, provider) {
   }
 
   
-  const importedDocument = await prisma.document.findFirst({
-    where: {
-      uploadedById: req.user.id,
-      source,
-      cloudFileId: fileId,
-    },
-    orderBy: { uploadedAt: 'desc' },
-  });
-
-  if (importedDocument && importedDocument.deletedAt === null &&
-      importedDocument.source === source && importedDocument.cloudFileId === fileId) {
-    return res.status(200).json({
-      id: importedDocument.id,
-      name: importedDocument.originalName,
-      format: importedDocument.format,
-      sizeBytes: importedDocument.sizeBytes,
-      uploadedAt: importedDocument.uploadedAt,
-      alreadyImported: true,
-      message: `"${importedDocument.originalName}" ya estaba importado desde ${label}.`,
-    });
-  }
-
+  // El nombre es la regla principal de duplicados. Debe comprobarse antes del
+  // identificador remoto, porque volver a elegir exactamente el mismo archivo
+  // también debe permitir reemplazarlo o conservar ambas versiones.
   const existing = await prisma.document.findFirst({
     where: {
       originalName: meta.name,
@@ -129,6 +110,32 @@ async function importFromCloud(req, res, provider) {
         deletedAt: existing.deletedAt,
       },
     });
+  }
+
+  // El ID remoto sigue evitando una segunda importación silenciosa si el
+  // documento fue renombrado después de importarlo y ya no coincide por nombre.
+  if (!existing) {
+    const importedDocument = await prisma.document.findFirst({
+      where: {
+        uploadedById: req.user.id,
+        source,
+        cloudFileId: fileId,
+        deletedAt: null,
+      },
+      orderBy: { uploadedAt: 'desc' },
+    });
+
+    if (importedDocument) {
+      return res.status(200).json({
+        id: importedDocument.id,
+        name: importedDocument.originalName,
+        format: importedDocument.format,
+        sizeBytes: importedDocument.sizeBytes,
+        uploadedAt: importedDocument.uploadedAt,
+        alreadyImported: true,
+        message: `"${importedDocument.originalName}" ya estaba importado desde ${label}.`,
+      });
+    }
   }
 
   // Restaurar el existente: no se importa nada nuevo desde la nube.
