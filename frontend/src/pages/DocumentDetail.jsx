@@ -35,6 +35,7 @@ export default function DocumentDetail() {
 
   const classifyResult = classify.data;
   const hasValidated = doc.associations.some((a) => a.status === 'VALIDATED');
+  const canManage = user?.role === ROLES.ADMIN || doc.uploadedById === user?.id;
   // La clasificación depende exclusivamente de la IA (sin respaldo por keywords):
   // si falla, se muestra el mensaje devuelto por el backend.
   const classifyError = classify.isError
@@ -91,13 +92,17 @@ export default function DocumentDetail() {
       <section className="bg-white rounded-xl shadow-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-steel-800">Asociación al Criterio 9</h2>
-          {!hasValidated && (
+          {!canManage && (
             <button
               onClick={() => classify.mutate(id)}
               disabled={classify.isPending}
               className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-60"
             >
-              {classify.isPending ? 'Analizando…' : 'Clasificar con propuesta automática'}
+              {classify.isPending
+                ? 'Analizando…'
+                : hasValidated
+                  ? 'Volver a clasificar con IA'
+                  : 'Clasificar con propuesta automática'}
             </button>
           )}
         </div>
@@ -139,7 +144,7 @@ export default function DocumentDetail() {
                     {a.confidence ? ` · confianza ${Math.round(a.confidence * 100)}%` : ''}
                   </p>
                 </div>
-                {a.status === 'PROPOSED' && (
+                {canManage && a.status === 'PROPOSED' && (
                   <div className="flex gap-2 shrink-0">
                     <button
                       onClick={() => action.mutate({ associationId: a.id, action: 'validate', documentId: id })}
@@ -193,11 +198,11 @@ export default function DocumentDetail() {
         </div>
 
         {/* EP 1.2 — Reasignación manual cuando la propuesta de la IA no convence */}
-        <div className="border-t border-steel-200 pt-4">
+        {canManage && <div className="border-t border-steel-200 pt-4">
           <p className="text-sm font-medium text-steel-700">Asignar el subcriterio manualmente</p>
           <p className="mt-1 text-xs text-steel-500">
-            Si no está de acuerdo con la propuesta del sistema, elija el subcriterio correcto: la
-            asociación queda validada a su nombre y la propuesta automática se descarta.
+            Elija el subcriterio correcto: la asociación quedará validada a su nombre y reemplazará
+            cualquier asociación vigente o propuesta anterior.
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -230,7 +235,7 @@ export default function DocumentDetail() {
               {reassign.error?.response?.data?.error || 'No fue posible reasignar el subcriterio.'}
             </p>
           )}
-        </div>
+        </div>}
       </section>
 
       {doc.textPreview && (
