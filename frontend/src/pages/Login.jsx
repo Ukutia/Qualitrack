@@ -4,8 +4,15 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { LEVEL_ORDER, levelMeta } from '../lib/levels.js';
 import fullLogo from '../assets/fulllogo.svg';
 import fullLogoDark from '../assets/fulllogo_darkmode.svg';
+import useDocumentMeta from '../lib/useDocumentMeta.js';
 
 export default function Login() {
+  useDocumentMeta({
+    title: 'Acceso a la plataforma',
+    description:
+      'Ingresa a Qualitrack para gestionar la evidencia del Criterio 9 de tu institución.',
+  });
+
   const { login, user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('admin@qualitrack.cl');

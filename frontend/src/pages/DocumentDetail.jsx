@@ -92,7 +92,7 @@ export default function DocumentDetail() {
       <section className="bg-white rounded-xl shadow-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-steel-800">Asociación al Criterio 9</h2>
-          {!canManage && (
+          {canManage && (
             <button
               onClick={() => classify.mutate(id)}
               disabled={classify.isPending}

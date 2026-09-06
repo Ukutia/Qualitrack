@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import useDocumentMeta from '../lib/useDocumentMeta.js';
 import fullLogo from '../assets/fulllogo.svg';
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -56,6 +57,18 @@ const icons = {
   pluma: 'M4 20l4-1 11-11a2.1 2.1 0 10-3-3L5 16l-1 4zM14.5 6.5l3 3',
   nube: 'M7 18a4 4 0 01-.4-7.98A5.5 5.5 0 0117.6 9.2 3.9 3.9 0 0117 18H7zM12 15V9m0 0l-2.2 2.2M12 9l2.2 2.2',
   escudo: 'M12 3l7.5 3v5.6c0 4.3-3 8.2-7.5 9.4-4.5-1.2-7.5-5.1-7.5-9.4V6L12 3zM9.2 12.2l2 2 3.6-3.8',
+  linkedin: 'M4.5 9v10.5M4.5 5.2v.01M10 19.5V9m0 3.6c0-2 1.4-3.4 3.4-3.4 2.1 0 3.6 1.4 3.6 4v6.4',
+  instagram: 'M7.5 3.5h9a4 4 0 014 4v9a4 4 0 01-4 4h-9a4 4 0 01-4-4v-9a4 4 0 014-4zM12 8.4a3.6 3.6 0 100 7.2 3.6 3.6 0 000-7.2zM17 7v.01',
+};
+
+/* Canales del plan de marketing: LinkedIn como canal prioritario B2B, correo
+   para la conversacion formal con la institucion, Instagram para alcance.
+   Centralizados aqui para que el pie y los CTA no se desincronicen. */
+const CONTACT = {
+  // TODO: confirmar la casilla institucional real antes de publicar.
+  email: 'contacto@qualitrack.cl',
+  linkedin: 'https://www.linkedin.com/company/qualitrack',
+  instagram: 'https://www.instagram.com/qualitrack_',
 };
 
 function Icon({ path, className = 'h-5 w-5' }) {
@@ -77,37 +90,37 @@ const FEATURES = [
     icon: icons.archivo,
     title: 'Repositorio con reglas',
     body: 'PDF, DOCX y XLSX hasta 10 MB. Validación de formato y tamaño, detección de duplicados y papelera con restauración.',
-    tag: 'HU07',
+    tag: 'Sin duplicados',
   },
   {
     icon: icons.radar,
     title: 'Asociación asistida al Criterio 9',
     body: 'Cada evidencia recibe una propuesta de subcriterio con su justificación. Tú validas o descartas; todo queda en el historial de auditoría.',
-    tag: 'HU01',
+    tag: 'Tú decides',
   },
   {
     icon: icons.semaforo,
     title: 'Semáforo de cumplimiento',
     body: 'Suficiente, Parcial o Insuficiente calculado por subcriterio según cantidad y antigüedad de la evidencia validada.',
-    tag: 'HU02',
+    tag: 'Estado en vivo',
   },
   {
     icon: icons.capas,
     title: 'Estructura del informe versionada',
     body: 'Carga la estructura oficial de la CNA y compara versiones: qué sección se agregó, cuál se eliminó y cuál cambió de nombre.',
-    tag: 'HU03',
+    tag: 'Versionado',
   },
   {
     icon: icons.pluma,
     title: 'Redacción con autoguardado',
     body: 'Escribe el borrador dentro de la plataforma con títulos, negrita, cursiva y listas. Guarda solo en el servidor y se recupera íntegro.',
-    tag: 'Redacción',
+    tag: 'Sin pérdidas',
   },
   {
     icon: icons.nube,
     title: 'Importación desde Google Drive',
     body: 'Conecta la cuenta institucional por OAuth, navega tus carpetas e importa archivos sin descargarlos primero al escritorio.',
-    tag: 'HU09',
+    tag: 'Sin descargas',
   },
 ];
 
@@ -182,7 +195,7 @@ function ProductPreview() {
           <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
           <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
           <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-          <p className="ml-2 text-[11px] uppercase tracking-[0.2em] text-stone-500">
+          <p className="ml-2 text-[11px] uppercase tracking-[0.2em] text-steel-400">
             Tablero · Criterio 9
           </p>
         </div>
@@ -193,13 +206,13 @@ function ProductPreview() {
               <p className="text-[11px] uppercase tracking-[0.2em] text-gold-400/80">
                 Salud de la evidencia
               </p>
-              <p className="mt-1 font-display text-4xl font-semibold text-stone-50 tnum">68%</p>
+              <p className="mt-1 font-display text-4xl font-semibold text-steel-50 tnum">68%</p>
             </div>
             <div className="flex-1 max-w-[13rem]">
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                 <span className="block h-full w-[68%] rounded-full bg-gradient-to-r from-brand-400 to-gold-400" />
               </div>
-              <p className="mt-2 text-right text-xs text-stone-500 tnum">12 de 18 validadas</p>
+              <p className="mt-2 text-right text-xs text-steel-400 tnum">12 de 18 validadas</p>
             </div>
           </div>
 
@@ -210,11 +223,11 @@ function ProductPreview() {
                 className="flex items-center gap-3 rounded-lg bg-white/[0.04] px-3 py-2.5 ring-1 ring-white/5"
               >
                 <span className={`h-2 w-2 shrink-0 rounded-full ${tone[r.state].dot}`} />
-                <span className="w-8 shrink-0 text-xs font-semibold text-stone-400 tnum">
+                <span className="w-8 shrink-0 text-xs font-semibold text-steel-400 tnum">
                   {r.code}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm text-stone-200">{r.label}</span>
-                <span className="hidden shrink-0 text-xs text-stone-500 tnum sm:block">
+                <span className="min-w-0 flex-1 truncate text-sm text-steel-200">{r.label}</span>
+                <span className="hidden shrink-0 text-xs text-steel-400 tnum sm:block">
                   {r.docs} docs
                 </span>
                 <span
@@ -232,6 +245,12 @@ function ProductPreview() {
 }
 
 export default function Landing() {
+  useDocumentMeta({
+    title: 'Gestión de evidencias para la acreditación CNA',
+    description:
+      'Qualitrack reúne la documentación de tu universidad, la asocia al subcriterio del Criterio 9 de la CNA y muestra en tiempo real dónde el respaldo alcanza y dónde no.',
+  });
+
   const { user } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -249,16 +268,21 @@ export default function Landing() {
   const nav = [
     { href: '#producto', label: 'Producto' },
     { href: '#como-funciona', label: 'Cómo funciona' },
-    { href: '#seguridad', label: 'Seguridad' },
+    { href: '#proposito', label: 'Propósito' },
     { href: '#preguntas', label: 'Preguntas' },
+    { href: '#contacto', label: 'Contacto' },
   ];
 
   return (
     <div className="min-h-full">
+      <a href="#contenido" className="skip-link">
+        Saltar al contenido
+      </a>
+
       {/* ── Barra superior ─────────────────────────────────────────────── */}
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${
-          scrolled ? 'border-b border-stone-900/[0.07] bg-paper/85 backdrop-blur-md' : ''
+          scrolled ? 'border-b border-steel-900/[0.07] bg-paper/85 backdrop-blur-md' : ''
         }`}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
@@ -271,7 +295,7 @@ export default function Landing() {
               <a
                 key={n.href}
                 href={n.href}
-                className="text-sm font-medium text-stone-600 transition-colors hover:text-brand-700"
+                className="text-sm font-medium text-steel-600 transition-colors hover:text-brand-700"
               >
                 {n.label}
               </a>
@@ -288,9 +312,10 @@ export default function Landing() {
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Abrir menú"
+              aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
+              aria-controls="menu-movil"
               aria-expanded={menuOpen}
-              className="btn grid h-9 w-9 place-items-center rounded-lg ring-1 ring-stone-300 md:hidden"
+              className="btn grid h-11 w-11 place-items-center rounded-lg ring-1 ring-steel-300 md:hidden"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
                 <path
@@ -305,14 +330,17 @@ export default function Landing() {
         </div>
 
         {menuOpen && (
-          <div className="alert-in border-t border-stone-900/[0.07] bg-paper/95 px-6 py-4 backdrop-blur md:hidden">
+          <div
+            id="menu-movil"
+            className="alert-in border-t border-steel-900/[0.07] bg-paper/95 px-6 py-4 backdrop-blur md:hidden"
+          >
             <nav className="flex flex-col gap-1">
               {nav.map((n) => (
                 <a
                   key={n.href}
                   href={n.href}
                   onClick={() => setMenuOpen(false)}
-                  className="rounded-lg px-2 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-900/5"
+                  className="rounded-lg px-2 py-3 text-sm font-medium text-steel-700 hover:bg-steel-900/5"
                 >
                   {n.label}
                 </a>
@@ -329,6 +357,7 @@ export default function Landing() {
       </header>
 
       {/* ── Hero ───────────────────────────────────────────────────────── */}
+      <main id="contenido">
       <section id="top" className="relative overflow-hidden">
         <span className="pointer-events-none absolute inset-0 grid-paper" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-6 pb-20 pt-12 lg:grid-cols-[1.05fr_1fr] lg:pb-28 lg:pt-20">
@@ -350,10 +379,11 @@ export default function Landing() {
             </Reveal>
 
             <Reveal delay={160}>
-              <p className="mt-6 max-w-xl text-lg leading-relaxed text-stone-600">
-                Qualitrack reúne los documentos de tu institución, los asocia al subcriterio que
-                corresponde y te muestra —en tiempo real— dónde el respaldo alcanza y dónde no.
-                Llegas al informe con datos, no con carpetas compartidas.
+              <p className="mt-6 max-w-xl text-lg leading-relaxed text-steel-600">
+                Para las direcciones de aseguramiento de la calidad de las universidades
+                chilenas. Qualitrack reúne los documentos de tu institución, los asocia al
+                subcriterio que corresponde y te muestra —en tiempo real— dónde el respaldo
+                alcanza y dónde no. Llegas al informe con datos, no con carpetas compartidas.
               </p>
             </Reveal>
 
@@ -366,26 +396,26 @@ export default function Landing() {
                   {ctaLabel}
                 </Link>
                 <a
-                  href="#producto"
-                  className="btn rounded-lg bg-white/70 px-6 py-3 text-[15px] font-medium text-ink-800 ring-1 ring-stone-300 hover:bg-white"
+                  href="#contacto"
+                  className="btn rounded-lg bg-white/70 px-6 py-3 text-[15px] font-medium text-ink-800 ring-1 ring-steel-300 hover:bg-white"
                 >
-                  Ver qué incluye
+                  Agenda una demo
                 </a>
               </div>
             </Reveal>
 
             <Reveal delay={320}>
-              <dl className="mt-12 grid max-w-lg grid-cols-3 gap-6 border-t border-stone-900/10 pt-7">
+              <dl className="mt-12 grid max-w-lg grid-cols-1 gap-6 border-t border-steel-900/10 pt-7 sm:grid-cols-3">
                 {[
-                  ['1 sede · 3 carreras', 'Alcance del MVP'],
-                  ['≤ 5 s', 'Autoguardado del borrador'],
-                  ['AES-256', 'Cifrado en reposo'],
+                  ['Criterio 9', 'El foco completo de la plataforma'],
+                  ['Cero pérdidas', 'Tu borrador se guarda solo, cada 5 segundos'],
+                  ['Datos protegidos', 'Cifrado de nivel bancario, en tu institución'],
                 ].map(([value, label]) => (
                   <div key={label}>
-                    <dt className="font-display text-xl font-semibold text-ink-900 tnum">
+                    <dt className="font-display text-xl font-semibold text-ink-900">
                       {value}
                     </dt>
-                    <dd className="mt-1 text-xs leading-snug text-stone-500">{label}</dd>
+                    <dd className="mt-1 text-xs leading-snug text-steel-600">{label}</dd>
                   </div>
                 ))}
               </dl>
@@ -399,10 +429,10 @@ export default function Landing() {
       </section>
 
       {/* ── El problema ────────────────────────────────────────────────── */}
-      <section className="border-y border-stone-900/[0.07] bg-white/45">
+      <section className="border-y border-steel-900/[0.07] bg-white/45">
         <div className="mx-auto max-w-6xl px-6 py-20">
           <Reveal>
-            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-600">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700">
               Por qué existe
             </p>
             <h2 className="mt-4 max-w-2xl font-display text-3xl font-semibold leading-tight text-ink-900 sm:text-4xl">
@@ -428,7 +458,7 @@ export default function Landing() {
               <Reveal key={title} delay={i * 90}>
                 <div className="border-l-2 border-gold-400/60 pl-5">
                   <h3 className="font-display text-lg font-semibold text-ink-900">{title}</h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-stone-600">{body}</p>
+                  <p className="mt-2 text-[15px] leading-relaxed text-steel-600">{body}</p>
                 </div>
               </Reveal>
             ))}
@@ -439,13 +469,13 @@ export default function Landing() {
       {/* ── Producto ───────────────────────────────────────────────────── */}
       <section id="producto" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24">
         <Reveal>
-          <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-600">
+          <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700">
             Producto
           </p>
           <h2 className="mt-4 max-w-2xl font-display text-3xl font-semibold leading-tight text-ink-900 sm:text-4xl">
             Todo el ciclo de la evidencia, en una sola plataforma.
           </h2>
-          <p className="mt-4 max-w-2xl text-lg leading-relaxed text-stone-600">
+          <p className="mt-4 max-w-2xl text-lg leading-relaxed text-steel-600">
             Desde que el archivo entra hasta que el capítulo del informe queda escrito.
           </p>
         </Reveal>
@@ -453,17 +483,17 @@ export default function Landing() {
         <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
             <Reveal key={f.title} delay={(i % 3) * 80}>
-              <article className="group h-full rounded-xl2 bg-white/70 p-6 shadow-soft ring-1 ring-stone-900/[0.06] transition-all duration-300 hover:-translate-y-1 hover:bg-white hover:shadow-lift">
+              <article className="group h-full rounded-xl2 bg-white/70 p-6 shadow-soft ring-1 ring-steel-900/[0.06] transition-all duration-300 hover:-translate-y-1 hover:bg-white hover:shadow-lift">
                 <div className="flex items-start justify-between">
                   <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand-600/[0.08] text-brand-700 ring-1 ring-brand-600/10 transition-colors duration-300 group-hover:bg-brand-600 group-hover:text-white">
                     <Icon path={f.icon} />
                   </span>
-                  <span className="rounded-full bg-stone-900/[0.05] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-stone-500">
+                  <span className="rounded-full bg-steel-900/[0.05] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-steel-600">
                     {f.tag}
                   </span>
                 </div>
                 <h3 className="mt-5 font-display text-lg font-semibold text-ink-900">{f.title}</h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-stone-600">{f.body}</p>
+                <p className="mt-2 text-[15px] leading-relaxed text-steel-600">{f.body}</p>
               </article>
             </Reveal>
           ))}
@@ -473,11 +503,11 @@ export default function Landing() {
       {/* ── Cómo funciona ──────────────────────────────────────────────── */}
       <section
         id="como-funciona"
-        className="scroll-mt-20 border-y border-stone-900/[0.07] bg-white/45"
+        className="scroll-mt-20 border-y border-steel-900/[0.07] bg-white/45"
       >
         <div className="mx-auto max-w-6xl px-6 py-24">
           <Reveal>
-            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-600">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700">
               Cómo funciona
             </p>
             <h2 className="mt-4 max-w-2xl font-display text-3xl font-semibold leading-tight text-ink-900 sm:text-4xl">
@@ -496,7 +526,7 @@ export default function Landing() {
                   <h3 className="mt-5 font-display text-lg font-semibold text-ink-900">
                     {s.title}
                   </h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-stone-600">{s.body}</p>
+                  <p className="mt-2 text-[15px] leading-relaxed text-steel-600">{s.body}</p>
                 </li>
               </Reveal>
             ))}
@@ -504,9 +534,92 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── Propósito: misión, visión y ODS ────────────────────────────── */}
+      <section id="proposito" className="scroll-mt-20 px-6 py-24">
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700">
+              Propósito
+            </p>
+            <h2 className="mt-4 max-w-2xl font-display text-3xl font-semibold leading-tight text-ink-900 sm:text-4xl">
+              Por qué construimos Qualitrack.
+            </h2>
+          </Reveal>
+
+          <div className="mt-14 grid gap-6 lg:grid-cols-2">
+            <Reveal>
+              <article className="h-full rounded-xl2 bg-white/70 p-8 shadow-soft ring-1 ring-steel-900/[0.06]">
+                <h3 className="text-[11px] font-medium uppercase tracking-[0.22em] text-brand-700">
+                  Misión
+                </h3>
+                <p className="mt-4 font-display text-xl leading-snug text-ink-900">
+                  Ayudar a las organizaciones a transformar documentación dispersa en evidencia
+                  ordenada, trazable y confiable, usando inteligencia artificial con supervisión
+                  humana.
+                </p>
+                <p className="mt-4 text-[15px] leading-relaxed text-steel-600">
+                  No solo guardamos archivos: leemos su contenido, entendemos de qué tratan y los
+                  relacionamos con los criterios que la institución debe cumplir. La tecnología
+                  acelera el proceso, pero la decisión final siempre queda en manos de una persona
+                  experta. Rápido como una máquina, responsable como una persona.
+                </p>
+              </article>
+            </Reveal>
+
+            <Reveal delay={100}>
+              <article className="h-full rounded-xl2 bg-white/70 p-8 shadow-soft ring-1 ring-steel-900/[0.06]">
+                <h3 className="text-[11px] font-medium uppercase tracking-[0.22em] text-brand-700">
+                  Visión
+                </h3>
+                <p className="mt-4 font-display text-xl leading-snug text-ink-900">
+                  Que ninguna organización pierda tiempo, prestigio ni financiamiento por no poder
+                  demostrar, con evidencia clara, que cumple con lo que dice cumplir.
+                </p>
+                <p className="mt-4 text-[15px] leading-relaxed text-steel-600">
+                  Queremos que la acreditación deje de ser una emergencia de última hora y pase a
+                  ser un estado permanente: que la institución siempre sepa qué evidencia tiene,
+                  qué le falta y dónde están las brechas, sin reconstruir meses de trabajo cada vez
+                  que un evaluador externo toca la puerta.
+                </p>
+              </article>
+            </Reveal>
+          </div>
+
+          <Reveal delay={160}>
+            <div className="mt-6 rounded-xl2 border border-gold-400/40 bg-gold-200/20 p-8">
+              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700">
+                Nuestro compromiso con los ODS
+              </p>
+              <div className="mt-6 grid gap-8 sm:grid-cols-2">
+                <div>
+                  <h3 className="font-display text-lg font-semibold text-ink-900">
+                    ODS 4 · Educación de calidad
+                  </h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-steel-600">
+                    Al asegurar los procesos de acreditación ante la CNA con evidencia ordenada y
+                    trazable, las universidades protegen su financiamiento, su prestigio y sus
+                    estándares educativos. Eso beneficia directamente la educación de los chilenos.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-semibold text-ink-900">
+                    ODS 8 · Trabajo decente y crecimiento económico
+                  </h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-steel-600">
+                    Eliminamos cientos de horas de trabajo administrativo bajo presión. Los equipos
+                    de calidad dejan de buscar papeles a mano y recuperan su tiempo para tomar
+                    decisiones estratégicas.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       {/* ── Seguridad ──────────────────────────────────────────────────── */}
       <section id="seguridad" className="scroll-mt-20 px-6 py-24">
-        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-xl2 bg-ink-900 bg-gradient-to-br from-ink-800 via-ink-900 to-ink-900 px-8 py-16 text-stone-300 shadow-lift sm:px-14">
+        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-xl2 bg-ink-900 bg-gradient-to-br from-ink-800 via-ink-900 to-ink-900 px-8 py-16 text-steel-300 shadow-lift sm:px-14">
           <span className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-brand-500/20 blur-3xl" />
           <span className="pointer-events-none absolute -left-20 bottom-0 h-72 w-72 rounded-full bg-gold-500/10 blur-3xl" />
 
@@ -519,10 +632,10 @@ export default function Landing() {
                 <p className="mt-6 text-[11px] font-medium uppercase tracking-[0.22em] text-gold-400/80">
                   Seguridad y trazabilidad
                 </p>
-                <h2 className="mt-4 font-display text-3xl font-semibold leading-tight text-stone-50 sm:text-4xl">
+                <h2 className="mt-4 font-display text-3xl font-semibold leading-tight text-steel-50 sm:text-4xl">
                   La evidencia de una acreditación no admite improvisación.
                 </h2>
-                <p className="mt-4 max-w-md leading-relaxed text-stone-400">
+                <p className="mt-4 max-w-md leading-relaxed text-steel-400">
                   Cada decisión sobre un documento queda registrada, y cada archivo se guarda
                   cifrado. Si mañana alguien pregunta por qué esa evidencia respalda ese
                   subcriterio, la respuesta está en el sistema.
@@ -533,20 +646,26 @@ export default function Landing() {
             <Reveal delay={120}>
               <ul className="grid gap-px overflow-hidden rounded-xl bg-white/10 sm:grid-cols-2">
                 {[
-                  ['Cifrado AES-256', 'Los documentos se almacenan cifrados en reposo.'],
-                  ['Sesión con JWT', 'Acceso autenticado y rutas protegidas de extremo a extremo.'],
                   [
-                    'HTML saneado en servidor',
-                    'El borrador pasa por una lista blanca de etiquetas antes de guardarse.',
+                    'Tus documentos, cifrados',
+                    'Cada archivo se guarda cifrado en reposo con AES-256, el mismo estándar que usa la banca.',
                   ],
                   [
-                    'Historial de auditoría',
-                    'Quién validó, qué descartó y cuándo: la trazabilidad completa por documento.',
+                    'Solo entra quien debe entrar',
+                    'Cada persona ve lo que le corresponde según su rol, y toda la sesión viaja autenticada.',
+                  ],
+                  [
+                    'Nada se pierde en el camino',
+                    'El borrador se guarda íntegro en el servidor y se recupera tal como lo dejaste.',
+                  ],
+                  [
+                    'Respuesta lista ante el evaluador',
+                    'Quién validó, qué descartó y cuándo: la trazabilidad completa, documento por documento.',
                   ],
                 ].map(([title, body]) => (
                   <li key={title} className="bg-ink-900/95 p-6">
-                    <p className="font-display text-base font-semibold text-stone-50">{title}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-stone-400">{body}</p>
+                    <p className="font-display text-base font-semibold text-steel-50">{title}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-steel-400">{body}</p>
                   </li>
                 ))}
               </ul>
@@ -556,10 +675,10 @@ export default function Landing() {
       </section>
 
       {/* ── Preguntas ──────────────────────────────────────────────────── */}
-      <section id="preguntas" className="scroll-mt-20 border-t border-stone-900/[0.07] bg-white/45">
+      <section id="preguntas" className="scroll-mt-20 border-t border-steel-900/[0.07] bg-white/45">
         <div className="mx-auto max-w-3xl px-6 py-24">
           <Reveal>
-            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-600">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700">
               Preguntas
             </p>
             <h2 className="mt-4 font-display text-3xl font-semibold leading-tight text-ink-900 sm:text-4xl">
@@ -567,7 +686,7 @@ export default function Landing() {
             </h2>
           </Reveal>
 
-          <div className="mt-12 divide-y divide-stone-900/10 border-y border-stone-900/10">
+          <div className="mt-12 divide-y divide-steel-900/10 border-y border-steel-900/10">
             {FAQ.map((item, i) => (
               <Reveal key={item.q} delay={i * 60}>
                 <details className="faq-item group py-1">
@@ -575,7 +694,7 @@ export default function Landing() {
                     <span className="font-display text-lg font-semibold text-ink-900">
                       {item.q}
                     </span>
-                    <span className="faq-chevron shrink-0 text-stone-400 transition-transform duration-300 group-hover:text-brand-600">
+                    <span className="faq-chevron shrink-0 text-steel-400 transition-transform duration-300 group-hover:text-brand-600">
                       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
                         <path
                           d="M12 5v14M5 12h14"
@@ -586,7 +705,7 @@ export default function Landing() {
                       </svg>
                     </span>
                   </summary>
-                  <p className="pb-6 pr-10 text-[15px] leading-relaxed text-stone-600">{item.a}</p>
+                  <p className="pb-6 pr-10 text-[15px] leading-relaxed text-steel-600">{item.a}</p>
                 </details>
               </Reveal>
             ))}
@@ -594,45 +713,139 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── CTA final ──────────────────────────────────────────────────── */}
-      <section className="px-6 py-24">
+      {/* ── Contacto y conversión ──────────────────────────────────────── */}
+      <section id="contacto" className="scroll-mt-20 px-6 py-24">
         <Reveal>
           <div className="mx-auto max-w-3xl text-center">
-            <h2 className="font-display text-4xl font-semibold leading-tight tracking-tight text-ink-900 sm:text-5xl">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700">
+              Hablemos
+            </p>
+            <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-ink-900 sm:text-5xl">
               Empieza por el Criterio 9.
             </h2>
-            <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-stone-600">
-              Carga la estructura del informe, sube las primeras evidencias y observa el semáforo
-              moverse. El resto del proceso se ordena solo.
+            <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-steel-600">
+              Te mostramos la plataforma con la estructura de informe de tu institución y las
+              primeras evidencias cargadas. Sin compromiso y en menos de 30 minutos.
             </p>
+
             <div className="mt-9 flex flex-wrap justify-center gap-3">
+              <a
+                href={`mailto:${CONTACT.email}?subject=${encodeURIComponent(
+                  'Quiero una demo de Qualitrack',
+                )}`}
+                className="btn rounded-lg bg-brand-600 px-7 py-3 text-[15px] font-medium text-white shadow-soft hover:bg-brand-700 hover:shadow-lift"
+              >
+                Agenda una demo
+              </a>
+              <a
+                href={CONTACT.linkedin}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn rounded-lg bg-white/70 px-7 py-3 text-[15px] font-medium text-ink-800 ring-1 ring-steel-300 hover:bg-white"
+              >
+                Escríbenos por LinkedIn
+              </a>
+            </div>
+
+            <p className="mt-6 text-sm text-steel-600">
+              ¿Ya tienes cuenta?{' '}
               <Link
                 to={ctaHref}
-                className="btn rounded-lg bg-brand-600 px-7 py-3 text-[15px] font-medium text-white shadow-soft hover:bg-brand-700 hover:shadow-lift"
+                className="font-medium text-brand-700 underline hover:text-brand-800"
               >
                 {ctaLabel}
               </Link>
-              <a
-                href="#producto"
-                className="btn rounded-lg bg-white/70 px-7 py-3 text-[15px] font-medium text-ink-800 ring-1 ring-stone-300 hover:bg-white"
-              >
-                Revisar funcionalidades
-              </a>
-            </div>
+            </p>
+            <p className="mx-auto mt-8 max-w-md text-xs leading-relaxed text-steel-600">
+              Al escribirnos, usamos tu correo únicamente para responder tu consulta. No lo
+              incorporamos a ninguna lista de difusión ni lo compartimos con terceros.
+            </p>
           </div>
         </Reveal>
       </section>
 
+      </main>
+
       {/* ── Pie ────────────────────────────────────────────────────────── */}
-      <footer className="border-t border-stone-900/[0.07]">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-10 sm:flex-row">
-          <img src={fullLogo} alt="Qualitrack" className="h-8 w-auto" />
-          <p className="text-xs text-stone-500">
-            © {new Date().getFullYear()} Qualitrack · Gestión de evidencias para acreditación CNA
-          </p>
-          <Link to={ctaHref} className="text-sm font-medium text-brand-700 hover:text-brand-800">
-            {ctaLabel} →
-          </Link>
+      <footer className="border-t border-steel-900/[0.07] bg-white/45">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="lg:col-span-2">
+              <img src={fullLogo} alt="Qualitrack" className="h-9 w-auto" />
+              <p className="mt-4 max-w-xs text-sm leading-relaxed text-steel-600">
+                Evidencia ordenada, trazable y confiable para la acreditación institucional ante
+                la CNA.
+              </p>
+            </div>
+
+            <nav aria-label="Secciones del sitio">
+              <h2 className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700">
+                Navegación
+              </h2>
+              <ul className="mt-4 space-y-1">
+                {nav.map((n) => (
+                  <li key={n.href}>
+                    <a
+                      href={n.href}
+                      className="inline-block py-2.5 text-sm text-steel-600 hover:text-brand-700"
+                    >
+                      {n.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+
+            <div>
+              <h2 className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700">
+                Contacto
+              </h2>
+              <ul className="mt-4 space-y-1">
+                <li>
+                  <a
+                    href={`mailto:${CONTACT.email}`}
+                    className="inline-block py-2.5 text-sm text-steel-600 hover:text-brand-700"
+                  >
+                    {CONTACT.email}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={CONTACT.linkedin}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 py-2.5 text-sm text-steel-600 hover:text-brand-700"
+                  >
+                    <Icon path={icons.linkedin} className="h-4 w-4" />
+                    LinkedIn
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={CONTACT.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 py-2.5 text-sm text-steel-600 hover:text-brand-700"
+                  >
+                    <Icon path={icons.instagram} className="h-4 w-4" />
+                    Instagram
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-steel-900/[0.07] pt-6 sm:flex-row">
+            <p className="text-xs text-steel-600">
+              © {new Date().getFullYear()} Qualitrack · Gestión de evidencias para acreditación CNA
+            </p>
+            <Link
+              to={ctaHref}
+              className="py-2 text-sm font-medium text-brand-700 hover:text-brand-800"
+            >
+              {ctaLabel} →
+            </Link>
+          </div>
         </div>
       </footer>
     </div>

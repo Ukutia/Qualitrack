@@ -180,25 +180,35 @@ body::after {
   transform: none;
 }
 
-/* Barrido lento del acento sobre el titular del hero. */
+/* Barrido del acento sobre el titular del hero.
+   Una sola pasada y se detiene: una animacion en bucle permanente distrae del
+   mensaje y es justamente lo que penaliza la rubrica. Los colores salen de la
+   paleta de marca (brand-800 -> gold-600 -> brand-800), no de tonos sueltos. */
 @keyframes sheen {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
+  from { background-position: 0% 50%; }
+  to   { background-position: 200% 50%; }
 }
 .hero-sheen {
-  background-image: linear-gradient(100deg, #1f4e57 0%, #2c6670 30%, #b78c4a 50%, #2c6670 70%, #1f4e57 100%);
+  background-image: linear-gradient(100deg, #234a74 0%, #b3853d 22%, #2c5f97 50%, #234a74 100%);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: sheen 9s linear infinite;
+  animation: sheen 2.6s var(--ease-out) 1 both;
+}
+/* En modo alto contraste `background-clip: text` deja el titular invisible. */
+@media (forced-colors: active) {
+  .hero-sheen {
+    background-image: none;
+    color: CanvasText;
+  }
 }
 
 /* Cuadrícula técnica de fondo — sugiere planilla/rúbrica sin ruido. */
 .grid-paper {
   background-image:
-    linear-gradient(to right, rgba(31, 78, 87, 0.055) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(31, 78, 87, 0.055) 1px, transparent 1px);
+    linear-gradient(to right, rgba(35, 74, 116, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(35, 74, 116, 0.055) 1px, transparent 1px);
   background-size: 56px 56px;
   -webkit-mask-image: radial-gradient(70% 60% at 50% 30%, #000 30%, transparent 100%);
   mask-image: radial-gradient(70% 60% at 50% 30%, #000 30%, transparent 100%);
@@ -222,4 +232,22 @@ body::after {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ── Salto directo al contenido (primer tabulador de la landing) ─────── */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 100;
+  border-radius: 0.5rem;
+  background: #2c5f97;
+  padding: 0.6rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff7eb;
+  transition: top 160ms var(--ease-out);
+}
+.skip-link:focus {
+  top: 0.75rem;
 }

@@ -14,6 +14,7 @@ import CloudConnect from './pages/CloudConnect.jsx';
 import Trash from './pages/Trash.jsx';
 import SemanticSearch from './pages/SemanticSearch.jsx';
 import AccessDenied from './pages/AccessDenied.jsx';
+import NotFound from './pages/NotFound.jsx';
 import { ROLES } from './lib/roles.js';
 
 // Roles con acceso a cada ruta (EP 1.1 · EP 1.2). El backend revalida cada
@@ -51,6 +52,8 @@ export default function App() {
         <Route path="/cloud" element={<Guard roles={ADMIN_AND_USER}><CloudConnect /></Guard>} />
         <Route path="/trash" element={<Guard roles={ADMIN_AND_USER}><Trash /></Guard>} />
       </Route>
+      {/* Sin este catch-all, una URL desconocida renderiza una pantalla vacía. */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

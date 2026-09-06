@@ -18,12 +18,15 @@ export default {
           900: '#1a3752',
         },
         // Dorado "Sunlit Clay" — usado con moderación (hairlines, marca).
+        // 700 es el único tono válido para texto sobre `paper`: los tonos más
+        // claros no alcanzan el 4.5:1 que exige WCAG AA.
         gold: {
           200: '#f0dbb0',
           300: '#e5c58a',
           400: '#dab264',
           500: '#d3a04e',
           600: '#b3853d',
+          700: '#7d5a21',
         },
         // Tinta "Carbon Black" para sidebar/encabezados.
         ink: {
@@ -33,6 +36,9 @@ export default {
           600: '#363c47',
         },
         // Gris neutro "Grey Olive" — texto secundario, bordes, estados deshabilitados.
+        // 600 es el tono de texto secundario: se oscureció de #767676 a #6e6e6e
+        // porque sobre `paper` (#fff7eb) el anterior daba 4.27:1, bajo el 4.5:1
+        // de WCAG AA. Los tonos 400/500 son decorativos, no aptos para texto.
         steel: {
           50: '#f7f7f7',
           100: '#eeeeee',
@@ -40,7 +46,7 @@ export default {
           300: '#c4c4c4',
           400: '#adadad',
           500: '#959595',
-          600: '#767676',
+          600: '#6e6e6e',
           700: '#5c5c5c',
           800: '#424242',
           900: '#2b2b2b',

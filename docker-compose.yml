@@ -10,9 +10,9 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      # Puerto del host 5433 -> 5432 del contenedor (evita choque con un
-      # PostgreSQL local). El backend se conecta internamente como db:5432.
-      - "5433:5432"
+      # Puerto del host configurable (default 5434; 5433 lo usa GSM-P). El
+      # backend se conecta internamente como db:5432.
+      - "${DB_PORT:-5434}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qualitrack} -d ${POSTGRES_DB:-qualitrack}"]
       interval: 5s
