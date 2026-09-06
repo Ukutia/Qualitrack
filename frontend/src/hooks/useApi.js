@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api.js';
 
+const DOCUMENT_IMPORT_TIMEOUT = 300000; // 5 minutos
+
 // ── Documentos (HU07) ───────────────────────────────────────────────
 export function useDocuments() {
   return useQuery({
@@ -73,7 +75,11 @@ export function useUploadDocument() {
       const form = new FormData();
       form.append('file', file);
       const q = onDuplicate ? `?onDuplicate=${onDuplicate}` : '';
-      return (await api.post(`/documents${q}`, form)).data;
+      return (
+        await api.post(`/documents${q}`, form, {
+          timeout: DOCUMENT_IMPORT_TIMEOUT,
+        })
+      ).data;
     },
     onSuccess: () => {
       // No bloquear la resolución de mutateAsync (y por tanto el mensaje de
@@ -322,7 +328,13 @@ export function useImportCloudFile() {
   return useMutation({
     mutationFn: async ({ fileId, location, onDuplicate }) => {
       const q = onDuplicate ? `?onDuplicate=${onDuplicate}` : '';
-      return (await api.post(`/cloud/google/import${q}`, { fileId, location })).data;
+      return (
+        await api.post(
+          `/cloud/google/import${q}`,
+          { fileId, location },
+          { timeout: DOCUMENT_IMPORT_TIMEOUT }
+        )
+      ).data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
   });
@@ -350,7 +362,13 @@ export function useImportDropboxFile() {
   return useMutation({
     mutationFn: async ({ fileId, location, onDuplicate }) => {
       const q = onDuplicate ? `?onDuplicate=${onDuplicate}` : '';
-      return (await api.post(`/cloud/dropbox/import${q}`, { fileId, location })).data;
+      return (
+        await api.post(
+          `/cloud/dropbox/import${q}`,
+          { fileId, location },
+          { timeout: DOCUMENT_IMPORT_TIMEOUT }
+        )
+      ).data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
   });
