@@ -518,7 +518,7 @@ export default function Landing() {
               Video
             </p>
             <h2 className="mt-4 max-w-2xl font-display text-3xl font-semibold leading-tight text-ink-900 sm:text-4xl">
-              Conoce Qualitrack en 3 minutos.
+              Conoce Qualitrack en 1 minuto.
             </h2>
           </Reveal>
 
