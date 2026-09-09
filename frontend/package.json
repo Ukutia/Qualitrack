@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
+    "build:landing": "vite build --config vite.landing.config.js",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {

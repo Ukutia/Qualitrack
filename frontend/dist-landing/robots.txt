@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Las rutas del producto exigen sesión: no aportan nada al índice.
+Disallow: /app
+Disallow: /documents
+Disallow: /upload
+Disallow: /structure
+Disallow: /report
+Disallow: /cloud
+Disallow: /trash
+Disallow: /search
+Disallow: /acceso-denegado
+
+Sitemap: https://qualitrack.feriadesoftware.cl/sitemap.xml

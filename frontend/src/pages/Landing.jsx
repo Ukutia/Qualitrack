@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
 import useDocumentMeta from '../lib/useDocumentMeta.js';
 import fullLogo from '../assets/fulllogo.svg';
+import teamPhoto from '../assets/team/equipo.jpeg';
+import javieraPhoto from '../assets/team/javiera.jpeg';
+import paulinaPhoto from '../assets/team/paulina.jpeg';
+import aylinPhoto from '../assets/team/aylin.jpeg';
+import beatrizPhoto from '../assets/team/beatriz.jpeg';
+import benjaminPhoto from '../assets/team/bejamin.jpeg';
 
 /* ────────────────────────────────────────────────────────────────────────
    Landing pública de Qualitrack.
@@ -147,6 +151,19 @@ const STEPS = [
   },
 ];
 
+const TEAM = [
+  { name: 'Javiera Cortés Urzúa', photo: javieraPhoto, linkedin: 'https://www.linkedin.com/in/javiera-cort%C3%A9s-urz%C3%BAa-5a3b66225/' },
+  { name: 'Paulina Labrín Libert', photo: paulinaPhoto, linkedin: 'https://www.linkedin.com/in/paulina-labr%C3%ADn-libert-862b4132a/' },
+  { name: 'Aylin Rojas', photo: aylinPhoto, linkedin: 'http://www.linkedin.com/in/aylin-rojasd' },
+  { name: 'Beatriz Vasquez', photo: beatrizPhoto, linkedin: 'https://www.linkedin.com/in/beatriz-vasquez/' },
+  {
+    name: 'Benjamín Urrutia',
+    photo: benjaminPhoto,
+    linkedin: 'https://www.linkedin.com/in/benjamin-urrutia-41ba33403',
+    imgStyle: { objectPosition: 'center 22%', transform: 'scale(1.35)' },
+  },
+];
+
 const FAQ = [
   {
     q: '¿Qué alcance cubre hoy la plataforma?',
@@ -251,7 +268,6 @@ export default function Landing() {
       'Qualitrack reúne la documentación de tu universidad, la asocia al subcriterio del Criterio 9 de la CNA y muestra en tiempo real dónde el respaldo alcanza y dónde no.',
   });
 
-  const { user } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -262,13 +278,12 @@ export default function Landing() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const ctaHref = user ? '/app' : '/login';
-  const ctaLabel = user ? 'Ir al tablero' : 'Entrar a la plataforma';
-
   const nav = [
     { href: '#producto', label: 'Producto' },
+    { href: '#video', label: 'Video' },
     { href: '#como-funciona', label: 'Cómo funciona' },
     { href: '#proposito', label: 'Propósito' },
+    { href: '#equipo', label: 'Equipo' },
     { href: '#preguntas', label: 'Preguntas' },
     { href: '#contacto', label: 'Contacto' },
   ];
@@ -303,12 +318,12 @@ export default function Landing() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Link
-              to={ctaHref}
+            <a
+              href="#contacto"
               className="btn hidden rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-soft hover:bg-brand-700 hover:shadow-lift sm:block"
             >
-              {ctaLabel}
-            </Link>
+              Agenda una demo
+            </a>
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
@@ -345,12 +360,13 @@ export default function Landing() {
                   {n.label}
                 </a>
               ))}
-              <Link
-                to={ctaHref}
+              <a
+                href="#contacto"
+                onClick={() => setMenuOpen(false)}
                 className="btn mt-2 rounded-lg bg-brand-600 px-4 py-2.5 text-center text-sm font-medium text-white"
               >
-                {ctaLabel}
-              </Link>
+                Agenda una demo
+              </a>
             </nav>
           </div>
         )}
@@ -389,15 +405,9 @@ export default function Landing() {
 
             <Reveal delay={240}>
               <div className="mt-9 flex flex-wrap items-center gap-3">
-                <Link
-                  to={ctaHref}
-                  className="btn rounded-lg bg-brand-600 px-6 py-3 text-[15px] font-medium text-white shadow-soft hover:bg-brand-700 hover:shadow-lift"
-                >
-                  {ctaLabel}
-                </Link>
                 <a
                   href="#contacto"
-                  className="btn rounded-lg bg-white/70 px-6 py-3 text-[15px] font-medium text-ink-800 ring-1 ring-steel-300 hover:bg-white"
+                  className="btn rounded-lg bg-brand-600 px-6 py-3 text-[15px] font-medium text-white shadow-soft hover:bg-brand-700 hover:shadow-lift"
                 >
                   Agenda una demo
                 </a>
@@ -497,6 +507,35 @@ export default function Landing() {
               </article>
             </Reveal>
           ))}
+        </div>
+      </section>
+
+      {/* ── Video ──────────────────────────────────────────────────────── */}
+      <section id="video" className="scroll-mt-20 border-y border-steel-900/[0.07] bg-white/45">
+        <div className="mx-auto max-w-4xl px-6 py-24">
+          <Reveal>
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700">
+              Video
+            </p>
+            <h2 className="mt-4 max-w-2xl font-display text-3xl font-semibold leading-tight text-ink-900 sm:text-4xl">
+              Conoce Qualitrack en 3 minutos.
+            </h2>
+          </Reveal>
+
+          <Reveal delay={80}>
+            <div className="mt-12 overflow-hidden rounded-xl2 bg-ink-900 shadow-lift ring-1 ring-steel-900/[0.06]">
+              <div className="relative aspect-video w-full">
+                <iframe
+                  className="absolute inset-0 h-full w-full"
+                  src="https://www.youtube.com/embed/YNQK8NMC2fs"
+                  title="Video de presentación de Qualitrack"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 
@@ -614,6 +653,61 @@ export default function Landing() {
               </div>
             </div>
           </Reveal>
+        </div>
+      </section>
+
+      {/* ── Equipo ─────────────────────────────────────────────────────── */}
+      <section id="equipo" className="scroll-mt-20 border-y border-steel-900/[0.07] bg-white/45">
+        <div className="mx-auto max-w-6xl px-6 py-24">
+          <Reveal>
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700">
+              Equipo
+            </p>
+            <h2 className="mt-4 max-w-2xl font-display text-3xl font-semibold leading-tight text-ink-900 sm:text-4xl">
+              Las personas detrás de Qualitrack.
+            </h2>
+          </Reveal>
+
+          <Reveal delay={80}>
+            <div className="mt-12 overflow-hidden rounded-xl2 shadow-soft ring-1 ring-steel-900/[0.06]">
+              <img
+                src={teamPhoto}
+                alt="Equipo de Qualitrack"
+                className="h-auto w-full object-cover"
+              />
+            </div>
+          </Reveal>
+
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+            {TEAM.map((member, i) => (
+              <Reveal key={member.name} delay={i * 70}>
+                <a
+                  href={member.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group block overflow-hidden rounded-xl2 bg-white/70 shadow-soft ring-1 ring-steel-900/[0.06] transition-all duration-300 hover:-translate-y-1 hover:bg-white hover:shadow-lift"
+                >
+                  <div className="aspect-[3/4] w-full overflow-hidden bg-steel-900/[0.04]">
+                    <img
+                      src={member.photo}
+                      alt={member.name}
+                      style={member.imgStyle}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 p-4">
+                    <p className="font-display text-sm font-semibold text-ink-900">
+                      {member.name}
+                    </p>
+                    <Icon
+                      path={icons.linkedin}
+                      className="h-4 w-4 shrink-0 text-steel-400 transition-colors group-hover:text-brand-700"
+                    />
+                  </div>
+                </a>
+              </Reveal>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -747,15 +841,6 @@ export default function Landing() {
               </a>
             </div>
 
-            <p className="mt-6 text-sm text-steel-600">
-              ¿Ya tienes cuenta?{' '}
-              <Link
-                to={ctaHref}
-                className="font-medium text-brand-700 underline hover:text-brand-800"
-              >
-                {ctaLabel}
-              </Link>
-            </p>
             <p className="mx-auto mt-8 max-w-md text-xs leading-relaxed text-steel-600">
               Al escribirnos, usamos tu correo únicamente para responder tu consulta. No lo
               incorporamos a ninguna lista de difusión ni lo compartimos con terceros.
@@ -835,16 +920,10 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-steel-900/[0.07] pt-6 sm:flex-row">
+          <div className="mt-12 flex flex-col items-center justify-center gap-3 border-t border-steel-900/[0.07] pt-6 sm:flex-row">
             <p className="text-xs text-steel-600">
               © {new Date().getFullYear()} Qualitrack · Gestión de evidencias para acreditación CNA
             </p>
-            <Link
-              to={ctaHref}
-              className="py-2 text-sm font-medium text-brand-700 hover:text-brand-800"
-            >
-              {ctaLabel} →
-            </Link>
           </div>
         </div>
       </footer>
