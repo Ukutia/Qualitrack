@@ -15,8 +15,8 @@ export default function Login() {
 
   const { login, user } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@qualitrack.cl');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -127,10 +127,6 @@ export default function Login() {
           >
             {submitting ? 'Ingresando…' : 'Ingresar'}
           </button>
-
-          <p className="mt-5 rounded-lg bg-steel-100/70 px-3 py-2 text-xs text-steel-500 ring-1 ring-steel-200/60">
-            Credenciales por defecto · <span className="tnum">admin@qualitrack.cl</span> / admin123
-          </p>
         </form>
       </div>
     </div>
