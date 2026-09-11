@@ -44,15 +44,25 @@ export async function ingestDocument({
       cloudFileId,
       cloudLocation,
       extractedText: encryptText(extractedText),
+      vectorizationStatus: 'PROCESSING',
       documentDate,
       uploadedById: userId,
     },
   });
 
-   setImmediate(() => {
-    vectorizeDocument(document.id, extractedText).catch((error) => {
-      console.error(`Error al vectorizar documento ${document.id}:`, error);
-    });
+  setImmediate(() => {
+    vectorizeDocument(document.id, extractedText)
+      .then(() => prisma.document.updateMany({
+        where: { id: document.id },
+        data: { vectorizationStatus: 'READY' },
+      }))
+      .catch(async (error) => {
+        console.error(`Error al vectorizar documento ${document.id}:`, error);
+        await prisma.document.updateMany({
+          where: { id: document.id },
+          data: { vectorizationStatus: 'FAILED' },
+        });
+      });
   });
 
   return document;
@@ -114,7 +124,13 @@ export async function uploadDocument(req, res) {
     });
   }
 
-  if (existing && onDuplicate === 'replace') {
+if (existing && onDuplicate === 'replace') {
+    if (existing.vectorizationStatus === 'PROCESSING') {
+      return res.status(409).json({
+        code: 'DOCUMENT_PROCESSING',
+        error: 'No se puede reemplazar el documento mientras se prepara para la búsqueda semántica.',
+      });
+    }
     await deleteFile(existing.storagePath);
     await prisma.document.delete({ where: { id: existing.id } });
   }
@@ -174,6 +190,7 @@ export async function listDocuments(req, res) {
       uploadedBy: d.uploadedBy?.name,
       associationStatus,
       subcriterion: validated?.subcriterion?.code || proposed?.subcriterion?.code || null,
+      vectorizationStatus: d.vectorizationStatus,
     };
   });
 
@@ -208,6 +225,7 @@ export async function getDocument(req, res) {
     uploadedAt: doc.uploadedAt,
     uploadedById: doc.uploadedById,
     uploadedBy: doc.uploadedBy?.name,
+    vectorizationStatus: doc.vectorizationStatus,
     textPreview: (decryptText(doc.extractedText) || '').slice(0, 1500),
     associations: doc.associations.map((a) => ({
       id: a.id,
@@ -266,6 +284,12 @@ export async function trashDocument(req, res) {
   const doc = await prisma.document.findUnique({ where: { id } });
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
   if (doc.deletedAt) return res.status(409).json({ error: 'El documento ya está en la papelera.' });
+    if (doc.vectorizationStatus === 'PROCESSING') {
+    return res.status(409).json({
+      code: 'DOCUMENT_PROCESSING',
+      error: 'No se puede eliminar el documento mientras se prepara para la búsqueda semántica.',
+    });
+  }
 
   await prisma.document.update({ where: { id }, data: { deletedAt: new Date() } });
   return res.json({ id, message: 'Documento movido a la papelera.' });
@@ -384,7 +408,12 @@ export async function destroyDocument(req, res) {
   if (!doc.deletedAt) {
     return res.status(409).json({ error: 'Mueva el documento a la papelera antes de eliminarlo definitivamente.' });
   }
-
+    if (doc.vectorizationStatus === 'PROCESSING') {
+    return res.status(409).json({
+      code: 'DOCUMENT_PROCESSING',
+      error: 'No se puede eliminar el documento mientras se prepara para la búsqueda semántica.',
+    });
+  }
   await deleteFile(doc.storagePath);
   await prisma.document.delete({ where: { id } });
   return res.json({ id, message: 'Documento eliminado definitivamente.' });
