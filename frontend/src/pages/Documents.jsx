@@ -289,7 +289,7 @@ function toggleSelectAll() {
                             <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
-                        d.vectorizationStatus === 'PROCESSING' && (
+                        {d.vectorizationStatus === 'PROCESSING' && (
                           <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-2 hidden w-64 rounded-lg bg-ink-900 px-3 py-2 text-xs leading-relaxed text-white shadow-lg group-hover:block">
                             No se puede eliminar todavía porque el documento se está preparando para las búsquedas.
                           </span>
