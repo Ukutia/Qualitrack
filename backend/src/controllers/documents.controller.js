@@ -49,14 +49,11 @@ export async function ingestDocument({
     },
   });
 
-  try {
-    await vectorizeDocument(document.id, extractedText);
-  } catch (error) {
-    console.error(
-      `Error al vectorizar documento ${document.id}:`,
-      error
-    );
-  }
+   setImmediate(() => {
+    vectorizeDocument(document.id, extractedText).catch((error) => {
+      console.error(`Error al vectorizar documento ${document.id}:`, error);
+    });
+  });
 
   return document;
 }
