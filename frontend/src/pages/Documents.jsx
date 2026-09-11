@@ -88,13 +88,17 @@ export default function Documents() {
     });
   }
 
-  function toggleSelectAll() {
+function toggleSelectAll() {
     if (!docs?.length) return;
 
-    if (selectedIds.size === docs.length) {
+    const selectableIds = docs
+      .filter((doc) => doc.vectorizationStatus !== 'PROCESSING')
+      .map((doc) => doc.id);
+
+    if (selectedIds.size === selectableIds.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(docs.map((doc) => doc.id)));
+      setSelectedIds(new Set(selectableIds));
     }
   }
 
@@ -220,7 +224,7 @@ export default function Documents() {
                 <th className="px-5 py-3.5">
                   <input
                     type="checkbox"
-                    checked={docs.length > 0 && selectedIds.size === docs.length}
+                    checked={docs.some((doc) => doc.vectorizationStatus !== 'PROCESSING') && selectedIds.size === docs.filter((doc) => doc.vectorizationStatus !== 'PROCESSING').length}
                     onChange={toggleSelectAll}
                     className="h-4 w-4 rounded border-steel-300 cursor-pointer"
                   />
@@ -245,7 +249,9 @@ export default function Documents() {
                       type="checkbox"
                       checked={selectedIds.has(d.id)}
                       onChange={() => toggleSelect(d.id)}
-                      className="h-4 w-4 rounded border-steel-300 cursor-pointer"
+                      disabled={d.vectorizationStatus === 'PROCESSING'}
+                      title={d.vectorizationStatus === 'PROCESSING' ? 'No se puede eliminar mientras se prepara para la búsqueda semántica.' : undefined}
+                      className="h-4 w-4 rounded border-steel-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                     />
                   </td>
                   <td className="px-5 py-3.5">
@@ -272,16 +278,23 @@ export default function Documents() {
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
                       {/* <OpenFileButton docId={d.id} /> */}
+                      <span className="group relative inline-flex">
                       <button
-                        onClick={() => handleTrash(d.id, d.name)}
-                        disabled={trash.isPending}
-                        title="Mover a papelera"
-                        className="inline-flex items-center rounded-md px-2 py-1 text-xs text-steel-400 hover:text-rose-500 hover:bg-rose-50 ring-1 ring-steel-200 hover:ring-rose-200 transition-colors disabled:opacity-50"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
+                          onClick={() => handleTrash(d.id, d.name)}
+                          disabled={trash.isPending || d.vectorizationStatus === 'PROCESSING'}
+                          aria-label="Mover a papelera"
+                          className="inline-flex items-center rounded-md px-2 py-1 text-xs text-steel-400 hover:text-rose-500 hover:bg-rose-50 ring-1 ring-steel-200 hover:ring-rose-200 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                            <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                        d.vectorizationStatus === 'PROCESSING' && (
+                          <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-2 hidden w-64 rounded-lg bg-ink-900 px-3 py-2 text-xs leading-relaxed text-white shadow-lg group-hover:block">
+                            No se puede eliminar todavía porque el documento se está preparando para las búsquedas.
+                          </span>
+                        )}
+                      </span>
                     </div>
                   </td>
                 </tr>
