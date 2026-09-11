@@ -36,6 +36,7 @@ export default function DocumentDetail() {
   const classifyResult = classify.data;
   const hasValidated = doc.associations.some((a) => a.status === 'VALIDATED');
   const canManage = user?.role === ROLES.ADMIN || doc.uploadedById === user?.id;
+  const isVectorizing = doc.vectorizationStatus === 'PROCESSING';
   // La clasificación depende exclusivamente de la IA (sin respaldo por keywords):
   // si falla, se muestra el mensaje devuelto por el backend.
   const classifyError = classify.isError
@@ -57,16 +58,22 @@ export default function DocumentDetail() {
           ← Volver al repositorio
         </Link>
         {canTrash && (
+        <span className="group relative inline-flex">
         <button
-          onClick={handleTrash}
-          disabled={trash.isPending}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-        >
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {trash.isPending ? 'Moviendo…' : 'Mover a papelera'}
-        </button>
+            onClick={handleTrash}
+            disabled={trash.isPending || isVectorizing}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {trash.isPending ? 'Moviendo…' : 'Mover a papelera'}
+          </button>
+          {isVectorizing && (
+            <span className="pointer-events-none absolute right-0 top-full z-20 mt-2 hidden w-72 rounded-lg bg-ink-900 px-3 py-2 text-xs leading-relaxed text-white shadow-lg group-hover:block">
+              No se puede eliminar todavía porque el documento se está preparando para las búsquedas.
+            </span>
+          )}
+        </span>
         )}
       </div>
 
@@ -86,6 +93,19 @@ export default function DocumentDetail() {
           <p>Ingreso: {fmtDate(doc.uploadedAt)}</p>
           <p>Cargado por: {doc.uploadedBy}</p>
         </div>
+        <div className="flex items-center gap-2">
+            <span>Disponibilidad para búsquedas:</span>
+            {isVectorizing ? (
+              <span className="inline-flex items-center gap-1.5 font-medium text-amber-700">
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber-200 border-t-amber-600" />
+                Preparando documento…
+              </span>
+            ) : doc.vectorizationStatus === 'FAILED' ? (
+              <span className="font-medium text-rose-600">Preparación pendiente</span>
+            ) : (
+              <span className="font-medium text-emerald-600">Disponible</span>
+            )}
+          </div>
       </header>
 
       {/* HU01 — Clasificación */}
