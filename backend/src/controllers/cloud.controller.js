@@ -162,6 +162,12 @@ async function importFromCloud(req, res, provider) {
   if (file.buffer.length > maxBytes) return res.status(400).json(tooBig(file.buffer.length));
 
   if (existing && onDuplicate === 'replace') {
+        if (existing.vectorizationStatus === 'PROCESSING') {
+      return res.status(409).json({
+        code: 'DOCUMENT_PROCESSING',
+        error: 'No se puede reemplazar el documento mientras se prepara para la búsqueda semántica.',
+      });
+    }
     await deleteFile(existing.storagePath);
     await prisma.document.delete({ where: { id: existing.id } });
   }
