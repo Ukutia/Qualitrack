@@ -8,6 +8,11 @@ export function useDocuments() {
   return useQuery({
     queryKey: ['documents'],
     queryFn: async () => (await api.get('/documents')).data,
+     
+    refetchInterval: (query) =>
+      query.state.data?.some((doc) => doc.vectorizationStatus === 'PROCESSING')
+        ? 2000
+        : false,
   });
 }
 
@@ -65,6 +70,8 @@ export function useDocument(id) {
     queryKey: ['document', id],
     queryFn: async () => (await api.get(`/documents/${id}`)).data,
     enabled: !!id,
+        refetchInterval: (query) =>
+      query.state.data?.vectorizationStatus === 'PROCESSING' ? 2000 : false,
   });
 }
 
