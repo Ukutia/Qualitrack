@@ -1,0 +1,2 @@
+ALTER TABLE "Document"
+ADD COLUMN "vectorizationStatus" TEXT NOT NULL DEFAULT 'READY';
