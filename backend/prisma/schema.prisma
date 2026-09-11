@@ -158,6 +158,8 @@ model Document {
   cloudLocation String?
   documentDate  DateTime       @default(now()) // base para antigüedad (HU02)
   extractedText String?        @db.Text
+  /// PROCESSING mientras se generan embeddings; READY al terminar; FAILED si falla.
+  vectorizationStatus String   @default("READY")
   uploadedAt    DateTime       @default(now())
 
   uploadedBy   User @relation(fields: [uploadedById], references: [id])
