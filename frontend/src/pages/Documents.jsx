@@ -173,7 +173,7 @@ function toggleSelectAll() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-steel-200/60 overflow-hidden">
+      <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-steel-200/60 overflow-visible">
         {isLoading ? (
           <table className="w-full text-sm">
             <thead className="bg-steel-50/80 text-steel-500 text-left">
@@ -275,10 +275,10 @@ function toggleSelectAll() {
                       {d.subcriterion ? ` · ${d.subcriterion}` : ''}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-5 py-3.5 overflow-visible">
                     <div className="flex items-center gap-2">
                       {/* <OpenFileButton docId={d.id} /> */}
-                      <span className="group relative inline-flex">
+                      <span className="group relative z-10 inline-flex hover:z-30">
                       <button
                           onClick={() => handleTrash(d.id, d.name)}
                           disabled={trash.isPending || d.vectorizationStatus === 'PROCESSING'}
@@ -290,7 +290,7 @@ function toggleSelectAll() {
                           </svg>
                         </button>
                         {d.vectorizationStatus === 'PROCESSING' && (
-                          <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-2 hidden w-64 rounded-lg bg-ink-900 px-3 py-2 text-xs leading-relaxed text-white shadow-lg group-hover:block">
+                          <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-64 rounded-lg bg-ink-900 px-3 py-2 text-xs leading-relaxed text-white shadow-lg group-hover:block">
                             No se puede eliminar todavía porque el documento se está preparando para las búsquedas.
                           </span>
                         )}
