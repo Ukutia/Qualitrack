@@ -11,6 +11,7 @@
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
     "db:encrypt-legacy-text": "node scripts/encrypt-existing-text.js",
+    "db:retry-vectorizations": "node scripts/retry-failed-vectorizations.js",
     "test": "vitest run"
   },
   "prisma": {

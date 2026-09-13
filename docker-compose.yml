@@ -27,7 +27,7 @@ services:
       db:
         condition: service_healthy
       embedding-service:
-        condition: service_started
+        condition: service_healthy
     environment:
       DROPBOX_APP_KEY: ${DROPBOX_APP_KEY:-}
       DROPBOX_APP_SECRET: ${DROPBOX_APP_SECRET:-}
@@ -74,6 +74,13 @@ services:
     build: ./backend/embedding-service
     container_name: qualitrack-embedding
     restart: unless-stopped
+    # /health becomes available only after model loading and warm-up finish.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      start_period: 15m
+      retries: 12
     ports:
       - "8000:8000"
 

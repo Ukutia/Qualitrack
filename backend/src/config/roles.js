@@ -38,6 +38,12 @@ const INGESTOR_RULES = [
 // solo decide qué rutas existen para el rol.
 const USER_RULES = [
   ...INGESTOR_RULES,
+  rule('GET', /^\/topics$/),
+  rule('POST', /^\/topics$/),
+  rule('GET', /^\/topics\/network$/),
+  rule('DELETE', /^\/topics\/\d+$/),
+  rule('POST', /^\/search\/semantic$/),
+  rule('GET', /^\/documents\/\d+\/content$/),
   rule('GET', /^\/documents$/),
   rule('GET', /^\/documents\/\d+$/),
   rule('GET', /^\/documents\/\d+\/file$/),
