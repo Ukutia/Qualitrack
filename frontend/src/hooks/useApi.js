@@ -3,16 +3,20 @@ import { api } from '../lib/api.js';
 
 const DOCUMENT_IMPORT_TIMEOUT = 300000; // 5 minutos
 
+function shouldPollDocuments(data) {
+  if (!Array.isArray(data)) return false;
+  return data.some((doc) => {
+    const status = doc.analysisStatus || doc.vectorizationStatus;
+    return status !== 'completado' && status !== 'error';
+  });
+}
+
 // ── Documentos (HU07) ───────────────────────────────────────────────
 export function useDocuments() {
   return useQuery({
     queryKey: ['documents'],
     queryFn: async () => (await api.get('/documents')).data,
-     
-    refetchInterval: (query) =>
-      query.state.data?.some((doc) => doc.vectorizationStatus === 'PROCESSING')
-        ? 2000
-        : false,
+    refetchInterval: (query) => (shouldPollDocuments(query.state.data) ? 2000 : false),
   });
 }
 
@@ -66,12 +70,64 @@ export function useDeleteTopic() {
 }
 
 export function useDocument(id) {
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    // Solicitar permiso de notificaciones al montar el componente
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    if (!id) return undefined;
+
+    const token = localStorage.getItem('qualitrack_token');
+    const streamUrl = `${api.defaults.baseURL || '/api'}/events/documents/${id}?token=${encodeURIComponent(token || '')}`;
+    const source = new EventSource(streamUrl);
+
+    source.addEventListener('analysis-status', (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        qc.invalidateQueries({ queryKey: ['documents'] });
+        qc.invalidateQueries({ queryKey: ['document', String(id)] });
+        qc.invalidateQueries({ queryKey: ['document', id] });
+        
+        if (payload.analysisStatus) {
+          qc.setQueryData(['document', id], (old) => old ? { ...old, analysisStatus: payload.analysisStatus, analysisStatusUpdatedAt: payload.analysisStatusUpdatedAt, analysisError: payload.analysisError || null } : old);
+          
+          // Cumplimiento del Paso 3: Notificación si la pestaña está inactiva
+          if (payload.analysisStatus === 'COMPLETED') {
+            localStorage.removeItem('documento_activo'); // Limpiamos el progreso
+            
+            if (document.hidden && Notification.permission === 'granted') {
+              new Notification("Análisis completado", { body: "Tu propuesta ya está lista." });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('No se pudo procesar el evento SSE de análisis del documento:', err);
+      }
+    });
+
+    return () => source.close();
+  }, [id, qc]);
+
+  // ... (mantén el return useQuery exactamente como lo tienes)[cite: 7]
   return useQuery({
     queryKey: ['document', id],
     queryFn: async () => (await api.get(`/documents/${id}`)).data,
     enabled: !!id,
-        refetchInterval: (query) =>
-      query.state.data?.vectorizationStatus === 'PROCESSING' ? 2000 : false,
+    refetchInterval: (query) => {
+      const status = query.state.data?.analysisStatus;
+      const active = [
+        'PREPARING_ANALYSIS',
+        'SENT_TO_ANALYZER',
+        'RECEIVED_BY_ANALYZER',
+        'EXTRACTING_CONTENT',
+        'ANALYZING_CONTENT',
+        'RECEIVING_RESULT',
+      ];
+      return active.includes(status) ? 2000 : false;
+    },
   });
 }
 
@@ -88,9 +144,13 @@ export function useUploadDocument() {
         })
       ).data;
     },
-    onSuccess: () => {
-      // No bloquear la resolución de mutateAsync (y por tanto el mensaje de
-      // éxito) esperando el refetch de la lista de documentos.
+    onSuccess: (data) => {
+      // Cumplimiento del Paso 3: Guardar el ID en el almacenamiento local
+      if (data && data.id) {
+         localStorage.setItem('documento_activo', data.id);
+      }
+      
+      // No bloquear la resolución de mutateAsync...
       qc.invalidateQueries({ queryKey: ['documents'] });
     },
   });

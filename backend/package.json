@@ -11,6 +11,7 @@
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
     "db:encrypt-legacy-text": "node scripts/encrypt-existing-text.js",
+    "worker:analysis": "node scripts/analysis-woker.js",
     "test": "vitest run"
   },
   "prisma": {

@@ -158,6 +158,10 @@ model Document {
   cloudLocation String?
   documentDate  DateTime       @default(now()) // base para antigüedad (HU02)
   extractedText String?        @db.Text
+  /// Estado del flujo de análisis documental: RECEIVED, PREPARING_ANALYSIS, SENT_TO_ANALYZER,
+  /// RECEIVED_BY_ANALYZER, EXTRACTING_CONTENT, ANALYZING_CONTENT, RECEIVING_RESULT,
+  /// COMPLETED y ERROR.
+  analysisStatus String @default("RECEIVED")
   /// PROCESSING mientras se generan embeddings; READY al terminar; FAILED si falla.
   vectorizationStatus String   @default("READY")
   uploadedAt    DateTime       @default(now())

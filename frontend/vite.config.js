@@ -11,6 +11,13 @@ export default defineConfig({
     host: '0.0.0.0',
     port: Number(process.env.PORT) || 5173,
     // Windows + Docker no tiene inotify confiable; polling garantiza HMR.
+    allowedHosts: true, // Permite .loca.lt de npx
+
+    hmr: {
+      clientPort: 443,
+      protocol: 'wss'
+    },
+    
     watch: { usePolling: true },
     proxy: {
       '/api': {

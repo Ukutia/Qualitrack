@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { publishAnalysisStatus } from '../services/analysisEvents.service.js';
 import { requireAuth } from '../middleware/auth.js';
 import { enforceRolePolicy } from '../middleware/authorize.js';
 import {
@@ -24,6 +25,8 @@ import {
   listDocuments,
   getDocument,
   serveFile,
+  streamDocumentStatus,
+  updateDocumentAnalysisStatus,
   updateDocumentDate,
   trashDocument,
   listTrash,
@@ -62,6 +65,72 @@ router.get('/cloud/google/callback', cloud.callback);
 // Dropbox callback público
 router.get('/cloud/dropbox/callback', cloud.dropboxCallback);
 
+// Webhook de actualización de estado de análisis (HU12)
+router.post('/webhooks/worker-update', async (req, res) => {
+    const { documentId, status, result, userId, error } = req.body;
+
+    await prisma.document.update({
+        where: { id: documentId },
+        data: { analysisStatus: status, analysisError: error }
+    });
+
+    if (status === 'COMPLETED' && result && result.relevant) {
+        await prisma.$transaction(async (tx) => {
+            const pending = await tx.association.findMany({
+                where: { documentId, status: 'PROPOSED' },
+            });
+
+            if (pending.length) {
+                await tx.association.updateMany({
+                    where: { id: { in: pending.map((item) => item.id) } },
+                    data: { status: 'NOT_VALIDATED', validatedById: null, validatedAt: null },
+                });
+                await tx.associationHistory.createMany({
+                    data: pending.map((item) => ({
+                        associationId: item.id,
+                        action: 'REJECTED',
+                        userId,
+                        snapshot: { reemplazadaPorNuevaPropuestaIA: true },
+                    })),
+                });
+            }
+
+            const created = await tx.association.create({
+                data: {
+                    documentId,
+                    subcriterionId: result.subcriterionId,
+                    status: 'PROPOSED',
+                    justification: result.justification,
+                    evidenceFragment: result.evidenceFragment,
+                    confidence: result.confidence,
+                }
+            });
+
+            await tx.associationHistory.create({
+                data: {
+                    associationId: created.id,
+                    action: 'PROPOSED',
+                    userId,
+                    snapshot: {
+                        subcriterion: result.subcriterion.code,
+                        confidence: result.confidence,
+                        matchedKeywords: result.matchedKeywords,
+                    },
+                },
+            });
+        });
+    }
+
+    publishAnalysisStatus({
+        documentId,
+        analysisStatus: status,
+        analysisError: error,
+        analysisStatusUpdatedAt: new Date(),
+    });
+
+    res.status(200).send('OK');
+});
+
 // A partir de aquí, todo requiere autenticación y un rol con permiso sobre la
 // ruta (EP 1.1 · EP 1.2). La política es de denegación por defecto y se resuelve
 // antes de consultar la base de datos.
@@ -80,8 +149,10 @@ router.delete('/topics/:id', deleteTopic);
 router.post('/documents', upload.single('file'), uploadDocument);
 router.get('/documents', listDocuments);
 router.get('/documents/trash', listTrash);
+router.get('/documents/:id/stream', requireViewableDocument, streamDocumentStatus);
 router.get('/documents/:id', requireViewableDocument, getDocument);
 router.get('/documents/:id/file', requireViewableDocument, serveFile);
+router.patch('/documents/:id/analysis-status', requireOwnDocument, updateDocumentAnalysisStatus);
 router.patch('/documents/:id/date', requireOwnDocument, updateDocumentDate);
 router.post('/documents/:id/trash', requireOwnDocument, trashDocument);
 router.post('/documents/:id/restore', requireOwnDocument, restoreDocument);
@@ -127,4 +198,5 @@ router.get('/cloud/dropbox/files',    cloud.dropboxListFiles);
 router.post('/cloud/dropbox/import',  cloud.dropboxImportFile);
 
 router.delete('/cloud/:provider/disconnect', cloud.disconnect);
+
 export default router;

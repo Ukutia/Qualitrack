@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   useDocument,
@@ -10,6 +10,8 @@ import {
 } from '../hooks/useApi.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ROLES } from '../lib/roles.js';
+
+const LAST_DOCUMENT_KEY = 'qualitrack_last_document_id';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
 const ACTION_LABEL = { PROPOSED: 'Propuesta generada', VALIDATED: 'Validada', REJECTED: 'Descartada' };
@@ -26,6 +28,31 @@ export default function DocumentDetail() {
   const { data: criterion } = useCriterion();
   const { user } = useAuth();
   const [manualSub, setManualSub] = useState('');
+
+  useEffect(() => {
+    if (id) localStorage.setItem(LAST_DOCUMENT_KEY, String(id));
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return undefined;
+
+    const token = localStorage.getItem('qualitrack_token') || '';
+    const streamUrl = `/api/documents/${id}/stream?token=${encodeURIComponent(token)}`;
+    const source = new EventSource(streamUrl);
+
+    source.addEventListener('document-status', (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload?.id) {
+          localStorage.setItem(LAST_DOCUMENT_KEY, String(payload.id));
+        }
+      } catch {
+        // Ignorar payload inválido del stream sin romper la pantalla.
+      }
+    });
+
+    return () => source.close();
+  }, [id]);
 
   // La papelera es exclusiva del administrador (EP 1.2).
   const canTrash = user?.role === ROLES.ADMIN;
@@ -92,6 +119,7 @@ export default function DocumentDetail() {
           </p>
           <p>Ingreso: {fmtDate(doc.uploadedAt)}</p>
           <p>Cargado por: {doc.uploadedBy}</p>
+          <p>Estado del análisis: <span className="font-medium text-steel-700">{doc.analysisStatus || 'recibido'}</span></p>
         </div>
         <div className="flex items-center gap-2">
             <span>Disponibilidad para búsquedas:</span>

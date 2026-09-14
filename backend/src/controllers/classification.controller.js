@@ -2,6 +2,7 @@
 import { prisma } from '../config/prisma.js';
 import { classifyText } from '../services/classifier.service.js';
 import { decryptText } from '../services/encryption.service.js';
+import { sendToWorker } from '../services/workerClient.service.js';
 
 const CRITERION_CODE = '9';
 
@@ -40,21 +41,22 @@ export async function classifyDocument(req, res) {
       deletedAt: null,
     },
   });
+
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
 
-  const subcriteria = await prisma.subcriterion.findMany({
-    where: { criterion: { code: CRITERION_CODE } },
+  // 1. Cambiamos el estado inicial para que el Frontend reaccione
+  await updateAnalysisStatus(documentId, 'PREPARING_ANALYSIS');
+
+  // 2. Delegamos la tarea de forma asíncrona al puente del Worker
+  setImmediate(() => { void sendToWorker(documentId, req.user.id); });
+
+  // 3. ¡IMPORTANTE! Retornamos inmediatamente. 
+  // No esperamos el resultado. El resultado llegará después por SSE.
+  return res.status(202).json({
+    accepted: true,
+    analysisStatus: 'PREPARING_ANALYSIS',
   });
-
-  const result = await classifyText(decryptText(doc.extractedText) || '', subcriteria);
-
-  if (!result.relevant) {
-    return res.json({
-      relevant: false,
-      justification: result.justification,
-      association: null,
-    });
-  }
+}
 
    // La nueva clasificación queda pendiente. Sustituye una propuesta pendiente
   // anterior, pero nunca desplaza la asociación validada hasta que se apruebe.
@@ -120,7 +122,7 @@ export async function classifyDocument(req, res) {
       confidence: association.confidence,
     },
   });
-}
+
 
 /** POST /associations/:id/validate */
 export async function validateAssociation(req, res) {
