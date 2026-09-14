@@ -6,6 +6,7 @@ import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Documents from './pages/Documents.jsx';
+import DocumentRequests from './pages/DocumentRequests.jsx';
 import DocumentDetail from './pages/DocumentDetail.jsx';
 import Upload from './pages/Upload.jsx';
 import CriteriaStructure from './pages/CriteriaStructure.jsx';
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/acceso-denegado" element={<AccessDenied />} />
         <Route path="/app" element={<Guard roles={ADMIN_ONLY}><Dashboard /></Guard>} />
         <Route path="/documents" element={<Guard roles={ADMIN_AND_USER}><Documents /></Guard>} />
+        <Route path="/requests" element={<Guard roles={ADMIN_AND_USER}><DocumentRequests /></Guard>} />
         <Route path="/search" element={<Guard roles={ADMIN_AND_USER}><SemanticSearch /></Guard>} />
         <Route path="/network" element={<Navigate to="/search?view=network" replace />} />
         <Route path="/documents/:id" element={<Guard roles={ADMIN_AND_USER}><DocumentDetail /></Guard>} />
