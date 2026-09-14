@@ -1,202 +1,184 @@
-import { prisma } from './src/config/prisma.js';
-import { vectorizeDocument } from './src/services/vector.service.js';
-import { classifyDocumentByEmbeddings } from './src/services/classifier.service.js';
+// Compara proveedores de clasificación (local / gemini / keywords) sobre un
+// set fijo de casos, usando la taxonomía real del seed (9.1.1 … 9.3.2).
+//
+//   node test-classifier-qwen.js              -> local
+//   node test-classifier-qwen.js local gemini -> compara ambos
+//
+// No toca la base de datos: los subcriterios van embebidos para que el test
+// corra sin docker ni migraciones.
+
+import { classifyText } from './src/services/classifier.service.js';
+import { checkLlmAvailable, LLM_MODEL } from './src/services/llm.service.js';
+
+import { SUBCRITERIA } from './test/fixtures/subcriteria.js';
 
 const TESTS = [
   {
-    expected: '9.1',
-    name: 'calidad.txt',
-    text: `
-La carrera cuenta con un sistema interno de aseguramiento de la calidad.
-El comité de calidad realiza procesos periódicos de autoevaluación,
-revisa indicadores y propone acciones de mejora continua.
-
-Las políticas institucionales establecen mecanismos formales para
-monitorear el cumplimiento de los objetivos del programa y verificar
-la aplicación de los procesos de calidad.
-    `,
+    expected: '9.1.1',
+    name: 'politica-calidad.txt',
+    text: `Mediante Decreto Universitario N 145 se aprueba la Política de Aseguramiento
+Interno de la Calidad. El documento designa a la Dirección de Calidad como
+responsable de su implementación y establece su dependencia directa de la
+Rectoría en el organigrama institucional. La política declara explícitamente su
+coherencia con la misión y los propósitos declarados en el Plan de Desarrollo
+Estratégico vigente.`,
   },
   {
-    expected: '9.2',
-    name: 'perfil-egreso.txt',
-    text: `
-El perfil de egreso de la carrera establece las competencias que deben
-alcanzar los estudiantes al finalizar su formación.
-
-El plan de estudios y la malla curricular fueron diseñados en coherencia
-con dichas competencias. Los programas de asignatura identifican
-resultados de aprendizaje y su contribución al perfil de egreso.
-    `,
+    expected: '9.1.2',
+    name: 'informe-gestion.txt',
+    text: `El informe de gestión anual consolida los indicadores institucionales del
+período. Se reportan las tasas de retención de primer año, deserción y titulación
+oportuna por facultad. A partir del análisis de estos resultados de desempeño la
+Vicerrectoría identifica las áreas a mejorar y prioriza intervenciones para el
+año siguiente.`,
   },
   {
-    expected: '9.3',
-    name: 'progresion.txt',
-    text: `
-La carrera realiza seguimiento anual de los indicadores estudiantiles.
-Se analizan las tasas de aprobación, retención, deserción, titulación
-y tiempo promedio de egreso.
-
-Además, se realiza seguimiento de egresados y se estudian periódicamente
-los niveles de empleabilidad de los titulados.
-    `,
+    expected: '9.1.3',
+    name: 'tablero-bi.txt',
+    text: `Se implementó un tablero de control en Power BI administrado por la unidad de
+Análisis Institucional. Decanos, directores de escuela y jefes de carrera acceden
+mediante credenciales propias a los indicadores en línea de su unidad. El
+procedimiento de difusión interna regula qué reportería está disponible para cada
+perfil.`,
   },
   {
-    expected: '9.4',
-    name: 'docentes-recursos.txt',
-    text: `
-La unidad académica mantiene una dotación de profesores de jornada
-completa y parcial suficiente para las actividades docentes.
-
-Se implementan programas de perfeccionamiento docente y se dispone de
-laboratorios, salas, equipamiento e infraestructura adecuada para
-desarrollar las actividades de enseñanza.
-    `,
+    expected: '9.2.1',
+    name: 'manual-procedimientos.txt',
+    text: `El manual de procedimientos formaliza las etapas para la creación de carreras
+nuevas y para el rediseño curricular de las existentes. Se acompaña del
+reglamento de evaluación docente de aplicación obligatoria. El cuadro de mando
+integral automatiza el seguimiento de los KPI y emite alertas cuando un
+indicador se desvía de la meta comprometida.`,
   },
   {
-    expected: '9.5',
-    name: 'vinculacion-mejora.txt',
-    text: `
-El programa mantiene un plan de mejora con acciones correctivas,
-responsables, fechas y mecanismos de seguimiento.
-
-También desarrolla actividades de vinculación con el medio y mantiene
-un consejo asesor con empleadores, quienes entregan retroalimentación
-sobre las necesidades del entorno profesional.
-    `,
+    expected: '9.2.2',
+    name: 'cultura-calidad.txt',
+    text: `Las actas del consejo académico registran la participación de representantes
+estudiantiles y de funcionarios administrativos en las decisiones sobre calidad.
+Durante el año se ejecutaron talleres de capacitación sobre el proceso de
+acreditación dirigidos a todos los estamentos, y se reporta la tasa de respuesta
+alcanzada en las encuestas institucionales.`,
+  },
+  {
+    expected: '9.3.1',
+    name: 'autorregulacion.txt',
+    text: `Los planes de mejora de los dos ciclos anteriores fueron cerrados con
+cumplimiento total de sus compromisos. Para ello se asignó y ejecutó presupuesto
+específico destinado a resolver brechas históricas. Adicionalmente se contrató
+una auditoría externa que evaluó el propio sistema de aseguramiento de la
+calidad y verificó su capacidad de autorregulación.`,
+  },
+  {
+    expected: '9.3.2',
+    name: 'compromiso-estamental.txt',
+    text: `Se registraron jornadas de socialización con estudiantes, académicos y personal
+administrativo. Los testimonios recogidos muestran que cada persona puede
+explicar cómo su rol aporta a la calidad institucional. Se realizaron ensayos de
+entrevistas con pares evaluadores en las distintas unidades como parte de la
+apropiación de la cultura de calidad.`,
   },
 
   // Casos que NO deberían corresponder al Criterio 9.
   {
     expected: 'NONE',
     name: 'receta.txt',
-    text: `
-Para preparar pan se debe mezclar harina, agua, levadura y sal.
-La masa debe amasarse durante varios minutos y luego dejarse reposar.
-Finalmente se hornea hasta obtener una corteza dorada.
-    `,
+    text: `Para preparar pan se debe mezclar harina, agua, levadura y sal. La masa debe
+amasarse durante varios minutos y luego dejarse reposar. Finalmente se hornea
+hasta obtener una corteza dorada.`,
   },
   {
     expected: 'NONE',
     name: 'turismo.txt',
-    text: `
-Durante el viaje se visitaron parques nacionales, playas y diversos
-atractivos turísticos. El itinerario contempló transporte, alojamiento
-y actividades recreativas durante cinco días.
-    `,
+    text: `Durante el viaje se visitaron parques nacionales, playas y diversos atractivos
+turísticos. El itinerario contempló transporte, alojamiento y actividades
+recreativas durante cinco días.`,
   },
   {
     expected: 'NONE',
     name: 'mantencion-auto.txt',
-    text: `
-El vehículo requiere cambio de aceite, revisión de frenos, alineación
-de las ruedas y verificación de la presión de los neumáticos.
-El fabricante recomienda realizar mantenimiento periódico del motor.
-    `,
+    text: `El vehículo requiere cambio de aceite, revisión de frenos, alineación de las
+ruedas y verificación de la presión de los neumáticos. El fabricante recomienda
+realizar mantenimiento periódico del motor.`,
   },
 ];
 
-async function main() {
-  const user = await prisma.user.findFirst();
-
-  if (!user) {
-    throw new Error('No existe usuario para ejecutar las pruebas.');
-  }
-
-  const subcriteria = await prisma.subcriterion.findMany({
-    where: {
-      criterion: {
-        code: '9',
-      },
-    },
-    orderBy: {
-      code: 'asc',
-    },
-  });
+async function runProvider(provider) {
+  process.env.CLASSIFIER_PROVIDER = provider;
 
   const rows = [];
-  const createdDocumentIds = [];
+  let aciertos = 0;
+  let totalMs = 0;
 
-  try {
-    for (let i = 0; i < TESTS.length; i++) {
-      const test = TESTS[i];
+  for (const test of TESTS) {
+    const started = Date.now();
+    const result = await classifyText(test.text, SUBCRITERIA);
+    const ms = Date.now() - started;
+    totalMs += ms;
 
-      console.log(`\nProcesando ${test.name}...`);
+    const predicho = result.relevant ? result.subcriterion?.code ?? 'NONE' : 'NONE';
+    const correcto = predicho === test.expected;
+    if (correcto) aciertos++;
 
-      const document = await prisma.document.create({
-        data: {
-          originalName: test.name,
-          storedName: `qwen-test-${Date.now()}-${i}-${test.name}`,
-          format: 'txt',
-          sizeBytes: Buffer.byteLength(test.text, 'utf8'),
-          storagePath: `test://${test.name}`,
-          extractedText: test.text,
-          uploadedById: user.id,
-        },
-      });
+    rows.push({
+      archivo: test.name,
+      esperado: test.expected,
+      predicho,
+      conf: result.confidence,
+      cita: result.evidenceFragment ? 'si' : 'no',
+      seg: (ms / 1000).toFixed(1),
+      ok: correcto ? 'SI' : 'NO',
+    });
+  }
 
-      createdDocumentIds.push(document.id);
+  console.log(`\n=== ${provider.toUpperCase()} ===`);
+  console.table(rows);
+  console.log(
+    `Accuracy: ${aciertos}/${TESTS.length} ` +
+      `(${((aciertos / TESTS.length) * 100).toFixed(0)}%) | ` +
+      `latencia media: ${(totalMs / TESTS.length / 1000).toFixed(1)}s`
+  );
 
-      await vectorizeDocument(
-        document.id,
-        test.text
-      );
+  return { provider, aciertos, total: TESTS.length, totalMs };
+}
 
-      const result = await classifyDocumentByEmbeddings(
-        document.id,
-        subcriteria
-      );
+async function main() {
+  const providers = process.argv.slice(2);
+  const seleccionados = providers.length > 0 ? providers : ['local'];
 
-      const ranking = result.semanticRanking || [];
-
-      const first = ranking[0] || null;
-      const second = ranking[1] || null;
-
-      const margin =
-        first && second
-          ? Number((first.score - second.score).toFixed(4))
-          : null;
-
-      const predicted =
-        result.relevant
-          ? first?.code ?? 'NONE'
-          : 'NONE';
-
-      rows.push({
-        archivo: test.name,
-        esperado: test.expected,
-        predicho: predicted,
-        score1: first?.score ?? null,
-        score2: second?.score ?? null,
-        margen: margin,
-        correcto:
-          predicted === test.expected
-            ? 'SI'
-            : 'NO',
-      });
+  if (seleccionados.includes('local')) {
+    const estado = await checkLlmAvailable();
+    if (!estado.available) {
+      console.error(`No se puede usar el proveedor local: ${estado.reason}`);
+      console.error(`Verifica que Ollama esté corriendo y que ${LLM_MODEL} esté descargado.`);
+      process.exitCode = 1;
+      return;
     }
+    console.log(`Modelo local: ${LLM_MODEL}`);
+  }
 
-    console.log('\n=== RESULTADOS ===\n');
-    console.table(rows);
-  } finally {
-    if (createdDocumentIds.length > 0) {
-      await prisma.document.deleteMany({
-        where: {
-          id: {
-            in: createdDocumentIds,
-          },
-        },
-      });
+  if (seleccionados.includes('gemini') && !process.env.GEMINI_API_KEY) {
+    console.error('No hay GEMINI_API_KEY: se omite el proveedor gemini.');
+    seleccionados.splice(seleccionados.indexOf('gemini'), 1);
+  }
 
-      console.log('\nDocumentos temporales eliminados.');
-    }
+  const resumen = [];
+  for (const provider of seleccionados) {
+    resumen.push(await runProvider(provider));
+  }
+
+  if (resumen.length > 1) {
+    console.log('\n=== COMPARACIÓN ===');
+    console.table(
+      resumen.map((r) => ({
+        proveedor: r.provider,
+        accuracy: `${r.aciertos}/${r.total}`,
+        'latencia media (s)': (r.totalMs / r.total / 1000).toFixed(1),
+      }))
+    );
   }
 }
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

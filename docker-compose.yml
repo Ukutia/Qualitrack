@@ -47,12 +47,22 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:4000/api/cloud/google/callback}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       EMBEDDING_SERVICE_URL: http://embedding-service:8000
+      # Clasificador: local (Ollama), gemini o keywords.
+      CLASSIFIER_PROVIDER: ${CLASSIFIER_PROVIDER:-local}
+      # Ollama corre en el host (Windows), no en un contenedor: necesita GPU.
+      LLM_SERVICE_URL: ${LLM_SERVICE_URL:-http://host.docker.internal:11434}
+      LLM_MODEL: ${LLM_MODEL:-qwen3.5:9b}
+      LLM_AUTH_TOKEN: ${LLM_AUTH_TOKEN:-}
     volumes:
       - ./backend:/app          # hot-reload: código fuente del host
       - /app/node_modules       # preserva node_modules del contenedor
       - filedata:/app/data
     ports:
       - "4000:4000"
+    extra_hosts:
+      # En Docker Desktop host.docker.internal existe solo; en Linux hay que
+      # declararlo para poder alcanzar Ollama en la máquina anfitriona.
+      - "host.docker.internal:host-gateway"
 
   frontend:
     build: ./frontend
