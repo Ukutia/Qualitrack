@@ -15,6 +15,17 @@ const LLM_MODEL = process.env.LLM_MODEL || "qwen3.5:9b";
 const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 120000);
 
 /**
+ * Cabecera de autenticación, necesaria cuando Ollama está detrás del proxy
+ * de scripts/ollama-proxy.js (por ejemplo al publicarlo por un túnel).
+ * Ollama por sí solo ignora este header.
+ */
+function authHeaders() {
+  return process.env.LLM_AUTH_TOKEN
+    ? { Authorization: `Bearer ${process.env.LLM_AUTH_TOKEN}` }
+    : {};
+}
+
+/**
  * Genera una respuesta JSON que cumple el esquema entregado.
  *
  * @param {object}  params
@@ -28,11 +39,7 @@ export async function generateStructured({ system, user, schema }) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      // Permite poner un reverse proxy con autenticación delante de Ollama,
-      // que por sí solo no tiene ningún control de acceso.
-      ...(process.env.LLM_AUTH_TOKEN
-        ? { Authorization: `Bearer ${process.env.LLM_AUTH_TOKEN}` }
-        : {}),
+      ...authHeaders(),
     },
     body: JSON.stringify({
       model: LLM_MODEL,
@@ -77,6 +84,7 @@ export async function generateStructured({ system, user, schema }) {
 export async function checkLlmAvailable() {
   try {
     const response = await fetch(`${LLM_SERVICE_URL}/api/tags`, {
+      headers: authHeaders(),
       signal: AbortSignal.timeout(5000),
     });
 
