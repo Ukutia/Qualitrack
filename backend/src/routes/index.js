@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { prisma } from '../config/prisma.js';
 import { publishAnalysisStatus } from '../services/analysisEvents.service.js';
 import { requireAuth } from '../middleware/auth.js';
 import { enforceRolePolicy } from '../middleware/authorize.js';
@@ -67,6 +68,11 @@ router.get('/cloud/dropbox/callback', cloud.dropboxCallback);
 
 // Webhook de actualización de estado de análisis (HU12)
 router.post('/webhooks/worker-update', async (req, res) => {
+    const workerToken = req.headers['x-worker-token'];
+    if (workerToken !== process.env.WORKER_WEBHOOK_SECRET) {
+        console.warn('Intento de acceso no autorizado al webhook');
+        return res.status(401).json({ error: 'No autorizado' });
+    }
     const { documentId, status, result, userId, error } = req.body;
 
     await prisma.document.update({

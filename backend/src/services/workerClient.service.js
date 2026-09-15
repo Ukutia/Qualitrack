@@ -20,14 +20,15 @@ export async function sendToWorker(documentId, userId) {
     // --------------------------------------------------------
 
     // Encriptación del archivo antes de salir a la red (Paso 4)
+    // Encriptación GCM (Protección de Integridad)
     const fileBuffer = await fs.readFile(doc.storagePath); 
-    
-    const algorithm = 'aes-256-cbc';
+    const algorithm = 'aes-256-gcm'; 
     const key = Buffer.from(process.env.WORKER_ENCRYPTION_KEY, 'hex'); 
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(algorithm, key, iv);
     
     const encryptedFile = Buffer.concat([cipher.update(fileBuffer), cipher.final()]);
+    const authTag = cipher.getAuthTag(); // El sello matemático de seguridad
 
     const workerUrl = process.env.WORKER_URL; 
     if (!workerUrl) throw new Error('WORKER_URL no configurada.');
@@ -40,8 +41,9 @@ export async function sendToWorker(documentId, userId) {
         documentId,
         userId,
         iv: iv.toString('hex'),
+        authTag: authTag.toString('hex'), // Enviamos el sello
         fileData: encryptedFile.toString('base64'),
-        subcriteria // <-- NUEVO: Los subcriterios viajan junto con el archivo
+        subcriteria 
       })
     });
 
