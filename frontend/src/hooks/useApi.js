@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { api } from '../lib/api.js';
 
 const DOCUMENT_IMPORT_TIMEOUT = 300000; // 5 minutos
@@ -81,7 +82,8 @@ export function useDocument(id) {
     if (!id) return undefined;
 
     const token = localStorage.getItem('qualitrack_token');
-    const streamUrl = `${api.defaults.baseURL || '/api'}/events/documents/${id}?token=${encodeURIComponent(token || '')}`;
+    //const streamUrl = `${api.defaults.baseURL || '/api'}/events/documents/${id}?token=${encodeURIComponent(token || '')}`;
+    const streamUrl = `${api.defaults.baseURL || '/api'}/documents/${id}/stream?token=${encodeURIComponent(token || '')}`;
     const source = new EventSource(streamUrl);
 
     source.addEventListener('analysis-status', (event) => {

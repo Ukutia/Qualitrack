@@ -1,8 +1,7 @@
 // HU01 — Asociación de evidencia al Criterio 9 (propuesta / validar / descartar).
 import { prisma } from '../config/prisma.js';
-import { classifyText } from '../services/classifier.service.js';
-import { decryptText } from '../services/encryption.service.js';
-import { sendToWorker } from '../services/workerClient.service.js';
+import { sendToWorker } from '../services/workerClient.service.js'; 
+import { updateAnalysisStatus } from '../services/analysisEvents.service.js';
 
 const CRITERION_CODE = '9';
 
@@ -57,72 +56,6 @@ export async function classifyDocument(req, res) {
     analysisStatus: 'PREPARING_ANALYSIS',
   });
 }
-
-   // La nueva clasificación queda pendiente. Sustituye una propuesta pendiente
-  // anterior, pero nunca desplaza la asociación validada hasta que se apruebe.
-  const association = await prisma.$transaction(async (tx) => {
-    const pending = await tx.association.findMany({
-      where: { documentId, status: 'PROPOSED' },
-    });
-
-    if (pending.length) {
-      await tx.association.updateMany({
-        where: { id: { in: pending.map((item) => item.id) } },
-        data: { status: 'NOT_VALIDATED', validatedById: null, validatedAt: null },
-      });
-      await tx.associationHistory.createMany({
-        data: pending.map((item) => ({
-          associationId: item.id,
-          action: 'REJECTED',
-          userId: req.user.id,
-          snapshot: { reemplazadaPorNuevaPropuestaIA: true },
-        })),
-      });
-    }
-
-    const created = await tx.association.create({
-      data: {
-        documentId,
-        subcriterionId: result.subcriterionId,
-        status: 'PROPOSED',
-        justification: result.justification,
-        evidenceFragment: result.evidenceFragment,
-        confidence: result.confidence,
-      },
-      include: { subcriterion: true },
-    });
-
-    await tx.associationHistory.create({
-      data: {
-        associationId: created.id,
-        action: 'PROPOSED',
-        userId: req.user.id,
-        snapshot: {
-          subcriterion: created.subcriterion.code,
-          confidence: result.confidence,
-          matchedKeywords: result.matchedKeywords,
-        },
-      },
-    });
-
-    return created;
-  });
-
-  return res.json({
-    relevant: true,
-    association: {
-      id: association.id,
-      status: association.status,
-      subcriterion: {
-        code: association.subcriterion.code,
-        name: association.subcriterion.name,
-      },
-      justification: association.justification,
-      evidenceFragment: association.evidenceFragment,
-      confidence: association.confidence,
-    },
-  });
-
 
 /** POST /associations/:id/validate */
 export async function validateAssociation(req, res) {
@@ -184,13 +117,6 @@ export async function rejectAssociation(req, res) {
 
 /**
  * PUT /documents/:id/association — reasignación manual del subcriterio (EP 1.2).
- *
- * Cuando el usuario elige un subcriterio a mano, la nueva asociación queda
- * validada por él y reemplaza cualquier asociación vigente o propuesta. Las
- * anteriores se conservan como no validadas para mantener la auditoría.
- *
- * La pertenencia del documento (rol User solo sobre lo propio; Admin sin
- * restricción) la resuelve requireOwnDocument en la ruta, no este controller.
  */
 export async function reassignAssociation(req, res) {
   const documentId = Number(req.params.id);

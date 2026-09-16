@@ -161,8 +161,9 @@ model Document {
   /// Estado del flujo de análisis documental: RECEIVED, PREPARING_ANALYSIS, SENT_TO_ANALYZER,
   /// RECEIVED_BY_ANALYZER, EXTRACTING_CONTENT, ANALYZING_CONTENT, RECEIVING_RESULT,
   /// COMPLETED y ERROR.
-  analysisStatus String @default("RECEIVED")
+  analysisStatus String? @default("RECEIVED")
   /// PROCESSING mientras se generan embeddings; READY al terminar; FAILED si falla.
+  analysisError  String?
   vectorizationStatus String   @default("READY")
   uploadedAt    DateTime       @default(now())
 

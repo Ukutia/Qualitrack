@@ -23,14 +23,16 @@ export async function sendToWorker(documentId, userId) {
     // Encriptación GCM (Protección de Integridad)
     const fileBuffer = await fs.readFile(doc.storagePath); 
     const algorithm = 'aes-256-gcm'; 
-    const key = Buffer.from(process.env.WORKER_ENCRYPTION_KEY, 'hex'); 
+    const secretKey = process.env.WORKER_ENCRYPTION_KEY || 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';
+    const key = Buffer.from(secretKey, 'hex');     // en vez de secretKey es process.env.WORKER_ENCRYPTION_KEY
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(algorithm, key, iv);
     
     const encryptedFile = Buffer.concat([cipher.update(fileBuffer), cipher.final()]);
     const authTag = cipher.getAuthTag(); // El sello matemático de seguridad
 
-    const workerUrl = process.env.WORKER_URL; 
+    //const workerUrl = process.env.WORKER_URL; 
+    const workerUrl = process.env.WORKER_URL || 'http://analysis-worker:4001';
     if (!workerUrl) throw new Error('WORKER_URL no configurada.');
 
     // Llamada HTTP interna (Túnel Privado)

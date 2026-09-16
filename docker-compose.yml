@@ -65,6 +65,8 @@ services:
         condition: service_healthy
       embedding-service:
         condition: service_started
+      backend:
+        condition: service_started
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://qualitrack:qualitrack@db:5432/qualitrack?schema=public}
       PORT: ${ANALYSIS_WORKER_PORT:-4001}
@@ -105,6 +107,8 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
 
 volumes:
   pgdata:
