@@ -37,6 +37,8 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto-en-produccion}
       DOC_ENCRYPTION_KEY: ${DOC_ENCRYPTION_KEY:-}
+      REQUEST_TOKEN_ENCRYPTION_KEY: ${REQUEST_TOKEN_ENCRYPTION_KEY:-}
+      REQUEST_SCHEDULER_INTERVAL_MS: ${REQUEST_SCHEDULER_INTERVAL_MS:-15000}
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-10}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@qualitrack.cl}
