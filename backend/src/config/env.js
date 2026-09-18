@@ -8,6 +8,11 @@ export const config = {
   // Clave para cifrar los archivos en reposo (HDU09). Si se omite, se deriva
   // de JWT_SECRET.
   docEncryptionKey: process.env.DOC_ENCRYPTION_KEY || '',
+    requestTokenEncryptionKey: process.env.REQUEST_TOKEN_ENCRYPTION_KEY || '',
+  requestSchedulerIntervalMs: Math.max(
+    1000,
+    parseInt(process.env.REQUEST_SCHEDULER_INTERVAL_MS || '15000', 10) || 15000
+  ),
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
