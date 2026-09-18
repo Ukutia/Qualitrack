@@ -47,6 +47,13 @@ import {
   restoreStructureVersion,
 } from '../controllers/criteria.controller.js';
 import * as cloud from '../controllers/cloud.controller.js';
+import {
+  listDocumentRequests,
+  createDocumentRequest,
+  pauseDocumentRequest,
+  resumeDocumentRequest,
+  cancelDocumentRequest,
+} from '../controllers/documentRequests.controller.js';
 
 const router = Router();
 
@@ -115,6 +122,13 @@ router.put('/report-drafts/:id', updateDraft);
 router.delete('/report-drafts/:id', deleteDraft);
 router.get('/report-drafts/:id/history', getDraftHistory);
 router.post('/report-drafts/:id/versions/:version/restore', restoreDraftVersion);
+
+// Solicitudes de documentos — primera etapa: ciclo de vida y tokens.
+router.get('/document-requests', listDocumentRequests);
+router.post('/document-requests', createDocumentRequest);
+router.post('/document-requests/:id/pause', pauseDocumentRequest);
+router.post('/document-requests/:id/resume', resumeDocumentRequest);
+router.post('/document-requests/:id/cancel', cancelDocumentRequest);
 
 // Google Drive (HU09)
 router.get('/cloud/google/status', cloud.status);
