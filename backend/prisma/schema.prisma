@@ -33,6 +33,13 @@ enum SectionChange {
   RENAMED
 }
 
+enum DocumentRequestStatus {
+  PENDING
+  PAUSED
+  CANCELLED
+  RECEIVED
+}
+
 model User {
   id           Int      @id @default(autoincrement())
   name         String
@@ -51,6 +58,32 @@ model User {
   reportDrafts        ReportDraft[]
   reportDraftVersions ReportDraftVersion[]
   topics              Topic[]
+  documentRequests    DocumentRequest[]
+}
+
+/// Solicitud de una evidencia a una persona externa. El token en claro se
+/// conserva cifrado únicamente para poder incluirlo en correos y, durante la
+/// primera etapa de la HU, mostrarlo al creador. `tokenHash` será la credencial
+/// consultada por los endpoints públicos cuando los enlaces sean habilitados.
+model DocumentRequest {
+  id                      Int                   @id @default(autoincrement())
+  recipientEmail          String
+  description             String                @db.Text
+  status                  DocumentRequestStatus @default(PENDING)
+  reminderIntervalMinutes Int
+  nextReminderAt          DateTime?
+  tokenHash               String?               @unique
+  tokenEncrypted          String?               @db.Text
+  tokenVersion            Int                   @default(1)
+  tokenCreatedAt          DateTime?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  createdBy   User @relation(fields: [createdById], references: [id])
+  createdById Int
+
+  @@index([status, nextReminderAt])
+  @@index([createdById, createdAt])
 }
 
 model Criterion {
