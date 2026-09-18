@@ -3,6 +3,32 @@ import { api } from '../lib/api.js';
 
 const DOCUMENT_IMPORT_TIMEOUT = 300000; // 5 minutos
 
+// ── Solicitudes de documentos ──────────────────────────────────────
+export function useDocumentRequests() {
+  return useQuery({
+    queryKey: ['document-requests'],
+    queryFn: async () => (await api.get('/document-requests')).data,
+    refetchInterval: 2000,
+  });
+}
+
+export function useCreateDocumentRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => (await api.post('/document-requests', payload)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-requests'] }),
+  });
+}
+
+export function useDocumentRequestAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, action }) =>
+      (await api.post(`/document-requests/${id}/${action}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-requests'] }),
+  });
+}
+
 // ── Documentos (HU07) ───────────────────────────────────────────────
 export function useDocuments() {
   return useQuery({
