@@ -65,7 +65,14 @@ export async function sendToWorker(documentId, userId) {
     // Llamada HTTP interna (Túnel Privado)
     const response = await fetch(`${workerUrl}/api/analyze`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // El worker se publica por un tunel: sin esto su /api/analyze queda
+        // abierto a cualquiera que descubra la URL.
+        ...(process.env.WORKER_API_TOKEN
+          ? { 'x-worker-token': process.env.WORKER_API_TOKEN }
+          : {}),
+      },
       body: JSON.stringify({
         documentId,
         userId,

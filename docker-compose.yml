@@ -52,6 +52,7 @@ services:
       WORKER_URL: ${WORKER_URL:-http://host.docker.internal:4001}
       WORKER_ENCRYPTION_KEY: ${WORKER_ENCRYPTION_KEY:?Falta WORKER_ENCRYPTION_KEY en .env}
       WORKER_WEBHOOK_SECRET: ${WORKER_WEBHOOK_SECRET:?Falta WORKER_WEBHOOK_SECRET en .env}
+      WORKER_API_TOKEN: ${WORKER_API_TOKEN:-}
     volumes:
       - ./backend:/app          # hot-reload: código fuente del host
       - /app/node_modules       # preserva node_modules del contenedor
