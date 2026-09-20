@@ -47,43 +47,21 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:4000/api/cloud/google/callback}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       EMBEDDING_SERVICE_URL: http://embedding-service:8000
-      ANALYSIS_WORKER_URL: ${ANALYSIS_WORKER_URL:-http://analysis-worker:4001}
-      ANALYSIS_WORKER_TOKEN: ${ANALYSIS_WORKER_TOKEN:-local-analysis-token}
+      # El worker de analisis corre en el HOST, junto a la GPU: un contenedor
+      # aislado no alcanza a Ollama en 127.0.0.1. Ver qualitrack-worker.
+      WORKER_URL: ${WORKER_URL:-http://host.docker.internal:4001}
+      WORKER_ENCRYPTION_KEY: ${WORKER_ENCRYPTION_KEY:?Falta WORKER_ENCRYPTION_KEY en .env}
+      WORKER_WEBHOOK_SECRET: ${WORKER_WEBHOOK_SECRET:?Falta WORKER_WEBHOOK_SECRET en .env}
     volumes:
       - ./backend:/app          # hot-reload: código fuente del host
       - /app/node_modules       # preserva node_modules del contenedor
       - filedata:/app/data
     ports:
       - "4000:4000"
-
-  analysis-worker:
-    build: ./backend
-    container_name: qualitrack-analysis-worker
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-      embedding-service:
-        condition: service_started
-      backend:
-        condition: service_started
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://qualitrack:qualitrack@db:5432/qualitrack?schema=public}
-      PORT: ${ANALYSIS_WORKER_PORT:-4001}
-      NODE_ENV: ${NODE_ENV:-development}
-      JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto-en-produccion}
-      DOC_ENCRYPTION_KEY: ${DOC_ENCRYPTION_KEY:-}
-      ANALYSIS_WORKER_PORT: ${ANALYSIS_WORKER_PORT:-4001}
-      ANALYSIS_WORKER_POLL_MS: ${ANALYSIS_WORKER_POLL_MS:-5000}
-      ANALYSIS_WORKER_TOKEN: ${ANALYSIS_WORKER_TOKEN:-local-analysis-token}
-      EMBEDDING_SERVICE_URL: http://embedding-service:8000
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-      - filedata:/app/data
-    command: npm run worker:analysis
-    ports:
-      - "${ANALYSIS_WORKER_PORT:-4001}:4001"
+    extra_hosts:
+      # En Docker Desktop host.docker.internal existe solo; en Linux hay que
+      # declararlo para alcanzar el worker en la maquina anfitriona.
+      - "host.docker.internal:host-gateway"
 
   frontend:
     build: ./frontend

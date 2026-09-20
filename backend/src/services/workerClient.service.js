@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import fs from 'node:fs/promises';
+import { readFile } from './storage.service.js';
 import { prisma } from '../config/prisma.js';
 import { updateAnalysisStatus } from './analysisEvents.service.js'; // O donde tengas esta función
 
@@ -21,19 +21,46 @@ export async function sendToWorker(documentId, userId) {
 
     // Encriptación del archivo antes de salir a la red (Paso 4)
     // Encriptación GCM (Protección de Integridad)
-    const fileBuffer = await fs.readFile(doc.storagePath); 
-    const algorithm = 'aes-256-gcm'; 
-    const secretKey = process.env.WORKER_ENCRYPTION_KEY || 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';
-    const key = Buffer.from(secretKey, 'hex');     // en vez de secretKey es process.env.WORKER_ENCRYPTION_KEY
+    // readFile() descifra el cifrado en reposo (storage.service.js). Con
+    // fs.readFile se enviaba el archivo cifrado tal cual: el worker descifraba
+    // su propia capa y encontraba ciphertext, no un PDF, y clasificaba basura.
+    const fileBuffer = await readFile(doc.storagePath);
+    const algorithm = 'aes-256-gcm';
+
+    // Sin llave por defecto: una constante en el codigo fuente no protege
+    // nada, y ademas no coincidiria con la del worker, lo que produce un
+    // "unable to authenticate data" dificil de rastrear. Mejor fallar aqui.
+    const secretKey = process.env.WORKER_ENCRYPTION_KEY;
+
+    if (!secretKey || !/^[0-9a-fA-F]{64}$/.test(secretKey)) {
+      throw new Error(
+        'WORKER_ENCRYPTION_KEY debe ser 64 caracteres hexadecimales y coincidir ' +
+        'con la del worker. Genera una con: ' +
+        'node -e "console.log(require(`crypto`).randomBytes(32).toString(`hex`))"'
+      );
+    }
+
+    const key = Buffer.from(secretKey, 'hex');
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(algorithm, key, iv);
     
     const encryptedFile = Buffer.concat([cipher.update(fileBuffer), cipher.final()]);
     const authTag = cipher.getAuthTag(); // El sello matemático de seguridad
 
-    //const workerUrl = process.env.WORKER_URL; 
-    const workerUrl = process.env.WORKER_URL || 'http://analysis-worker:4001';
+    const workerUrl = process.env.WORKER_URL;
+
     if (!workerUrl) throw new Error('WORKER_URL no configurada.');
+
+    // Un valor como "100.97.61.118" (sin esquema ni puerto) hace que fetch
+    // lance "Invalid URL" desde dentro del try, y el error real se pierde.
+    try {
+      new URL(workerUrl);
+    } catch {
+      throw new Error(
+        `WORKER_URL="${workerUrl}" no es una URL valida. ` +
+        'Debe incluir esquema y puerto, por ejemplo http://host.docker.internal:4001'
+      );
+    }
 
     // Llamada HTTP interna (Túnel Privado)
     const response = await fetch(`${workerUrl}/api/analyze`, {
