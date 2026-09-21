@@ -1,4 +1,7 @@
 import { Router } from 'express';
+import { prisma } from '../config/prisma.js';
+import { publishAnalysisStatus } from '../services/analysisEvents.service.js';
+import { claimNextJob } from '../services/workerQueue.service.js';
 import { requireAuth } from '../middleware/auth.js';
 import { enforceRolePolicy } from '../middleware/authorize.js';
 import {
@@ -24,6 +27,8 @@ import {
   listDocuments,
   getDocument,
   serveFile,
+  streamDocumentStatus,
+  updateDocumentAnalysisStatus,
   updateDocumentDate,
   trashDocument,
   listTrash,
@@ -62,6 +67,118 @@ router.get('/cloud/google/callback', cloud.callback);
 // Dropbox callback público
 router.get('/cloud/dropbox/callback', cloud.dropboxCallback);
 
+// Valida cualquier :id de la API antes de que llegue a un controlador.
+//
+// Sin esto, "/documents/undefined" produce Number("undefined") = NaN, Prisma
+// lanza, y como Express 4 no atrapa los rechazos de un handler async el proceso
+// entero se cae: una URL mal formada bastaba para tumbar el backend.
+router.param('id', (req, res, next, value) => {
+    const id = Number(value);
+
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ error: `Id invalido: "${value}".` });
+    }
+
+    return next();
+});
+
+// Cola de trabajos para el worker de analisis (HU11).
+//
+// Va antes de requireAuth a proposito: el worker no es un usuario con sesion,
+// se autentica con el token compartido igual que el webhook. Preguntar es su
+// unica forma de recibir trabajo, porque corre en una maquina domestica sin IP
+// estable ni puertos abiertos.
+router.get('/worker/jobs', async (req, res) => {
+    if (req.headers['x-worker-token'] !== process.env.WORKER_API_TOKEN) {
+        console.warn('Intento de acceso no autorizado a la cola del worker');
+        return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    try {
+        const job = await claimNextJob();
+
+        // 204 para que el worker distinga "no hay trabajo" de un error y siga
+        // preguntando en silencio.
+        if (!job) return res.status(204).end();
+
+        return res.json(job);
+    } catch (error) {
+        console.error('Error entregando trabajo al worker:', error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
+// Webhook de actualización de estado de análisis (HU12)
+router.post('/webhooks/worker-update', async (req, res) => {
+    const workerToken = req.headers['x-worker-token'];
+    if (workerToken !== process.env.WORKER_WEBHOOK_SECRET) {
+        console.warn('Intento de acceso no autorizado al webhook');
+        return res.status(401).json({ error: 'No autorizado' });
+    }
+    const { documentId, status, result, userId, error } = req.body;
+
+    await prisma.document.update({
+        where: { id: documentId },
+        data: { analysisStatus: status, analysisError: error }
+    });
+
+    if (status === 'COMPLETED' && result && result.relevant) {
+        await prisma.$transaction(async (tx) => {
+            const pending = await tx.association.findMany({
+                where: { documentId, status: 'PROPOSED' },
+            });
+
+            if (pending.length) {
+                await tx.association.updateMany({
+                    where: { id: { in: pending.map((item) => item.id) } },
+                    data: { status: 'NOT_VALIDATED', validatedById: null, validatedAt: null },
+                });
+                await tx.associationHistory.createMany({
+                    data: pending.map((item) => ({
+                        associationId: item.id,
+                        action: 'REJECTED',
+                        userId,
+                        snapshot: { reemplazadaPorNuevaPropuestaIA: true },
+                    })),
+                });
+            }
+
+            const created = await tx.association.create({
+                data: {
+                    documentId,
+                    subcriterionId: result.subcriterionId,
+                    status: 'PROPOSED',
+                    justification: result.justification,
+                    evidenceFragment: result.evidenceFragment,
+                    confidence: result.confidence,
+                }
+            });
+
+            await tx.associationHistory.create({
+                data: {
+                    associationId: created.id,
+                    action: 'PROPOSED',
+                    userId,
+                    snapshot: {
+                        subcriterion: result.subcriterion.code,
+                        confidence: result.confidence,
+                        matchedKeywords: result.matchedKeywords,
+                    },
+                },
+            });
+        });
+    }
+
+    publishAnalysisStatus({
+        documentId,
+        analysisStatus: status,
+        analysisError: error,
+        analysisStatusUpdatedAt: new Date(),
+    });
+
+    res.status(200).send('OK');
+});
+
 // A partir de aquí, todo requiere autenticación y un rol con permiso sobre la
 // ruta (EP 1.1 · EP 1.2). La política es de denegación por defecto y se resuelve
 // antes de consultar la base de datos.
@@ -80,8 +197,10 @@ router.delete('/topics/:id', deleteTopic);
 router.post('/documents', upload.single('file'), uploadDocument);
 router.get('/documents', listDocuments);
 router.get('/documents/trash', listTrash);
+router.get('/documents/:id/stream', requireViewableDocument, streamDocumentStatus);
 router.get('/documents/:id', requireViewableDocument, getDocument);
 router.get('/documents/:id/file', requireViewableDocument, serveFile);
+router.patch('/documents/:id/analysis-status', requireOwnDocument, updateDocumentAnalysisStatus);
 router.patch('/documents/:id/date', requireOwnDocument, updateDocumentDate);
 router.post('/documents/:id/trash', requireOwnDocument, trashDocument);
 router.post('/documents/:id/restore', requireOwnDocument, restoreDocument);
@@ -127,4 +246,5 @@ router.get('/cloud/dropbox/files',    cloud.dropboxListFiles);
 router.post('/cloud/dropbox/import',  cloud.dropboxImportFile);
 
 router.delete('/cloud/:provider/disconnect', cloud.disconnect);
+
 export default router;

@@ -158,7 +158,15 @@ model Document {
   cloudLocation String?
   documentDate  DateTime       @default(now()) // base para antigüedad (HU02)
   extractedText String?        @db.Text
+  /// Estado del flujo de análisis documental: RECEIVED, PREPARING_ANALYSIS, SENT_TO_ANALYZER,
+  /// RECEIVED_BY_ANALYZER, EXTRACTING_CONTENT, ANALYZING_CONTENT, RECEIVING_RESULT,
+  /// COMPLETED y ERROR.
+  analysisStatus String? @default("RECEIVED")
   /// PROCESSING mientras se generan embeddings; READY al terminar; FAILED si falla.
+  analysisError  String?
+  /// Cuando cambio analysisStatus por ultima vez. Permite reencolar los
+  /// documentos que un worker tomo y nunca termino.
+  analysisStatusUpdatedAt DateTime?
   vectorizationStatus String   @default("READY")
   uploadedAt    DateTime       @default(now())
 
@@ -169,6 +177,10 @@ model Document {
 
   associations Association[]
   chunks DocumentChunk[]
+
+  /// El worker consulta la cola cada pocos segundos; sin este indice cada
+  /// sondeo recorre la tabla entera.
+  @@index([analysisStatus, deletedAt])
 }
 
 model Association {

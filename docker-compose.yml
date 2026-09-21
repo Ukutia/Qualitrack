@@ -47,12 +47,22 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:4000/api/cloud/google/callback}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       EMBEDDING_SERVICE_URL: http://embedding-service:8000
+      # El worker de analisis corre en el HOST, junto a la GPU: un contenedor
+      # aislado no alcanza a Ollama en 127.0.0.1. Ver qualitrack-worker.
+      WORKER_URL: ${WORKER_URL:-http://host.docker.internal:4001}
+      WORKER_ENCRYPTION_KEY: ${WORKER_ENCRYPTION_KEY:?Falta WORKER_ENCRYPTION_KEY en .env}
+      WORKER_WEBHOOK_SECRET: ${WORKER_WEBHOOK_SECRET:?Falta WORKER_WEBHOOK_SECRET en .env}
+      WORKER_API_TOKEN: ${WORKER_API_TOKEN:-}
     volumes:
       - ./backend:/app          # hot-reload: código fuente del host
       - /app/node_modules       # preserva node_modules del contenedor
       - filedata:/app/data
     ports:
       - "4000:4000"
+    extra_hosts:
+      # En Docker Desktop host.docker.internal existe solo; en Linux hay que
+      # declararlo para alcanzar el worker en la maquina anfitriona.
+      - "host.docker.internal:host-gateway"
 
   frontend:
     build: ./frontend
@@ -76,6 +86,8 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
 
 volumes:
   pgdata:

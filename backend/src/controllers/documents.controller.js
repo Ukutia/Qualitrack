@@ -7,6 +7,8 @@ import { vectorizeDocument } from '../services/vector.service.js';
 import { formatFromName } from '../middleware/upload.js';
 import { ownerFilter, viewFilter } from '../middleware/ownership.js';
 import { encryptText, decryptText } from '../services/encryption.service.js';
+import { normalizeAnalysisStatus, toDisplayAnalysisStatus } from '../services/analysisStatus.service.js';
+import { normalizeVectorizationStatus } from '../services/analysisStatus.service.js';
 
 const MIME = {
   pdf:  'application/pdf',
@@ -191,6 +193,7 @@ export async function listDocuments(req, res) {
       associationStatus,
       subcriterion: validated?.subcriterion?.code || proposed?.subcriterion?.code || null,
       vectorizationStatus: d.vectorizationStatus,
+      analysisStatus: toDisplayAnalysisStatus(d.analysisStatus),
     };
   });
 
@@ -226,6 +229,7 @@ export async function getDocument(req, res) {
     uploadedById: doc.uploadedById,
     uploadedBy: doc.uploadedBy?.name,
     vectorizationStatus: doc.vectorizationStatus,
+    analysisStatus: toDisplayAnalysisStatus(doc.analysisStatus),
     textPreview: (decryptText(doc.extractedText) || '').slice(0, 1500),
     associations: doc.associations.map((a) => ({
       id: a.id,
@@ -246,6 +250,103 @@ export async function getDocument(req, res) {
 }
 
 /** Sirve el archivo binario almacenado para visualización o descarga. */
+const documentStatusStreams = new Map();
+
+function sendDocumentStatus(res, doc, source = 'initial') {
+  const payload = {
+    id: doc.id,
+    name: doc.originalName,
+    analysisStatus: toDisplayAnalysisStatus(doc.analysisStatus),
+    vectorizationStatus: doc.vectorizationStatus,
+    source,
+    message: 'document-status',
+  };
+
+  res.write(`event: document-status\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+export async function streamDocumentStatus(req, res) {
+  const id = Number(req.params.id);
+  const doc = await prisma.document.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      originalName: true,
+      analysisStatus: true,
+      vectorizationStatus: true,
+    },
+  });
+
+  if (!doc) {
+    return res.status(404).json({ error: 'Documento no encontrado.' });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
+
+  const listeners = documentStatusStreams.get(id) || new Set();
+  if (!documentStatusStreams.has(id)) documentStatusStreams.set(id, listeners);
+  listeners.add(res);
+
+  sendDocumentStatus(res, doc, 'initial');
+
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(': heartbeat\n\n');
+    } catch {
+      clearInterval(heartbeat);
+      listeners.delete(res);
+    }
+  }, 25000);
+
+  const poller = setInterval(async () => {
+    try {
+      const next = await prisma.document.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          originalName: true,
+          analysisStatus: true,
+          vectorizationStatus: true,
+        },
+      });
+
+      if (!next) return;
+
+      const previous = await prisma.document.findUnique({
+        where: { id },
+        select: { analysisStatus: true, vectorizationStatus: true },
+      });
+
+      if (
+        previous?.analysisStatus !== next.analysisStatus ||
+        previous?.vectorizationStatus !== next.vectorizationStatus
+      ) {
+        for (const stream of listeners) {
+          try {
+            sendDocumentStatus(stream, next, 'db-refresh');
+          } catch {
+            listeners.delete(stream);
+          }
+        }
+      }
+    } catch {
+      // El stream sigue vivo aunque la base de datos no responda
+    }
+  }, 2000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    clearInterval(poller);
+    listeners.delete(res);
+    if (listeners.size === 0) documentStatusStreams.delete(id);
+  });
+}
+
 export async function serveFile(req, res) {
   const id = Number(req.params.id);
   const doc = await prisma.document.findUnique({ where: { id } });
@@ -267,6 +368,26 @@ export async function serveFile(req, res) {
 }
 
 /** Permite ajustar la fecha del documento (base de antigüedad para HU02). */
+export async function updateDocumentAnalysisStatus(req, res) {
+  const id = Number(req.params.id);
+  const { analysisStatus } = req.body || {};
+
+  const normalized = normalizeAnalysisStatus(analysisStatus);
+  if (!Object.keys(ANALYSIS_STATUS_LABELS).includes(normalized)) {
+    return res.status(400).json({ error: 'analysisStatus inválido.' });
+  }
+
+  const doc = await prisma.document.update({
+    where: { id },
+    data: { analysisStatus: normalized },
+  });
+
+  return res.json({
+    id: doc.id,
+    analysisStatus: toDisplayAnalysisStatus(doc.analysisStatus),
+  });
+}
+
 export async function updateDocumentDate(req, res) {
   const id = Number(req.params.id);
   const { documentDate } = req.body || {};

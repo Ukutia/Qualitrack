@@ -11,6 +11,7 @@
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
     "db:encrypt-legacy-text": "node scripts/encrypt-existing-text.js",
+    "worker:analysis": "node scripts/analysis-woker.js",
     "test": "vitest run"
   },
   "prisma": {
@@ -27,6 +28,7 @@
     "mammoth": "^1.8.0",
     "multer": "^2.0.1",
     "pdf-parse": "^1.1.1",
+    "undici": "^7.29.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

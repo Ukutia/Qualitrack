@@ -178,7 +178,7 @@ function toggleSelectAll() {
           <table className="w-full text-sm">
             <thead className="bg-steel-50/80 text-steel-500 text-left">
               <tr>
-                {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación',''].map(h => (
+                {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación','Estado',''].map(h => (
                   <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -229,7 +229,7 @@ function toggleSelectAll() {
                     className="h-4 w-4 rounded border-steel-300 cursor-pointer"
                   />
                 </th>
-                {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación',''].map((h) => (
+                {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación','Estado',''].map((h) => (
                   <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -273,6 +273,11 @@ function toggleSelectAll() {
                     >
                       {d.associationStatus}
                       {d.subcriterion ? ` · ${d.subcriterion}` : ''}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ring-1 bg-steel-100 text-steel-700 ring-steel-200">
+                      {d.analysisStatus || d.vectorizationStatus || 'recibido'}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 overflow-visible">
