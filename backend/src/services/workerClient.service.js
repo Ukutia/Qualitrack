@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { readFile } from './storage.service.js';
+import { decryptText } from './encryption.service.js';
 import { dispatcherParaTailnet } from './tailnet.service.js';
 import { prisma } from '../config/prisma.js';
 import { updateAnalysisStatus } from './analysisEvents.service.js'; // O donde tengas esta función
@@ -22,10 +23,29 @@ export async function sendToWorker(documentId, userId) {
 
     // Encriptación del archivo antes de salir a la red (Paso 4)
     // Encriptación GCM (Protección de Integridad)
-    // readFile() descifra el cifrado en reposo (storage.service.js). Con
-    // fs.readFile se enviaba el archivo cifrado tal cual: el worker descifraba
-    // su propia capa y encontraba ciphertext, no un PDF, y clasificaba basura.
-    const fileBuffer = await readFile(doc.storagePath);
+    // Se manda el texto ya extraido, no el archivo. El backend lo extrae al
+    // subir el documento y lo guarda cifrado en la base de datos, asi que
+    // reenviar el PDF obligaba al worker a repetir ese trabajo y ataba la
+    // clasificacion a que el archivo siguiera en disco, algo que en un PaaS sin
+    // volumen persistente no se cumple: los registros sobreviven y los bytes no.
+    //
+    // De paso el payload baja de ~125 KB en base64 a ~27 KB de texto.
+    const texto = decryptText(doc.extractedText) || '';
+
+    let contenido;
+    let formato;
+
+    if (texto.trim()) {
+      contenido = Buffer.from(texto, 'utf-8');
+      formato = 'text';
+    } else {
+      // Sin texto extraido (por ejemplo un PDF escaneado) queda el archivo,
+      // si es que todavia existe.
+      contenido = await readFile(doc.storagePath);
+      formato = doc.format;
+    }
+
+    const fileBuffer = contenido;
     const algorithm = 'aes-256-gcm';
 
     // Sin llave por defecto: una constante en el codigo fuente no protege
@@ -85,7 +105,8 @@ export async function sendToWorker(documentId, userId) {
         iv: iv.toString('hex'),
         authTag: authTag.toString('hex'), // Enviamos el sello
         fileData: encryptedFile.toString('base64'),
-        subcriteria 
+        format: formato,
+        subcriteria
       })
     });
 

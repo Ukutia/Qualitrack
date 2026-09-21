@@ -194,6 +194,7 @@ export async function listDocuments(req, res) {
       subcriterion: validated?.subcriterion?.code || proposed?.subcriterion?.code || null,
       vectorizationStatus: d.vectorizationStatus,
       analysisStatus: toDisplayAnalysisStatus(d.analysisStatus),
+      analysisError: d.analysisError ?? null,
     };
   });
 
@@ -230,6 +231,10 @@ export async function getDocument(req, res) {
     uploadedBy: doc.uploadedBy?.name,
     vectorizationStatus: doc.vectorizationStatus,
     analysisStatus: toDisplayAnalysisStatus(doc.analysisStatus),
+    // Sin esto el usuario ve "error" y nada mas: el motivo quedaba guardado en
+    // la base de datos pero ningun endpoint lo devolvia, aunque el frontend ya
+    // lo espera en los eventos SSE.
+    analysisError: doc.analysisError ?? null,
     textPreview: (decryptText(doc.extractedText) || '').slice(0, 1500),
     associations: doc.associations.map((a) => ({
       id: a.id,
@@ -257,6 +262,10 @@ function sendDocumentStatus(res, doc, source = 'initial') {
     id: doc.id,
     name: doc.originalName,
     analysisStatus: toDisplayAnalysisStatus(doc.analysisStatus),
+    // Sin esto el usuario ve "error" y nada mas: el motivo quedaba guardado en
+    // la base de datos pero ningun endpoint lo devolvia, aunque el frontend ya
+    // lo espera en los eventos SSE.
+    analysisError: doc.analysisError ?? null,
     vectorizationStatus: doc.vectorizationStatus,
     source,
     message: 'document-status',
@@ -385,6 +394,10 @@ export async function updateDocumentAnalysisStatus(req, res) {
   return res.json({
     id: doc.id,
     analysisStatus: toDisplayAnalysisStatus(doc.analysisStatus),
+    // Sin esto el usuario ve "error" y nada mas: el motivo quedaba guardado en
+    // la base de datos pero ningun endpoint lo devolvia, aunque el frontend ya
+    // lo espera en los eventos SSE.
+    analysisError: doc.analysisError ?? null,
   });
 }
 

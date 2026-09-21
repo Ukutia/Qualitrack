@@ -28,7 +28,25 @@ export async function saveFile(buffer, originalName) {
  * de activar el cifrado se devuelven tal cual.
  */
 export async function readFile(storagePath) {
-  const stored = await fs.readFile(storagePath);
+  let stored;
+
+  try {
+    stored = await fs.readFile(storagePath);
+  } catch (err) {
+    // Causa tipica en PaaS: el contenedor se redesplego y el directorio de
+    // subidas no tiene volumen persistente, asi que el registro sobrevive en
+    // la base de datos pero los bytes no. Un ENOENT crudo no dice eso.
+    if (err.code === 'ENOENT') {
+      throw new Error(
+        `El archivo del documento ya no esta en el almacenamiento (${storagePath}). ` +
+        'Si esto ocurre tras un despliegue, el directorio de subidas no tiene ' +
+        'un volumen persistente montado y el documento debe cargarse de nuevo.'
+      );
+    }
+
+    throw err;
+  }
+
   return decryptBuffer(stored);
 }
 
