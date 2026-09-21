@@ -177,6 +177,10 @@ model Document {
 
   associations Association[]
   chunks DocumentChunk[]
+
+  /// El worker consulta la cola cada pocos segundos; sin este indice cada
+  /// sondeo recorre la tabla entera.
+  @@index([analysisStatus, deletedAt])
 }
 
 model Association {
