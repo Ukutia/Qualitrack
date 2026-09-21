@@ -23,7 +23,12 @@ export async function updateAnalysisStatus(documentId, status, error = null) {
     where: { id: documentId },
     data: {
       analysisStatus: status,
-      ...(error ? { analysisError: error } : {}) // Si hay error, lo guarda
+      analysisStatusUpdatedAt: new Date(),
+      // El error se limpia cuando el estado deja de serlo. Antes solo se
+      // escribia si habia error, asi que un fallo viejo sobrevivia a los
+      // analisis posteriores: el documento quedaba en "completado" arrastrando
+      // el mensaje de un intento anterior que ya no aplicaba.
+      analysisError: status === 'ERROR' ? error : null
     }
   });
 
