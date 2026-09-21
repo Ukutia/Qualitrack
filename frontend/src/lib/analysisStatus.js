@@ -52,14 +52,51 @@ export function isAnalysisInProgress(status) {
   return ANALYSIS_IN_PROGRESS.includes(normalizeAnalysisStatus(status));
 }
 
-/** "qwen3.5:9b" -> como mostrarlo al usuario. */
+/**
+ * Como presentar el motor que produjo una clasificacion.
+ *
+ * El color importa: una propuesta del respaldo por keywords se ve igual de
+ * convincente que una del modelo -mismo subcriterio, misma confianza, misma
+ * cita- pero no hubo ningun razonamiento detras. Distinguirlas de un vistazo
+ * evita que alguien valide como analisis de IA algo que fue coincidencia de
+ * terminos.
+ */
 export function describeEngine(engine) {
   if (!engine) return null;
+
+  if (engine === 'manual') {
+    return {
+      texto: 'Asignado manualmente',
+      clases: 'bg-steel-100 text-steel-600 border-steel-200',
+      esIA: false,
+    };
+  }
+
   if (engine === 'keywords') {
-    return { texto: 'Clasificado por coincidencia de terminos, sin IA', esIA: false };
+    return {
+      texto: 'Sin IA · coincidencia de terminos',
+      detalle:
+        'El modelo no estaba disponible o no devolvio un subcriterio valido, ' +
+        'asi que la propuesta proviene de buscar palabras clave en el texto. ' +
+        'Conviene revisarla con mas atencion.',
+      clases: 'bg-amber-50 text-amber-800 border-amber-200',
+      esIA: false,
+    };
   }
+
   if (engine.startsWith('gemini')) {
-    return { texto: `Clasificado por ${engine} (servicio externo)`, esIA: true };
+    return {
+      texto: `IA externa · ${engine}`,
+      detalle: 'El texto del documento se envio a un servicio externo.',
+      clases: 'bg-violet-50 text-violet-800 border-violet-200',
+      esIA: true,
+    };
   }
-  return { texto: `Clasificado por ${engine} en tu equipo`, esIA: true };
+
+  return {
+    texto: `IA local · ${engine}`,
+    detalle: 'Procesado en el equipo propio; el documento no salio de la red.',
+    clases: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    esIA: true,
+  };
 }

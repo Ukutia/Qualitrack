@@ -151,6 +151,7 @@ export async function reassignAssociation(req, res) {
         status: 'VALIDATED',
         justification: 'Asignación manual del usuario.',
         confidence: 0,
+        engine: 'manual',
         validatedById: req.user.id,
         validatedAt: new Date(),
       },
