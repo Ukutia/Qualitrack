@@ -167,6 +167,12 @@ model Document {
   /// Cuando cambio analysisStatus por ultima vez. Permite reencolar los
   /// documentos que un worker tomo y nunca termino.
   analysisStatusUpdatedAt DateTime?
+  /// Explicacion del analisis cuando NO genera asociacion: sin esto, un
+  /// documento descartado por la IA se ve igual que uno nunca analizado.
+  analysisSummary String? @db.Text
+  /// Que motor decidio: el modelo local, gemini o el respaldo por keywords.
+  /// Hace visible en la interfaz cuando la IA no fue la que decidio.
+  analysisEngine String?
   vectorizationStatus String   @default("READY")
   uploadedAt    DateTime       @default(now())
 

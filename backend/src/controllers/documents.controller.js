@@ -235,6 +235,8 @@ export async function getDocument(req, res) {
     // la base de datos pero ningun endpoint lo devolvia, aunque el frontend ya
     // lo espera en los eventos SSE.
     analysisError: doc.analysisError ?? null,
+    analysisSummary: doc.analysisSummary ?? null,
+    analysisEngine: doc.analysisEngine ?? null,
     textPreview: (decryptText(doc.extractedText) || '').slice(0, 1500),
     associations: doc.associations.map((a) => ({
       id: a.id,
@@ -266,6 +268,8 @@ function sendDocumentStatus(res, doc, source = 'initial') {
     // la base de datos pero ningun endpoint lo devolvia, aunque el frontend ya
     // lo espera en los eventos SSE.
     analysisError: doc.analysisError ?? null,
+    analysisSummary: doc.analysisSummary ?? null,
+    analysisEngine: doc.analysisEngine ?? null,
     vectorizationStatus: doc.vectorizationStatus,
     source,
     message: 'document-status',
@@ -398,6 +402,8 @@ export async function updateDocumentAnalysisStatus(req, res) {
     // la base de datos pero ningun endpoint lo devolvia, aunque el frontend ya
     // lo espera en los eventos SSE.
     analysisError: doc.analysisError ?? null,
+    analysisSummary: doc.analysisSummary ?? null,
+    analysisEngine: doc.analysisEngine ?? null,
   });
 }
 

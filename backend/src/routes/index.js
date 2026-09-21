@@ -135,7 +135,21 @@ router.post('/webhooks/worker-update', async (req, res) => {
 
     await prisma.document.update({
         where: { id: documentId },
-        data: { analysisStatus: status, analysisError: error }
+        data: {
+            analysisStatus: status,
+            analysisError: status === 'ERROR' ? error : null,
+            analysisStatusUpdatedAt: new Date(),
+            // La justificacion se guarda siempre, tambien cuando el documento
+            // resulta NO relevante. Antes se descartaba, y un documento
+            // descartado por la IA quedaba indistinguible de uno nunca
+            // analizado: misma pantalla vacia, ninguna explicacion.
+            ...(status === 'COMPLETED' && result
+                ? {
+                      analysisSummary: result.justification ?? null,
+                      analysisEngine: result.engine ?? null,
+                  }
+                : {}),
+        }
     });
 
     if (status === 'COMPLETED' && result && result.relevant) {

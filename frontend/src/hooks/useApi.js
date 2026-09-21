@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api.js';
+import { normalizeAnalysisStatus } from '../lib/analysisStatus.js';
 
 const DOCUMENT_IMPORT_TIMEOUT = 300000; // 5 minutos
 
@@ -119,7 +120,10 @@ export function useDocument(id) {
     queryFn: async () => (await api.get(`/documents/${id}`)).data,
     enabled: !!id,
     refetchInterval: (query) => {
-      const status = query.state.data?.analysisStatus;
+      // La API devuelve la etiqueta traducida ("preparando analisis") y el SSE
+      // la clave ("PREPARING_ANALYSIS"). Comparar sin normalizar hacia que esta
+      // lista nunca coincidiera y el refresco por sondeo no ocurriera jamas.
+      const status = normalizeAnalysisStatus(query.state.data?.analysisStatus);
       const active = [
         'PREPARING_ANALYSIS',
         'SENT_TO_ANALYZER',
