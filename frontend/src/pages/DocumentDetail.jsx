@@ -203,7 +203,9 @@ export default function DocumentDetail() {
                 || 'El documento fue analizado y no se encontró correspondencia con el Criterio 9. Puede asignar un subcriterio manualmente si considera que sí aplica.'}
             </p>
             {motor && (
-              <p className="mt-2 text-xs text-steel-500">{motor.texto}</p>
+              <span className={`mt-3 inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${motor.clases}`}>
+                {motor.texto}
+              </span>
             )}
           </div>
         )}
@@ -226,6 +228,24 @@ export default function DocumentDetail() {
                     Estado: <span className="font-medium">{STATUS_LABEL[a.status]}</span>
                     {a.confidence ? ` · confianza ${Math.round(a.confidence * 100)}%` : ''}
                   </p>
+                  {describeEngine(a.engine) && (
+                    <span
+                      title={describeEngine(a.engine).detalle || ''}
+                      className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${describeEngine(a.engine).clases}`}
+                    >
+                      {describeEngine(a.engine).esIA ? (
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1" strokeLinecap="round" />
+                          <circle cx="12" cy="12" r="3.5" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                      {describeEngine(a.engine).texto}
+                    </span>
+                  )}
                 </div>
                 {canManage && a.status === 'PROPOSED' && (
                   <div className="flex gap-2 shrink-0">

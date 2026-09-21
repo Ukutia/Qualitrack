@@ -242,6 +242,7 @@ export async function getDocument(req, res) {
       id: a.id,
       status: a.status,
       subcriterion: { code: a.subcriterion.code, name: a.subcriterion.name },
+      engine: a.engine ?? null,
       justification: a.justification,
       evidenceFragment: a.evidenceFragment,
       confidence: a.confidence,

@@ -181,6 +181,7 @@ router.post('/webhooks/worker-update', async (req, res) => {
                     justification: result.justification,
                     evidenceFragment: result.evidenceFragment,
                     confidence: result.confidence,
+                    engine: result.engine ?? null,
                 }
             });
 

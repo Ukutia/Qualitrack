@@ -199,6 +199,10 @@ model Association {
   justification    String?           @db.Text
   evidenceFragment String?           @db.Text
   confidence       Float             @default(0)
+  /// Que produjo esta asociacion: el modelo local, gemini, el respaldo por
+  /// keywords o "manual". Va en la asociacion y no en el documento porque una
+  /// reasignacion manual no debe atribuirse al modelo que analizo antes.
+  engine           String?
   createdAt        DateTime          @default(now())
 
   validatedBy   User?     @relation("ValidatedBy", fields: [validatedById], references: [id])
