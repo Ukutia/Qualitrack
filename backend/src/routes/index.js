@@ -89,6 +89,14 @@ router.param('id', (req, res, next, value) => {
 // unica forma de recibir trabajo, porque corre en una maquina domestica sin IP
 // estable ni puertos abiertos.
 router.get('/worker/jobs', async (req, res) => {
+    // Comparar contra una variable sin definir dejaba el endpoint ABIERTO:
+    // undefined !== undefined es false, asi que una peticion sin cabecera
+    // pasaba el control. Si no hay token configurado, no se atiende a nadie.
+    if (!process.env.WORKER_API_TOKEN) {
+        console.error('WORKER_API_TOKEN no configurado: la cola queda cerrada.');
+        return res.status(503).json({ error: 'Cola no configurada.' });
+    }
+
     if (req.headers['x-worker-token'] !== process.env.WORKER_API_TOKEN) {
         console.warn('Intento de acceso no autorizado a la cola del worker');
         return res.status(401).json({ error: 'No autorizado' });
@@ -111,6 +119,14 @@ router.get('/worker/jobs', async (req, res) => {
 // Webhook de actualización de estado de análisis (HU12)
 router.post('/webhooks/worker-update', async (req, res) => {
     const workerToken = req.headers['x-worker-token'];
+
+    // Mismo riesgo que en /worker/jobs: sin secreto configurado, una peticion
+    // sin cabecera pasaba el control y podia escribir estados y asociaciones.
+    if (!process.env.WORKER_WEBHOOK_SECRET) {
+        console.error('WORKER_WEBHOOK_SECRET no configurado: webhook cerrado.');
+        return res.status(503).json({ error: 'Webhook no configurado.' });
+    }
+
     if (workerToken !== process.env.WORKER_WEBHOOK_SECRET) {
         console.warn('Intento de acceso no autorizado al webhook');
         return res.status(401).json({ error: 'No autorizado' });
