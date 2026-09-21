@@ -164,6 +164,9 @@ model Document {
   analysisStatus String? @default("RECEIVED")
   /// PROCESSING mientras se generan embeddings; READY al terminar; FAILED si falla.
   analysisError  String?
+  /// Cuando cambio analysisStatus por ultima vez. Permite reencolar los
+  /// documentos que un worker tomo y nunca termino.
+  analysisStatusUpdatedAt DateTime?
   vectorizationStatus String   @default("READY")
   uploadedAt    DateTime       @default(now())
 

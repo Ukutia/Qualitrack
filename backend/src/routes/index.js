@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../config/prisma.js';
 import { publishAnalysisStatus } from '../services/analysisEvents.service.js';
+import { claimNextJob } from '../services/workerQueue.service.js';
 import { requireAuth } from '../middleware/auth.js';
 import { enforceRolePolicy } from '../middleware/authorize.js';
 import {
@@ -65,6 +66,47 @@ router.get('/cloud/google/callback', cloud.callback);
 
 // Dropbox callback público
 router.get('/cloud/dropbox/callback', cloud.dropboxCallback);
+
+// Valida cualquier :id de la API antes de que llegue a un controlador.
+//
+// Sin esto, "/documents/undefined" produce Number("undefined") = NaN, Prisma
+// lanza, y como Express 4 no atrapa los rechazos de un handler async el proceso
+// entero se cae: una URL mal formada bastaba para tumbar el backend.
+router.param('id', (req, res, next, value) => {
+    const id = Number(value);
+
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ error: `Id invalido: "${value}".` });
+    }
+
+    return next();
+});
+
+// Cola de trabajos para el worker de analisis (HU11).
+//
+// Va antes de requireAuth a proposito: el worker no es un usuario con sesion,
+// se autentica con el token compartido igual que el webhook. Preguntar es su
+// unica forma de recibir trabajo, porque corre en una maquina domestica sin IP
+// estable ni puertos abiertos.
+router.get('/worker/jobs', async (req, res) => {
+    if (req.headers['x-worker-token'] !== process.env.WORKER_API_TOKEN) {
+        console.warn('Intento de acceso no autorizado a la cola del worker');
+        return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    try {
+        const job = await claimNextJob();
+
+        // 204 para que el worker distinga "no hay trabajo" de un error y siga
+        // preguntando en silencio.
+        if (!job) return res.status(204).end();
+
+        return res.json(job);
+    } catch (error) {
+        console.error('Error entregando trabajo al worker:', error);
+        return res.status(500).json({ error: error.message });
+    }
+});
 
 // Webhook de actualización de estado de análisis (HU12)
 router.post('/webhooks/worker-update', async (req, res) => {

@@ -1,6 +1,5 @@
 // HU01 — Asociación de evidencia al Criterio 9 (propuesta / validar / descartar).
 import { prisma } from '../config/prisma.js';
-import { sendToWorker } from '../services/workerClient.service.js'; 
 import { updateAnalysisStatus } from '../services/analysisEvents.service.js';
 
 const CRITERION_CODE = '9';
@@ -34,6 +33,14 @@ async function supersedeAssociations(tx, { documentId, keepId, userId, snapshot 
 /** POST /documents/:id/classify — genera (o regenera) la propuesta automática. */
 export async function classifyDocument(req, res) {
   const documentId = Number(req.params.id);
+
+  // Sin esto, un id no numerico llega como NaN a Prisma, que lanza; y como
+  // Express 4 no atrapa los rechazos de un handler async, el proceso entero
+  // se cae. Una URL mal formada no puede tumbar el backend.
+  if (!Number.isInteger(documentId) || documentId <= 0) {
+    return res.status(400).json({ error: 'Id de documento invalido.' });
+  }
+
   const doc = await prisma.document.findFirst({
     where: {
       id: documentId,
@@ -43,14 +50,15 @@ export async function classifyDocument(req, res) {
 
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
 
-  // 1. Cambiamos el estado inicial para que el Frontend reaccione
+  // Dejar el documento en PREPARING_ANALYSIS es todo el despacho: el worker
+  // pregunta por el (GET /worker/jobs) y se lo lleva. El backend no lo llama,
+  // porque el worker corre en una maquina sin IP estable ni puertos abiertos.
+  //
+  // El efecto util de encolar en vez de empujar: si el worker esta caido, el
+  // documento espera en la cola y se procesa al volver, en lugar de fallar.
   await updateAnalysisStatus(documentId, 'PREPARING_ANALYSIS');
 
-  // 2. Delegamos la tarea de forma asíncrona al puente del Worker
-  setImmediate(() => { void sendToWorker(documentId, req.user.id); });
-
-  // 3. ¡IMPORTANTE! Retornamos inmediatamente. 
-  // No esperamos el resultado. El resultado llegará después por SSE.
+  // El resultado llegara despues por SSE, via el webhook del worker.
   return res.status(202).json({
     accepted: true,
     analysisStatus: 'PREPARING_ANALYSIS',
