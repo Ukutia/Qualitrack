@@ -1,5 +1,6 @@
 // HU01 — Asociación de evidencia al Criterio 9 (propuesta / validar / descartar).
 import { prisma } from '../config/prisma.js';
+import { sendToWorker } from '../services/workerClient.service.js';
 import { updateAnalysisStatus } from '../services/analysisEvents.service.js';
 
 const CRITERION_CODE = '9';
@@ -58,7 +59,10 @@ export async function classifyDocument(req, res) {
   // documento espera en la cola y se procesa al volver, en lugar de fallar.
   await updateAnalysisStatus(documentId, 'PREPARING_ANALYSIS');
 
-  // El resultado llegara despues por SSE, via el webhook del worker.
+  // Se despacha al worker sin esperarlo: clasificar toma segundos y bloquear
+  // aqui dejaria colgada la conexion del usuario. El resultado vuelve por el
+  // webhook y de ahi al navegador por SSE.
+  setImmediate(() => { void sendToWorker(documentId, req.user.id); });
   return res.status(202).json({
     accepted: true,
     analysisStatus: 'PREPARING_ANALYSIS',
