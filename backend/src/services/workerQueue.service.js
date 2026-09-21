@@ -9,6 +9,7 @@
 import crypto from 'node:crypto';
 import { prisma } from '../config/prisma.js';
 import { readFile } from './storage.service.js';
+import { decryptText } from './encryption.service.js';
 import { updateAnalysisStatus } from './analysisEvents.service.js';
 
 const CRITERION_CODE = '9';
@@ -60,18 +61,31 @@ export async function claimNextJob() {
     where: { criterion: { code: CRITERION_CODE } },
   });
 
-  // readFile descifra el cifrado en reposo: lo que viaja es el documento real,
-  // recifrado con la llave que comparte con el worker.
-  const fileBuffer = await readFile(candidato.storagePath);
+  // Igual que en el despacho por push: viaja el texto ya extraido, que vive en
+  // la base de datos, y no el archivo. Asi la cola no depende de que el archivo
+  // siga en disco, algo que sin volumen persistente no se cumple.
+  const texto = decryptText(candidato.extractedText) || '';
+
+  let contenido;
+  let formato;
+
+  if (texto.trim()) {
+    contenido = Buffer.from(texto, 'utf-8');
+    formato = 'text';
+  } else {
+    // Sin texto extraido queda el archivo, si es que todavia existe.
+    contenido = await readFile(candidato.storagePath);
+    formato = candidato.format;
+  }
 
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-gcm', loadEncryptionKey(), iv);
-  const encryptedFile = Buffer.concat([cipher.update(fileBuffer), cipher.final()]);
+  const encryptedFile = Buffer.concat([cipher.update(contenido), cipher.final()]);
 
   return {
     documentId: candidato.id,
     userId: candidato.uploadedById,
-    format: candidato.format,
+    format: formato,
     iv: iv.toString('hex'),
     authTag: cipher.getAuthTag().toString('hex'),
     fileData: encryptedFile.toString('base64'),
