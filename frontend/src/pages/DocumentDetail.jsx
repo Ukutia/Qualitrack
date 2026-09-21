@@ -10,6 +10,7 @@ import {
 } from '../hooks/useApi.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ROLES } from '../lib/roles.js';
+import { isAnalysisInProgress, normalizeAnalysisStatus, ANALYSIS_PROGRESS_TEXT, describeEngine } from '../lib/analysisStatus.js';
 
 const LAST_DOCUMENT_KEY = 'qualitrack_last_document_id';
 
@@ -58,6 +59,12 @@ export default function DocumentDetail() {
   const canTrash = user?.role === ROLES.ADMIN;
 
   if (isLoading) return <p className="text-steel-500">Cargando documento…</p>;
+
+  // El estado llega en dos formas segun venga del REST o del SSE; se normaliza
+  // antes de comparar para que la interfaz no dependa de cual de las dos llego.
+  const estadoAnalisis = normalizeAnalysisStatus(doc?.analysisStatus);
+  const analizando = isAnalysisInProgress(doc?.analysisStatus);
+  const motor = describeEngine(doc?.analysisEngine);
   if (!doc) return <p className="text-rose-600">Documento no encontrado.</p>;
 
   const classifyResult = classify.data;
@@ -143,10 +150,10 @@ export default function DocumentDetail() {
           {canManage && (
             <button
               onClick={() => classify.mutate(id)}
-              disabled={classify.isPending}
+              disabled={classify.isPending || analizando}
               className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-60"
             >
-              {classify.isPending
+              {classify.isPending || analizando
                 ? 'Analizando…'
                 : hasValidated
                   ? 'Volver a clasificar con IA'
@@ -167,13 +174,41 @@ export default function DocumentDetail() {
           </div>
         )}
 
-        {classifyResult && !classifyResult.relevant && (
-          <div className="rounded-lg bg-steel-50 border border-steel-200 p-4 text-sm text-steel-600">
-            {classifyResult.justification}
+        {/* Mientras el analisis corre. El POST responde en milisegundos y el
+            trabajo ocurre despues de forma asincrona, asi que el estado tiene
+            que salir del documento, no de la respuesta de la mutacion. */}
+        {analizando && (
+          <div className="rounded-lg bg-brand-50 border border-brand-200 p-4 text-sm text-brand-800 flex gap-3 items-center">
+            <svg className="h-5 w-5 shrink-0 animate-spin text-brand-600" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+              <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+            <div>
+              <p className="font-medium">{ANALYSIS_PROGRESS_TEXT[estadoAnalisis] || 'Analizando…'}</p>
+              <p className="mt-1 text-brand-700">
+                El documento se procesa en el equipo local con IA propia; no sale a ningún servicio externo.
+              </p>
+            </div>
           </div>
         )}
 
-        {doc.associations.length === 0 && !classifyResult && !classifyError && (
+        {/* Analisis terminado sin asociacion: la IA decidio que el documento no
+            corresponde al Criterio 9. Antes esto se veia como un panel vacio,
+            indistinguible de un documento nunca analizado. */}
+        {!analizando && estadoAnalisis === 'COMPLETED' && doc.associations.length === 0 && (
+          <div className="rounded-lg bg-steel-50 border border-steel-200 p-4 text-sm text-steel-600">
+            <p className="font-medium text-steel-700">El análisis no propuso ningún subcriterio</p>
+            <p className="mt-1">
+              {doc.analysisSummary
+                || 'El documento fue analizado y no se encontró correspondencia con el Criterio 9. Puede asignar un subcriterio manualmente si considera que sí aplica.'}
+            </p>
+            {motor && (
+              <p className="mt-2 text-xs text-steel-500">{motor.texto}</p>
+            )}
+          </div>
+        )}
+
+        {!analizando && estadoAnalisis !== 'COMPLETED' && doc.associations.length === 0 && !classifyError && (
           <p className="text-sm text-steel-500">
             Aún no se ha generado una propuesta. Use “Clasificar” para analizar el documento.
           </p>
