@@ -21,6 +21,34 @@ function errorMessage(error) {
   return error?.response?.data?.error || 'No fue posible completar la operación.';
 }
 
+function CurrentToken({ token, createdAt }) {
+  const [copied, setCopied] = useState(false);
+  if (!token) return <p className="mt-2 text-sm text-steel-500">No existe un token vigente.</p>;
+
+  const publicUrl = `${window.location.origin}/document-request/${encodeURIComponent(token)}`;
+  async function copyLink() {
+    await navigator.clipboard.writeText(publicUrl);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  return (
+    <div className="mt-2 space-y-3">
+      <code className="block break-all text-sm text-ink-900">{token}</code>
+      <div className="border-t border-steel-200 pt-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-steel-500">Link público vigente</p>
+        <a href={publicUrl} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm font-medium text-brand-700 hover:underline">
+          {publicUrl}
+        </a>
+        <button type="button" onClick={copyLink} className="btn mt-2 rounded-lg border border-steel-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-900 hover:bg-steel-50">
+          {copied ? 'Link copiado' : 'Copiar link'}
+        </button>
+      </div>
+      <span className="sr-only">Token generado: {formatDate(createdAt)}</span>
+    </div>
+  );
+}
+
 export default function DocumentRequests() {
   const requests = useDocumentRequests();
   const action = useDocumentRequestAction();
@@ -91,7 +119,7 @@ export default function DocumentRequests() {
                     <span className="text-xs font-medium uppercase tracking-wide text-steel-500">Token vigente</span>
                     <span className="text-xs text-steel-500">Generado: {formatDate(request.tokenCreatedAt)}</span>
                   </div>
-                  {request.token ? <code className="mt-2 block break-all text-sm text-ink-900">{request.token}</code> : <p className="mt-2 text-sm text-steel-500">No existe un token vigente.</p>}
+                  <CurrentToken token={request.token} createdAt={request.tokenCreatedAt} />
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
