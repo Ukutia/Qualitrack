@@ -50,22 +50,27 @@ export async function ingestDocument({
     },
   });
 
+  queueDocumentVectorization(document.id, extractedText);
+
+  return document;
+}
+
+/** Encola la vectorización sin bloquear la respuesta de carga. */
+export function queueDocumentVectorization(documentId, extractedText) {
   setImmediate(() => {
-    vectorizeDocument(document.id, extractedText)
+    vectorizeDocument(documentId, extractedText)
       .then(() => prisma.document.updateMany({
-        where: { id: document.id },
+        where: { id: documentId },
         data: { vectorizationStatus: 'READY' },
       }))
       .catch(async (error) => {
-        console.error(`Error al vectorizar documento ${document.id}:`, error);
+        console.error(`Error al vectorizar documento ${documentId}:`, error);
         await prisma.document.updateMany({
-          where: { id: document.id },
+          where: { id: documentId },
           data: { vectorizationStatus: 'FAILED' },
         });
       });
   });
-
-  return document;
 }
 
 export async function uploadDocument(req, res) {
