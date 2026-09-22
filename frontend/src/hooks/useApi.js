@@ -12,11 +12,11 @@ export function useDocumentRequests() {
   });
 }
 
-export function useCreateDocumentRequest() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (payload) => (await api.post('/document-requests', payload)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-requests'] }),
+export function useDocumentRequestConfig() {
+  return useQuery({
+    queryKey: ['document-requests', 'config'],
+    queryFn: async () => (await api.get('/document-requests/config')).data,
+    staleTime: Infinity,
   });
 }
 
