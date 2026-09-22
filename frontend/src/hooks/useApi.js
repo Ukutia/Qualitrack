@@ -29,6 +29,20 @@ export function usePublicDocumentRequest(token) {
   });
 }
 
+export function useUploadPublicDocumentRequest(token) {
+  return useMutation({
+    mutationFn: async (file) => {
+      const form = new FormData();
+      form.append('file', file);
+      return (
+        await api.post(`/document-requests/public/${encodeURIComponent(token)}/upload`, form, {
+          timeout: DOCUMENT_IMPORT_TIMEOUT,
+        })
+      ).data;
+    },
+  });
+}
+
 export function useCreateDocumentRequest() {
   const qc = useQueryClient();
   return useMutation({
