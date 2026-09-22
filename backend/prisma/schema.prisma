@@ -82,6 +82,9 @@ model DocumentRequest {
   createdBy   User @relation(fields: [createdById], references: [id])
   createdById Int
 
+  document   Document? @relation(fields: [documentId], references: [id])
+  documentId Int?      @unique
+
   @@index([status, nextReminderAt])
   @@index([createdById, createdAt])
 }
@@ -202,6 +205,7 @@ model Document {
 
   associations Association[]
   chunks DocumentChunk[]
+  request DocumentRequest?
 }
 
 model Association {
