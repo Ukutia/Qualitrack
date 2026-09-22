@@ -9,6 +9,13 @@ import {
   MINUTES_PER_DAY,
 } from '../services/documentRequests.service.js';
 import { createStoredRequestToken, hashRequestToken } from '../services/requestToken.service.js';
+import { formatFromName } from '../middleware/upload.js';
+import { saveFile, deleteFile } from '../services/storage.service.js';
+import { extractText } from '../services/textExtraction.service.js';
+import { extractDocumentDate } from '../services/dateExtraction.service.js';
+import { encryptText } from '../services/encryption.service.js';
+import { queueDocumentVectorization } from './documents.controller.js';
+import { config } from '../config/env.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -61,6 +68,7 @@ export async function getPublicDocumentRequest(req, res) {
       status: true,
       tokenCreatedAt: true,
       updatedAt: true,
+      documentId: true,
     },
   });
 
@@ -78,6 +86,94 @@ export async function getPublicDocumentRequest(req, res) {
     description: request.description,
     status: request.status,
     tokenCreatedAt: request.tokenCreatedAt,
+    maxFileSizeMb: config.maxFileSizeMb,
+    acceptedFormats: ['pdf', 'doc', 'docx', 'xls', 'xlsx'],
+  });
+}
+
+export async function uploadPublicDocumentRequest(req, res) {
+  res.set('Cache-Control', 'no-store');
+  const token = String(req.params.token || '');
+  if (!TOKEN_PATTERN.test(token) || !req.file) {
+    return res.status(!req.file ? 400 : 404).json({
+      error: !req.file ? 'Seleccione un archivo para continuar.' : 'El enlace no existe o ya no está vigente.',
+      code: !req.file ? 'FILE_REQUIRED' : 'REQUEST_LINK_INVALID',
+    });
+  }
+
+  const tokenHash = hashRequestToken(token);
+  const request = await prisma.documentRequest.findUnique({
+    where: { tokenHash },
+    select: { id: true, status: true, createdById: true, documentId: true },
+  });
+  if (!request || request.status !== 'PENDING' || request.documentId) {
+    return res.status(404).json({
+      error: 'El enlace no existe o ya no está vigente.',
+      code: 'REQUEST_LINK_INVALID',
+    });
+  }
+
+  const originalName = req.file.originalname;
+  const format = formatFromName(originalName);
+  const extractedText = await extractText(req.file.buffer, format);
+  const documentDate = extractDocumentDate(extractedText, originalName) ?? new Date();
+  const stored = await saveFile(req.file.buffer, originalName);
+
+  let document;
+  try {
+    document = await prisma.$transaction(async (tx) => {
+      const created = await tx.document.create({
+        data: {
+          originalName,
+          storedName: stored.storedName,
+          format,
+          sizeBytes: req.file.buffer.length,
+          storagePath: stored.storagePath,
+          source: 'UPLOAD',
+          extractedText: encryptText(extractedText),
+          vectorizationStatus: 'PROCESSING',
+          documentDate,
+          uploadedById: request.createdById,
+        },
+      });
+      const claimed = await tx.documentRequest.updateMany({
+        where: {
+          id: request.id,
+          status: 'PENDING',
+          tokenHash,
+          documentId: null,
+        },
+        data: {
+          status: 'RECEIVED',
+          documentId: created.id,
+          tokenHash: null,
+          tokenEncrypted: null,
+          tokenCreatedAt: null,
+          nextReminderAt: null,
+        },
+      });
+      if (!claimed.count) {
+        const error = new Error('El enlace ya fue utilizado.');
+        error.code = 'REQUEST_LINK_ALREADY_USED';
+        throw error;
+      }
+      return created;
+    });
+  } catch (error) {
+    await deleteFile(stored.storagePath);
+    if (error.code === 'REQUEST_LINK_ALREADY_USED') {
+      return res.status(409).json({ error: 'El enlace ya fue utilizado o dejó de estar vigente.', code: error.code });
+    }
+    throw error;
+  }
+
+  queueDocumentVectorization(document.id, extractedText);
+  return res.status(201).json({
+    requestId: request.id,
+    documentId: document.id,
+    name: document.originalName,
+    status: 'RECEIVED',
+    message: 'Documento recibido correctamente.',
   });
 }
 
