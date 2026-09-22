@@ -6,7 +6,7 @@ export const MINUTES_PER_DAY = 1440;
 export const MAX_INTERVAL_MINUTES = 30 * MINUTES_PER_DAY;
 
 export function minimumIntervalMinutes() {
-  return config.nodeEnv === 'production' ? MINUTES_PER_DAY : 1;
+  return config.allowSubdayRequestIntervals ? 1 : MINUTES_PER_DAY;
 }
 
 export function intervalDaysToMinutes(value) {
