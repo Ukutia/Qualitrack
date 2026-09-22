@@ -50,6 +50,7 @@ import * as cloud from '../controllers/cloud.controller.js';
 import {
   listDocumentRequests,
   getDocumentRequestConfig,
+  getPublicDocumentRequest,
   createDocumentRequest,
   pauseDocumentRequest,
   resumeDocumentRequest,
@@ -70,6 +71,10 @@ router.get('/cloud/google/callback', cloud.callback);
 
 // Dropbox callback público
 router.get('/cloud/dropbox/callback', cloud.dropboxCallback);
+
+// El destinatario no necesita cuenta. El token opaco es la única credencial;
+// el controlador nunca expone correo, usuario creador ni datos internos.
+router.get('/document-requests/public/:token', getPublicDocumentRequest);
 
 // A partir de aquí, todo requiere autenticación y un rol con permiso sobre la
 // ruta (EP 1.1 · EP 1.2). La política es de denegación por defecto y se resuelve
