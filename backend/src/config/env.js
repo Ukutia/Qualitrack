@@ -1,6 +1,13 @@
+const nodeEnv = process.env.NODE_ENV || 'development';
+
+function booleanEnv(value, fallback = false) {
+  if (value == null || value === '') return fallback;
+  return ['1', 'true', 'yes', 'on'].includes(String(value).trim().toLowerCase());
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '4000', 10),
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv,
   jwtSecret: process.env.JWT_SECRET || 'dev-secret',
   maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB || '10', 10),
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -9,6 +16,10 @@ export const config = {
   // de JWT_SECRET.
   docEncryptionKey: process.env.DOC_ENCRYPTION_KEY || '',
     requestTokenEncryptionKey: process.env.REQUEST_TOKEN_ENCRYPTION_KEY || '',
+  allowSubdayRequestIntervals: booleanEnv(
+    process.env.ALLOW_SUBDAY_REQUEST_INTERVALS,
+    nodeEnv !== 'production'
+  ),
   requestSchedulerIntervalMs: Math.max(
     1000,
     parseInt(process.env.REQUEST_SCHEDULER_INTERVAL_MS || '15000', 10) || 15000
