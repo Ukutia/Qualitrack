@@ -20,6 +20,15 @@ export function useDocumentRequestConfig() {
   });
 }
 
+export function usePublicDocumentRequest(token) {
+  return useQuery({
+    queryKey: ['public-document-request', token],
+    queryFn: async () => (await api.get(`/document-requests/public/${encodeURIComponent(token)}`)).data,
+    enabled: Boolean(token),
+    retry: false,
+  });
+}
+
 export function useCreateDocumentRequest() {
   const qc = useQueryClient();
   return useMutation({
