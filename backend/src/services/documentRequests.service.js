@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma.js';
 import { config } from '../config/env.js';
-import { createRequestToken, decryptRequestToken } from './requestToken.service.js';
+import { createStoredRequestToken, decryptRequestToken } from './requestToken.service.js';
 
 export const MINUTES_PER_DAY = 1440;
 export const MAX_INTERVAL_MINUTES = 30 * MINUTES_PER_DAY;
@@ -48,7 +48,7 @@ export async function rotateDueDocumentRequests(now = new Date(), db = prisma) {
 
   let rotated = 0;
   for (const request of due) {
-    const nextToken = createRequestToken();
+    const nextToken = createStoredRequestToken();
     // La fecha exacta en el WHERE funciona como compare-and-swap. Si otra
     // instancia ya rotó o el usuario pausó/canceló, count será cero.
     const result = await db.documentRequest.updateMany({
