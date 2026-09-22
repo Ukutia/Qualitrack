@@ -8,9 +8,10 @@ import {
   MAX_INTERVAL_MINUTES,
   MINUTES_PER_DAY,
 } from '../services/documentRequests.service.js';
-import { createStoredRequestToken } from '../services/requestToken.service.js';
+import { createStoredRequestToken, hashRequestToken } from '../services/requestToken.service.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 function accessWhere(user, id) {
   return {
@@ -38,6 +39,45 @@ export function getDocumentRequestConfig(req, res) {
     minimumIntervalMinutes: minimumMinutes,
     minimumIntervalDays: minimumMinutes / MINUTES_PER_DAY,
     maximumIntervalDays: MAX_INTERVAL_MINUTES / MINUTES_PER_DAY,
+  });
+}
+
+/** Consulta pública y de solo lectura para el enlace enviado al destinatario. */
+export async function getPublicDocumentRequest(req, res) {
+  res.set('Cache-Control', 'no-store');
+  const token = String(req.params.token || '');
+  if (!TOKEN_PATTERN.test(token)) {
+    return res.status(404).json({
+      error: 'El enlace no existe o ya no está vigente.',
+      code: 'REQUEST_LINK_INVALID',
+    });
+  }
+
+  const request = await prisma.documentRequest.findUnique({
+    where: { tokenHash: hashRequestToken(token) },
+    select: {
+      id: true,
+      description: true,
+      status: true,
+      tokenCreatedAt: true,
+      updatedAt: true,
+    },
+  });
+
+  // No se revela si fue rotado, pausado o cancelado. Todos esos casos deben
+  // verse iguales desde Internet y ningún estado distinto de PENDING sirve.
+  if (!request || request.status !== 'PENDING') {
+    return res.status(404).json({
+      error: 'El enlace no existe o ya no está vigente.',
+      code: 'REQUEST_LINK_INVALID',
+    });
+  }
+
+  return res.json({
+    requestId: request.id,
+    description: request.description,
+    status: request.status,
+    tokenCreatedAt: request.tokenCreatedAt,
   });
 }
 
