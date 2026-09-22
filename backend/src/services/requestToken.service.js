@@ -76,3 +76,9 @@ export function createRequestToken() {
     tokenEncrypted: encryptRequestToken(token),
   };
 }
+
+/** Campos seguros que sí existen en DocumentRequest y pueden persistirse. */
+export function createStoredRequestToken() {
+  const { tokenHash, tokenEncrypted } = createRequestToken();
+  return { tokenHash, tokenEncrypted };
+}
