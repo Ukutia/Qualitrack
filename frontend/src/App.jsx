@@ -16,6 +16,7 @@ import Trash from './pages/Trash.jsx';
 import SemanticSearch from './pages/SemanticSearch.jsx';
 import AccessDenied from './pages/AccessDenied.jsx';
 import NotFound from './pages/NotFound.jsx';
+import PublicDocumentRequest from './pages/PublicDocumentRequest.jsx';
 import { ROLES } from './lib/roles.js';
 
 // Roles con acceso a cada ruta (EP 1.1 · EP 1.2). El backend revalida cada
@@ -35,6 +36,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/document-request/:token" element={<PublicDocumentRequest />} />
       <Route
         element={
           <ProtectedRoute>
