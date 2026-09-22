@@ -8,7 +8,7 @@ import {
   MAX_INTERVAL_MINUTES,
   MINUTES_PER_DAY,
 } from '../services/documentRequests.service.js';
-import { createRequestToken } from '../services/requestToken.service.js';
+import { createStoredRequestToken } from '../services/requestToken.service.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -68,7 +68,7 @@ export async function createDocumentRequest(req, res) {
   }
 
   const now = new Date();
-  const tokenData = createRequestToken();
+  const tokenData = createStoredRequestToken();
   const request = await prisma.documentRequest.create({
     data: {
       recipientEmail,
@@ -117,7 +117,7 @@ export async function resumeDocumentRequest(req, res) {
     where: { ...accessWhere(req.user, request.id), status: 'PAUSED' },
     data: {
       status: 'PENDING',
-      ...createRequestToken(),
+      ...createStoredRequestToken(),
       tokenVersion: { increment: 1 },
       tokenCreatedAt: now,
       nextReminderAt: nextReminderDate(request.reminderIntervalMinutes, now),
