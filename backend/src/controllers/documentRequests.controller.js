@@ -27,8 +27,18 @@ async function accessibleRequest(req) {
 
 function intervalError() {
   const minimum = minimumIntervalMinutes();
-  const minLabel = minimum === MINUTES_PER_DAY ? '1 día' : '1 minuto (solo entorno local)';
+  const minLabel = minimum === MINUTES_PER_DAY ? '1 día' : '1 minuto (entorno de pruebas)';
   return `La frecuencia debe estar entre ${minLabel} y 30 días.`;
+}
+
+export function getDocumentRequestConfig(req, res) {
+  const minimumMinutes = minimumIntervalMinutes();
+  return res.json({
+    allowSubdayIntervals: minimumMinutes < MINUTES_PER_DAY,
+    minimumIntervalMinutes: minimumMinutes,
+    minimumIntervalDays: minimumMinutes / MINUTES_PER_DAY,
+    maximumIntervalDays: MAX_INTERVAL_MINUTES / MINUTES_PER_DAY,
+  });
 }
 
 export async function listDocumentRequests(req, res) {
