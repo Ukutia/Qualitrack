@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   useDocument,
   useClassify,
+  useFallbackClassify,
   useAssociationAction,
   useTrashDocument,
   useReassignAssociation,
@@ -20,6 +21,7 @@ export default function DocumentDetail() {
   const navigate = useNavigate();
   const { data: doc, isLoading } = useDocument(id);
   const classify = useClassify();
+  const fallbackClassify = useFallbackClassify();
   const action = useAssociationAction();
   const trash = useTrashDocument();
   const reassign = useReassignAssociation();
@@ -132,10 +134,33 @@ export default function DocumentDetail() {
             <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <div>
+            <div className="flex-1">
               <p className="font-medium">Clasificación automática no disponible</p>
               <p className="mt-1">{classifyError}</p>
+
+              {canManage && (
+                <button
+                  onClick={() => fallbackClassify.mutate(id)}
+                  disabled={fallbackClassify.isPending}
+                  className="mt-3 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-60"
+                >
+                  {fallbackClassify.isPending
+                    ? 'Analizando con respaldo…'
+                    : 'Usar clasificación de respaldo'}
+                </button>
+              )}
             </div>
+          </div>
+        )}
+
+        {classifyResult?.alreadyValidated && (
+          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800">
+            <p className="font-medium">
+              La clasificación se mantiene sin cambios
+            </p>
+            <p className="mt-1">
+              {classifyResult.message}
+            </p>
           </div>
         )}
 
@@ -152,7 +177,16 @@ export default function DocumentDetail() {
         )}
 
         <div className="space-y-4">
-          {doc.associations.map((a) => (
+          {doc.associations
+            .filter((a) => a.status !== 'NOT_VALIDATED')
+            .map((a) => {
+            const fallbackHistory = a.history.find(
+              (h) => h.snapshot?.classificationMode === 'FALLBACK'
+            );
+
+            const matchedKeywords = fallbackHistory?.snapshot?.matchedKeywords || [];
+
+            return (
             <div key={a.id} className="border border-steel-200 rounded-lg p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -163,6 +197,24 @@ export default function DocumentDetail() {
                     Estado: <span className="font-medium">{STATUS_LABEL[a.status]}</span>
                     {a.confidence ? ` · confianza ${Math.round(a.confidence * 100)}%` : ''}
                   </p>
+                  {a.classificationMode === 'FALLBACK' ? (
+                    <p className="mt-1 text-xs font-medium text-amber-700">
+                      Clasificación de respaldo · basada en palabras clave
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs font-medium text-brand-600">
+                      Clasificación principal · IA
+                    </p>
+                  )}
+                  {a.classificationMode === 'FALLBACK' && matchedKeywords.length > 0 && (
+                    <p className="mt-1 text-xs text-steel-500">
+                      {matchedKeywords.length}{' '}
+                      {matchedKeywords.length === 1
+                        ? 'palabra clave coincidente'
+                        : 'palabras clave coincidentes'}
+                      : {matchedKeywords.join(', ')}
+                    </p>
+                  )}
                 </div>
                 {canManage && a.status === 'PROPOSED' && (
                   <div className="flex gap-2 shrink-0">
@@ -214,7 +266,8 @@ export default function DocumentDetail() {
                 </details>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* EP 1.2 — Reasignación manual cuando la propuesta de la IA no convence */}

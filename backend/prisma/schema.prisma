@@ -20,6 +20,11 @@ enum AssociationStatus {
   NOT_VALIDATED
 }
 
+enum ClassificationMode {
+  PRIMARY
+  FALLBACK
+}
+
 enum HistoryAction {
   PROPOSED
   VALIDATED
@@ -182,6 +187,7 @@ model Association {
   evidenceFragment String?           @db.Text
   confidence       Float             @default(0)
   createdAt        DateTime          @default(now())
+  classificationMode ClassificationMode @default(PRIMARY)
 
   validatedBy   User?     @relation("ValidatedBy", fields: [validatedById], references: [id])
   validatedById Int?

@@ -230,6 +230,7 @@ export async function getDocument(req, res) {
     associations: doc.associations.map((a) => ({
       id: a.id,
       status: a.status,
+      classificationMode: a.classificationMode,
       subcriterion: { code: a.subcriterion.code, name: a.subcriterion.name },
       justification: a.justification,
       evidenceFragment: a.evidenceFragment,
@@ -240,6 +241,7 @@ export async function getDocument(req, res) {
         action: h.action,
         user: h.user?.name,
         at: h.createdAt,
+        snapshot: h.snapshot,
       })),
     })),
   });

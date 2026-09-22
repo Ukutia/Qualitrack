@@ -147,6 +147,20 @@ export function useClassify() {
   });
 }
 
+export function useFallbackClassify() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (docId) =>
+      (await api.post(`/documents/${docId}/classify/fallback`)).data,
+
+    onSuccess: (_d, docId) => {
+      qc.invalidateQueries({ queryKey: ['document', String(docId)] });
+      qc.invalidateQueries({ queryKey: ['document', docId] });
+    },
+  });
+}
+
 export function useAssociationAction() {
   const qc = useQueryClient();
   return useMutation({

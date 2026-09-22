@@ -1,6 +1,9 @@
 // HU01 — Asociación de evidencia al Criterio 9 (propuesta / validar / descartar).
 import { prisma } from '../config/prisma.js';
-import { classifyText } from '../services/classifier.service.js';
+import {
+  classifyText,
+  classifyByKeywords,
+} from '../services/classifier.service.js';
 import { decryptText } from '../services/encryption.service.js';
 
 const CRITERION_CODE = '9';
@@ -46,13 +49,53 @@ export async function classifyDocument(req, res) {
     where: { criterion: { code: CRITERION_CODE } },
   });
 
-  const result = await classifyText(decryptText(doc.extractedText) || '', subcriteria);
+  let result;
+
+  try {
+    result = await classifyText(
+      decryptText(doc.extractedText) || '',
+      subcriteria
+    );
+  } catch (err) {
+    console.error('[classification] Error en clasificación principal:', err.message);
+
+    return res.status(503).json({
+      error:
+        'La clasificación principal no está disponible en este momento. Puede intentar nuevamente o utilizar la clasificación de respaldo.',
+    });
+  }
 
   if (!result.relevant) {
     return res.json({
       relevant: false,
       justification: result.justification,
       association: null,
+    });
+  }
+
+  // Si la clasificación principal coincide con una asociación ya validada,
+  // no se genera una propuesta duplicada.
+  const existingValidated = await prisma.association.findFirst({
+    where: {
+      documentId,
+      subcriterionId: result.subcriterionId,
+      status: 'VALIDATED',
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  if (existingValidated) {
+    return res.json({
+      relevant: true,
+      alreadyValidated: true,
+      message: 'La nueva clasificación coincide con la clasificación ya validada.',
+      association: {
+        id: existingValidated.id,
+        status: existingValidated.status,
+        classificationMode: existingValidated.classificationMode,
+      },
     });
   }
 
@@ -83,6 +126,7 @@ export async function classifyDocument(req, res) {
         documentId,
         subcriterionId: result.subcriterionId,
         status: 'PROPOSED',
+        classificationMode: 'PRIMARY',
         justification: result.justification,
         evidenceFragment: result.evidenceFragment,
         confidence: result.confidence,
@@ -118,6 +162,133 @@ export async function classifyDocument(req, res) {
       justification: association.justification,
       evidenceFragment: association.evidenceFragment,
       confidence: association.confidence,
+    },
+  });
+}
+
+/** POST /documents/:id/classify/fallback — clasificación de respaldo por keywords. */
+export async function classifyDocumentFallback(req, res) {
+  const documentId = Number(req.params.id);
+
+  const doc = await prisma.document.findFirst({
+    where: {
+      id: documentId,
+      deletedAt: null,
+    },
+  });
+
+  if (!doc) {
+    return res.status(404).json({
+      error: 'Documento no encontrado.',
+    });
+  }
+
+  const subcriteria = await prisma.subcriterion.findMany({
+    where: {
+      criterion: {
+        code: CRITERION_CODE,
+      },
+    },
+  });
+
+  const result = classifyByKeywords(
+    decryptText(doc.extractedText) || '',
+    subcriteria
+  );
+
+  // Si no encuentra una clasificación, no se guarda ninguna asociación
+  if (!result.relevant || !result.subcriterion) {
+    return res.json({
+      relevant: result.relevant,
+      classificationMode: 'FALLBACK',
+      matchedKeywordCount: result.matchedKeywords.length,
+      matchedKeywords: result.matchedKeywords,
+      justification: result.justification,
+      evidenceFragment: result.evidenceFragment,
+      confidence: result.confidence,
+      subcriterion: null,
+    });
+  }
+
+  // Evitar crear una propuesta duplicada para el mismo subcriterio
+const existingAssociation = await prisma.association.findFirst({
+  where: {
+    documentId: doc.id,
+    subcriterionId: result.subcriterion.id,
+    status: {
+      in: ['PROPOSED', 'VALIDATED'],
+    },
+  },
+  orderBy: {
+    createdAt: 'desc',
+  },
+});
+
+if (existingAssociation) {
+  return res.json({
+    relevant: true,
+    classificationMode: 'FALLBACK',
+    matchedKeywordCount: result.matchedKeywords.length,
+    matchedKeywords: result.matchedKeywords,
+    justification: result.justification,
+    evidenceFragment: result.evidenceFragment,
+    confidence: result.confidence,
+    subcriterion: {
+      id: result.subcriterion.id,
+      code: result.subcriterion.code,
+      name: result.subcriterion.name,
+    },
+    association: {
+      id: existingAssociation.id,
+      status: existingAssociation.status,
+    },
+    alreadyExists: true,
+  });
+}
+
+  // Crear la propuesta de clasificación
+  const association = await prisma.association.create({
+    data: {
+      documentId: doc.id,
+      subcriterionId: result.subcriterion.id,
+      status: 'PROPOSED',
+      classificationMode: 'FALLBACK',
+      justification: result.justification,
+      evidenceFragment: result.evidenceFragment,
+      confidence: result.confidence,
+    },
+  });
+
+  // Registrar en el historial que se generó una propuesta mediante fallback
+  await prisma.associationHistory.create({
+    data: {
+      associationId: association.id,
+      action: 'PROPOSED',
+      userId: req.user.id,
+      snapshot: {
+        classificationMode: 'FALLBACK',
+        matchedKeywords: result.matchedKeywords,
+        matchedKeywordCount: result.matchedKeywords.length,
+      },
+    },
+  });
+
+  return res.json({
+    relevant: result.relevant,
+    classificationMode: 'FALLBACK',
+    matchedKeywordCount: result.matchedKeywords.length,
+    matchedKeywords: result.matchedKeywords,
+    justification: result.justification,
+    evidenceFragment: result.evidenceFragment,
+    confidence: result.confidence,
+    subcriterion: {
+      id: result.subcriterion.id,
+      code: result.subcriterion.code,
+      name: result.subcriterion.name,
+    },
+    association: {
+      id: association.id,
+      status: association.status,
     },
   });
 }

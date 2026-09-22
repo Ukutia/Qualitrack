@@ -35,6 +35,7 @@ import {
   validateAssociation,
   rejectAssociation,
   reassignAssociation,
+  classifyDocumentFallback,
 } from '../controllers/classification.controller.js';
 import { getCompliance } from '../controllers/compliance.controller.js';
 import {
@@ -89,6 +90,7 @@ router.delete('/documents/:id', requireOwnDocument, destroyDocument);
 
 // Clasificación (HU01)
 router.post('/documents/:id/classify', requireOwnDocument, classifyDocument);
+router.post('/documents/:id/classify/fallback', requireOwnDocument, classifyDocumentFallback);
 router.post('/associations/:id/validate', requireOwnAssociation, validateAssociation);
 router.post('/associations/:id/reject', requireOwnAssociation, rejectAssociation);
 router.put('/documents/:id/association', requireOwnDocument, reassignAssociation);
