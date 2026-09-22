@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   useCreateDocumentRequest,
+  useDocumentRequestConfig,
   useDocumentRequestAction,
   useDocumentRequests,
 } from '../hooks/useApi.js';
@@ -12,9 +13,6 @@ const STATUS = {
   CANCELLED: { label: 'Cancelada', classes: 'bg-steel-100 text-steel-600 ring-steel-200' },
   RECEIVED: { label: 'Recibida', classes: 'bg-emerald-50 text-emerald-800 ring-emerald-200' },
 };
-const isLocalTesting = import.meta.env.DEV;
-const localMinimumDays = 1 / 1440;
-
 function formatDate(value) {
   return value ? new Date(value).toLocaleString('es-CL') : '—';
 }
@@ -46,7 +44,7 @@ export default function DocumentRequests() {
 
   return (
     <div className="space-y-6">
-        <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">Solicitudes de documentos</h1>
           <p className="mt-2 text-sm text-steel-500">Etapa de prueba del ciclo de vida y la rotación segura de tokens.</p>
@@ -113,9 +111,12 @@ export default function DocumentRequests() {
 export function NewDocumentRequest() {
   const navigate = useNavigate();
   const createRequest = useCreateDocumentRequest();
+  const requestConfig = useDocumentRequestConfig();
+  const allowSubdayIntervals = requestConfig.data?.allowSubdayIntervals === true;
+  const minimumDays = requestConfig.data?.minimumIntervalDays ?? 1;
   const [recipientEmail, setRecipientEmail] = useState('');
   const [description, setDescription] = useState('');
-  const [days, setDays] = useState(isLocalTesting ? String(localMinimumDays) : '7');
+  const [days, setDays] = useState('7');
   const [formError, setFormError] = useState('');
   const minutes = useMemo(() => {
     const value = Number(days);
@@ -153,9 +154,9 @@ export function NewDocumentRequest() {
         </div>
         <div className="space-y-2 border-t border-steel-200 pt-5">
           <label htmlFor="request-frequency" className="block text-sm font-medium text-ink-900">Frecuencia del recordatorio (días)</label>
-          <input id="request-frequency" type="number" required min={isLocalTesting ? localMinimumDays : 1} max="30" step={isLocalTesting ? 'any' : 1} value={days} onChange={(event) => setDays(event.target.value)} className="w-44 rounded-lg border border-steel-300 bg-white px-3 py-2.5 text-sm text-ink-900" />
+          <input id="request-frequency" type="number" required min={minimumDays} max="30" step={allowSubdayIntervals ? 'any' : 1} value={days} onChange={(event) => setDays(event.target.value)} className="w-44 rounded-lg border border-steel-300 bg-white px-3 py-2.5 text-sm text-ink-900" />
           <p className="text-sm font-medium text-brand-700">Equivale a {minutes > 0 ? `${minutes.toLocaleString('es-CL')} minuto${minutes === 1 ? '' : 's'}` : 'una frecuencia inválida'}.</p>
-          <p className="text-xs text-steel-500">{isLocalTesting ? 'Modo local: mínimo 1 minuto para facilitar las pruebas. En producción se exige entre 1 y 30 días.' : 'Entre 1 y 30 días.'}</p>
+          <p className="text-xs text-steel-500">{allowSubdayIntervals ? 'Modo de prueba: mínimo 1 minuto. En producción real se recomienda exigir entre 1 y 30 días.' : 'Entre 1 y 30 días.'}</p>
         </div>
         <div className="border-t border-steel-200 pt-5">
           <button type="submit" disabled={createRequest.isPending || minutes < 1} className="btn rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">{createRequest.isPending ? 'Creando…' : 'Crear solicitud y token'}</button>
