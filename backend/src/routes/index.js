@@ -51,6 +51,7 @@ import {
   listDocumentRequests,
   getDocumentRequestConfig,
   getPublicDocumentRequest,
+  uploadPublicDocumentRequest,
   createDocumentRequest,
   pauseDocumentRequest,
   resumeDocumentRequest,
@@ -58,6 +59,7 @@ import {
 } from '../controllers/documentRequests.controller.js';
 
 const router = Router();
+const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 
 // Health
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
@@ -74,7 +76,12 @@ router.get('/cloud/dropbox/callback', cloud.dropboxCallback);
 
 // El destinatario no necesita cuenta. El token opaco es la única credencial;
 // el controlador nunca expone correo, usuario creador ni datos internos.
-router.get('/document-requests/public/:token', getPublicDocumentRequest);
+router.get('/document-requests/public/:token', asyncRoute(getPublicDocumentRequest));
+router.post(
+  '/document-requests/public/:token/upload',
+  upload.single('file'),
+  asyncRoute(uploadPublicDocumentRequest)
+);
 
 // A partir de aquí, todo requiere autenticación y un rol con permiso sobre la
 // ruta (EP 1.1 · EP 1.2). La política es de denegación por defecto y se resuelve
