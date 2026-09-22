@@ -66,6 +66,7 @@ const USER_RULES = [
   // Solicitudes de evidencias: cada usuario no administrador queda acotado a
   // las que él mismo creó (el controlador aplica esa pertenencia).
   rule('GET', /^\/document-requests$/),
+  rule('GET', /^\/document-requests\/config$/),
   rule('POST', /^\/document-requests$/),
   rule('POST', /^\/document-requests\/\d+\/(pause|resume|cancel)$/),
 ];
