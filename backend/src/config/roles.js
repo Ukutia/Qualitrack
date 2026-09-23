@@ -59,6 +59,12 @@ const USER_RULES = [
   rule('POST', /^\/documents\/\d+\/trash$/),
   rule('POST', /^\/documents\/\d+\/restore$/),
   rule('DELETE', /^\/documents\/\d+$/),
+  // Solicitudes de evidencias: cada usuario no administrador queda acotado a
+  // las que él mismo creó (el controlador aplica esa pertenencia).
+  rule('GET', /^\/document-requests$/),
+  rule('GET', /^\/document-requests\/config$/),
+  rule('POST', /^\/document-requests$/),
+  rule('POST', /^\/document-requests\/\d+\/(pause|resume|cancel)$/),
 ];
 
 const ROLE_RULES = {

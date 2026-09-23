@@ -33,6 +33,13 @@ enum SectionChange {
   RENAMED
 }
 
+enum DocumentRequestStatus {
+  PENDING
+  PAUSED
+  CANCELLED
+  RECEIVED
+}
+
 model User {
   id           Int      @id @default(autoincrement())
   name         String
@@ -51,6 +58,35 @@ model User {
   reportDrafts        ReportDraft[]
   reportDraftVersions ReportDraftVersion[]
   topics              Topic[]
+  documentRequests    DocumentRequest[]
+}
+
+/// Solicitud de una evidencia a una persona externa. El token en claro se
+/// conserva cifrado únicamente para poder incluirlo en correos y, durante la
+/// primera etapa de la HU, mostrarlo al creador. `tokenHash` será la credencial
+/// consultada por los endpoints públicos cuando los enlaces sean habilitados.
+model DocumentRequest {
+  id                      Int                   @id @default(autoincrement())
+  recipientEmail          String
+  description             String                @db.Text
+  status                  DocumentRequestStatus @default(PENDING)
+  reminderIntervalMinutes Int
+  nextReminderAt          DateTime?
+  tokenHash               String?               @unique
+  tokenEncrypted          String?               @db.Text
+  tokenVersion            Int                   @default(1)
+  tokenCreatedAt          DateTime?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  createdBy   User @relation(fields: [createdById], references: [id])
+  createdById Int
+
+  document   Document? @relation(fields: [documentId], references: [id])
+  documentId Int?      @unique
+
+  @@index([status, nextReminderAt])
+  @@index([createdById, createdAt])
 }
 
 model Criterion {
@@ -178,11 +214,15 @@ model Document {
 
   uploadedBy   User @relation(fields: [uploadedById], references: [id])
   uploadedById Int
+  /// Correo del destinatario cuando el documento fue cargado mediante una
+  /// solicitud pública. La propiedad interna sigue siendo `uploadedById`.
+  externalUploaderEmail String?
 
   deletedAt DateTime? // null = activo, fecha = en papelera
 
   associations Association[]
   chunks DocumentChunk[]
+  request DocumentRequest?
 
   /// El worker consulta la cola cada pocos segundos; sin este indice cada
   /// sondeo recorre la tabla entera.
