@@ -192,7 +192,7 @@ export async function listDocuments(req, res) {
       source: d.source,
       documentDate: d.documentDate,
       uploadedAt: d.uploadedAt,
-      uploadedBy: d.uploadedBy?.name,
+      uploadedBy: d.externalUploaderEmail || d.uploadedBy?.name,
       associationStatus,
       subcriterion: validated?.subcriterion?.code || proposed?.subcriterion?.code || null,
       vectorizationStatus: d.vectorizationStatus,
@@ -229,7 +229,7 @@ export async function getDocument(req, res) {
     documentDate: doc.documentDate,
     uploadedAt: doc.uploadedAt,
     uploadedById: doc.uploadedById,
-    uploadedBy: doc.uploadedBy?.name,
+    uploadedBy: doc.externalUploaderEmail || doc.uploadedBy?.name,
     vectorizationStatus: doc.vectorizationStatus,
     textPreview: (decryptText(doc.extractedText) || '').slice(0, 1500),
     associations: doc.associations.map((a) => ({
@@ -319,7 +319,7 @@ export async function listTrash(req, res) {
       sizeBytes: d.sizeBytes,
       uploadedAt: d.uploadedAt,
       deletedAt: d.deletedAt,
-      uploadedBy: d.uploadedBy?.name,
+      uploadedBy: d.externalUploaderEmail || d.uploadedBy?.name,
     }))
   );
 }
