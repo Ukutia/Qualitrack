@@ -13,6 +13,63 @@ function shouldPollDocuments(data) {
   });
 }
 
+// ── Solicitudes de documentos ──────────────────────────────────────
+export function useDocumentRequests() {
+  return useQuery({
+    queryKey: ['document-requests'],
+    queryFn: async () => (await api.get('/document-requests')).data,
+    refetchInterval: 2000,
+  });
+}
+
+export function useDocumentRequestConfig() {
+  return useQuery({
+    queryKey: ['document-requests', 'config'],
+    queryFn: async () => (await api.get('/document-requests/config')).data,
+    staleTime: Infinity,
+  });
+}
+
+export function usePublicDocumentRequest(token) {
+  return useQuery({
+    queryKey: ['public-document-request', token],
+    queryFn: async () => (await api.get(`/document-requests/public/${encodeURIComponent(token)}`)).data,
+    enabled: Boolean(token),
+    retry: false,
+  });
+}
+
+export function useUploadPublicDocumentRequest(token) {
+  return useMutation({
+    mutationFn: async (file) => {
+      const form = new FormData();
+      form.append('file', file);
+      return (
+        await api.post(`/document-requests/public/${encodeURIComponent(token)}/upload`, form, {
+          timeout: DOCUMENT_IMPORT_TIMEOUT,
+        })
+      ).data;
+    },
+  });
+}
+
+export function useCreateDocumentRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => (await api.post('/document-requests', payload)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-requests'] }),
+  });
+}
+
+export function useDocumentRequestAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, action }) =>
+      (await api.post(`/document-requests/${id}/${action}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-requests'] }),
+  });
+}
+
 // ── Documentos (HU07) ───────────────────────────────────────────────
 export function useDocuments() {
   return useQuery({

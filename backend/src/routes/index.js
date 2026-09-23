@@ -52,8 +52,19 @@ import {
   restoreStructureVersion,
 } from '../controllers/criteria.controller.js';
 import * as cloud from '../controllers/cloud.controller.js';
+import {
+  listDocumentRequests,
+  getDocumentRequestConfig,
+  getPublicDocumentRequest,
+  uploadPublicDocumentRequest,
+  createDocumentRequest,
+  pauseDocumentRequest,
+  resumeDocumentRequest,
+  cancelDocumentRequest,
+} from '../controllers/documentRequests.controller.js';
 
 const router = Router();
+const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 
 // Health
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
@@ -211,6 +222,15 @@ router.post('/webhooks/worker-update', async (req, res) => {
     res.status(200).send('OK');
 });
 
+// El destinatario no necesita cuenta. El token opaco es la única credencial;
+// el controlador nunca expone correo, usuario creador ni datos internos.
+router.get('/document-requests/public/:token', asyncRoute(getPublicDocumentRequest));
+router.post(
+  '/document-requests/public/:token/upload',
+  upload.single('file'),
+  asyncRoute(uploadPublicDocumentRequest)
+);
+
 // A partir de aquí, todo requiere autenticación y un rol con permiso sobre la
 // ruta (EP 1.1 · EP 1.2). La política es de denegación por defecto y se resuelve
 // antes de consultar la base de datos.
@@ -265,6 +285,14 @@ router.put('/report-drafts/:id', updateDraft);
 router.delete('/report-drafts/:id', deleteDraft);
 router.get('/report-drafts/:id/history', getDraftHistory);
 router.post('/report-drafts/:id/versions/:version/restore', restoreDraftVersion);
+
+// Solicitudes de documentos — primera etapa: ciclo de vida y tokens.
+router.get('/document-requests/config', getDocumentRequestConfig);
+router.get('/document-requests', listDocumentRequests);
+router.post('/document-requests', createDocumentRequest);
+router.post('/document-requests/:id/pause', pauseDocumentRequest);
+router.post('/document-requests/:id/resume', resumeDocumentRequest);
+router.post('/document-requests/:id/cancel', cancelDocumentRequest);
 
 // Google Drive (HU09)
 router.get('/cloud/google/status', cloud.status);
