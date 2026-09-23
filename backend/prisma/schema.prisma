@@ -200,6 +200,9 @@ model Document {
 
   uploadedBy   User @relation(fields: [uploadedById], references: [id])
   uploadedById Int
+  /// Correo del destinatario cuando el documento fue cargado mediante una
+  /// solicitud pública. La propiedad interna sigue siendo `uploadedById`.
+  externalUploaderEmail String?
 
   deletedAt DateTime? // null = activo, fecha = en papelera
 
