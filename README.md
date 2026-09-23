@@ -93,6 +93,53 @@ Al iniciar, el backend sincroniza el esquema (`prisma db push`), ejecuta el *see
 
 ## Tests
 
+### Red visual de evidencias (local)
+
+Disponible en **Búsqueda temática → Red visual** (`/search?view=network`) para
+administrador exclusivamente. Los usuarios normales y los ingestores no tienen acceso. El selector **Lista / Red visual** comparte
+el formulario de creación y las mismas temáticas guardadas. `/network` redirige
+a esta vista por compatibilidad.
+Requiere la API, PostgreSQL con pgvector y el servicio local de embeddings del
+Docker Compose. No necesita migraciones ni nuevas dependencias.
+
+La creación de temáticas comprueba documentos activos del repositorio, aunque
+su vectorización todavía esté procesándose o haya fallado. No depende de que
+existan chunks ni de quién cargó el documento. La aparición de conexiones sí
+requiere vectorización correcta. Para diagnosticar errores locales:
+`docker compose logs --tail=100 backend embedding-service`.
+
+Compose espera a que `/health` del servicio de embeddings responda antes de
+arrancar el backend. Esto incluye la carga del modelo y su warm-up, no solo la
+descarga de pesos. Después de un fallo previo por conexión rechazada, ejecutar
+`docker compose exec backend npm run db:retry-vectorizations` para reprocesar
+documentos activos con estado `FAILED`, conservando archivos y asociaciones.
+Este comando necesita que el servicio esté listo; los documentos se procesan
+secuencialmente. Al finalizar, actualizar la red visual.
+
+- Muestra las temáticas del usuario y documentos activos del repositorio, con
+  una conexión por pareja temática/documento si su similitud coseno es **≥ 0,60**.
+  Usa el fragmento de mayor similitud del documento, como la búsqueda semántica,
+  sin el límite de 50 resultados. Solo incluye documentos vectorizados (`READY`)
+  y embeddings del modelo vigente.
+- Las temáticas sin coincidencias permanecen visibles para identificar vacíos.
+- El tamaño del nodo representa sus conexiones. Permite zoom, desplazamiento,
+  selección con ratón o teclado y selección alternativa desde listas.
+- El subcriterio predominante se cuenta por documentos, tomando la última
+  asociación por documento/subcriterio y excluyendo las rechazadas. Incluye
+  propuestas y validadas; muestra todos los subcriterios empatados.
+- El lector muestra el texto extraído completo (sin el recorte de 1500 caracteres)
+  y permite cambiar a cualquier documento de la red. La ficha enlazada permite
+  consultar el archivo original con su formato.
+- **Actualizar red** recalcula las conexiones después de cargar, clasificar,
+  eliminar o restaurar documentos. El umbral se aplica en el servidor antes
+  de enviar el mapa; no es un filtro cosmético del navegador.
+
+Comprobación manual: crear temáticas con documentos vectorizados, abrir la red,
+seleccionar un nodo y comparar su lista con el total de conexiones; abrir un
+documento y cambiar a otro desde el lector; comprobar una temática sin resultados.
+Los tests `backend/test/network.test.js` cubren el límite 60%, duplicados,
+documentos compartidos, empates, permisos y contenido completo.
+
 ```bash
 cd backend
 npm install

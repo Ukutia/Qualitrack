@@ -45,6 +45,7 @@ export default function App() {
         <Route path="/app" element={<Guard roles={ADMIN_ONLY}><Dashboard /></Guard>} />
         <Route path="/documents" element={<Guard roles={ADMIN_AND_USER}><Documents /></Guard>} />
         <Route path="/search" element={<Guard roles={ADMIN_ONLY}><SemanticSearch /></Guard>} />
+        <Route path="/network" element={<Navigate to="/search?view=network" replace />} />
         <Route path="/documents/:id" element={<Guard roles={ADMIN_AND_USER}><DocumentDetail /></Guard>} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/structure" element={<Guard roles={ADMIN_ONLY}><CriteriaStructure /></Guard>} />

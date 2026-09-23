@@ -10,6 +10,7 @@ import {
   requireViewableDocument,
 } from '../middleware/ownership.js';
 import { upload, structureUpload } from '../middleware/upload.js';
+import { network, documentContent } from '../controllers/network.controller.js';
 import { semanticSearch } from '../controllers/search.controller.js';
 import { listTopics, createTopic, deleteTopic } from '../controllers/topics.controller.js';
 import {
@@ -221,6 +222,7 @@ router.post('/search/semantic', semanticSearch);
 
 // Temáticas
 router.get('/topics', listTopics);
+router.get('/topics/network', network);
 router.post('/topics', createTopic);
 router.delete('/topics/:id', deleteTopic);
 
@@ -231,6 +233,7 @@ router.get('/documents/trash', listTrash);
 router.get('/documents/:id/stream', requireViewableDocument, streamDocumentStatus);
 router.get('/documents/:id', requireViewableDocument, getDocument);
 router.get('/documents/:id/file', requireViewableDocument, serveFile);
+router.get('/documents/:id/content', requireViewableDocument, documentContent);
 router.patch('/documents/:id/analysis-status', requireOwnDocument, updateDocumentAnalysisStatus);
 router.patch('/documents/:id/date', requireOwnDocument, updateDocumentDate);
 router.post('/documents/:id/trash', requireOwnDocument, trashDocument);
