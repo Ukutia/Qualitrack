@@ -104,7 +104,7 @@ export async function uploadPublicDocumentRequest(req, res) {
   const tokenHash = hashRequestToken(token);
   const request = await prisma.documentRequest.findUnique({
     where: { tokenHash },
-    select: { id: true, status: true, createdById: true, documentId: true },
+    select: { id: true, recipientEmail: true, status: true, createdById: true, documentId: true },
   });
   if (!request || request.status !== 'PENDING' || request.documentId) {
     return res.status(404).json({
@@ -134,6 +134,7 @@ export async function uploadPublicDocumentRequest(req, res) {
           vectorizationStatus: 'PROCESSING',
           documentDate,
           uploadedById: request.createdById,
+          externalUploaderEmail: request.recipientEmail,
         },
       });
       const claimed = await tx.documentRequest.updateMany({
