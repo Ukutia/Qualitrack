@@ -2,8 +2,11 @@ import { prisma } from '../config/prisma.js';
 import { ROLES } from '../config/roles.js';
 import {
   intervalDaysToMinutes,
+  cancelOutstandingRequestEmails,
+  kickRequestEmailDelivery,
   minimumIntervalMinutes,
   nextReminderDate,
+  requestEmailData,
   serializeDocumentRequest,
   MAX_INTERVAL_MINUTES,
   MINUTES_PER_DAY,
@@ -158,6 +161,7 @@ export async function uploadPublicDocumentRequest(req, res) {
         error.code = 'REQUEST_LINK_ALREADY_USED';
         throw error;
       }
+      await cancelOutstandingRequestEmails(tx, request.id);
       return created;
     });
   } catch (error) {
@@ -206,18 +210,25 @@ export async function createDocumentRequest(req, res) {
 
   const now = new Date();
   const tokenData = createStoredRequestToken();
-  const request = await prisma.documentRequest.create({
-    data: {
-      recipientEmail,
-      description,
-      reminderIntervalMinutes,
-      nextReminderAt: nextReminderDate(reminderIntervalMinutes, now),
-      ...tokenData,
-      tokenCreatedAt: now,
-      createdById: req.user.id,
-    },
+  const { request, email } = await prisma.$transaction(async (tx) => {
+    const created = await tx.documentRequest.create({
+      data: {
+        recipientEmail,
+        description,
+        reminderIntervalMinutes,
+        nextReminderAt: nextReminderDate(reminderIntervalMinutes, now),
+        ...tokenData,
+        tokenCreatedAt: now,
+        createdById: req.user.id,
+      },
+    });
+    const queuedEmail = await tx.documentRequestEmail.create({
+      data: requestEmailData(created.id, created.tokenVersion, 'INITIAL', now),
+    });
+    return { request: created, email: queuedEmail };
   });
 
+  kickRequestEmailDelivery(email.id);
   return res.status(201).json(serializeDocumentRequest(request));
 }
 
@@ -228,15 +239,19 @@ export async function pauseDocumentRequest(req, res) {
     return res.status(409).json({ error: 'Solo se puede pausar una solicitud pendiente.', code: 'INVALID_STATUS' });
   }
 
-  const updated = await prisma.documentRequest.updateMany({
-    where: { ...accessWhere(req.user, request.id), status: 'PENDING' },
-    data: {
-      status: 'PAUSED',
-      tokenHash: null,
-      tokenEncrypted: null,
-      tokenCreatedAt: null,
-      nextReminderAt: null,
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.documentRequest.updateMany({
+      where: { ...accessWhere(req.user, request.id), status: 'PENDING' },
+      data: {
+        status: 'PAUSED',
+        tokenHash: null,
+        tokenEncrypted: null,
+        tokenCreatedAt: null,
+        nextReminderAt: null,
+      },
+    });
+    if (result.count) await cancelOutstandingRequestEmails(tx, request.id);
+    return result;
   });
   if (!updated.count) return res.status(409).json({ error: 'La solicitud cambió de estado. Actualice la página.' });
   return res.json(serializeDocumentRequest(await accessibleRequest(req)));
@@ -250,17 +265,26 @@ export async function resumeDocumentRequest(req, res) {
   }
 
   const now = new Date();
-  const updated = await prisma.documentRequest.updateMany({
-    where: { ...accessWhere(req.user, request.id), status: 'PAUSED' },
-    data: {
-      status: 'PENDING',
-      ...createStoredRequestToken(),
-      tokenVersion: { increment: 1 },
-      tokenCreatedAt: now,
-      nextReminderAt: nextReminderDate(request.reminderIntervalMinutes, now),
-    },
+  const { updated, email } = await prisma.$transaction(async (tx) => {
+    const result = await tx.documentRequest.updateMany({
+      where: { ...accessWhere(req.user, request.id), status: 'PAUSED' },
+      data: {
+        status: 'PENDING',
+        ...createStoredRequestToken(),
+        tokenVersion: { increment: 1 },
+        tokenCreatedAt: now,
+        nextReminderAt: nextReminderDate(request.reminderIntervalMinutes, now),
+      },
+    });
+    if (!result.count) return { updated: result, email: null };
+    await cancelOutstandingRequestEmails(tx, request.id);
+    const queuedEmail = await tx.documentRequestEmail.create({
+      data: requestEmailData(request.id, request.tokenVersion + 1, 'RESUMED', now),
+    });
+    return { updated: result, email: queuedEmail };
   });
   if (!updated.count) return res.status(409).json({ error: 'La solicitud cambió de estado. Actualice la página.' });
+  kickRequestEmailDelivery(email.id);
   return res.json(serializeDocumentRequest(await accessibleRequest(req)));
 }
 
@@ -271,16 +295,42 @@ export async function cancelDocumentRequest(req, res) {
     return res.status(409).json({ error: 'Esta solicitud ya no puede cancelarse.', code: 'INVALID_STATUS' });
   }
 
-  const updated = await prisma.documentRequest.updateMany({
-    where: { ...accessWhere(req.user, request.id), status: { in: ['PENDING', 'PAUSED'] } },
-    data: {
-      status: 'CANCELLED',
-      tokenHash: null,
-      tokenEncrypted: null,
-      tokenCreatedAt: null,
-      nextReminderAt: null,
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.documentRequest.updateMany({
+      where: { ...accessWhere(req.user, request.id), status: { in: ['PENDING', 'PAUSED'] } },
+      data: {
+        status: 'CANCELLED',
+        tokenHash: null,
+        tokenEncrypted: null,
+        tokenCreatedAt: null,
+        nextReminderAt: null,
+      },
+    });
+    if (result.count) await cancelOutstandingRequestEmails(tx, request.id);
+    return result;
   });
   if (!updated.count) return res.status(409).json({ error: 'La solicitud cambió de estado. Actualice la página.' });
   return res.json(serializeDocumentRequest(await accessibleRequest(req)));
+}
+
+export async function deleteDocumentRequest(req, res) {
+  const request = await accessibleRequest(req);
+  if (!request) return res.status(404).json({ error: 'Solicitud no encontrada.' });
+  if (!['PAUSED', 'CANCELLED'].includes(request.status)) {
+    return res.status(409).json({
+      error: 'Solo se pueden eliminar solicitudes pausadas o canceladas.',
+      code: 'INVALID_STATUS',
+    });
+  }
+
+  const deleted = await prisma.documentRequest.deleteMany({
+    where: {
+      ...accessWhere(req.user, request.id),
+      status: { in: ['PAUSED', 'CANCELLED'] },
+    },
+  });
+  if (!deleted.count) {
+    return res.status(409).json({ error: 'La solicitud cambió de estado. Actualice la página.' });
+  }
+  return res.status(204).send();
 }

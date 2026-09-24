@@ -70,6 +70,14 @@ export function useDocumentRequestAction() {
   });
 }
 
+export function useDeleteDocumentRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => (await api.delete(`/document-requests/${id}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-requests'] }),
+  });
+}
+
 // ── Documentos (HU07) ───────────────────────────────────────────────
 export function useDocuments() {
   return useQuery({

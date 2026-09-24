@@ -5,6 +5,7 @@ import {
   useDocumentRequestConfig,
   useDocumentRequestAction,
   useDocumentRequests,
+  useDeleteDocumentRequest,
 } from '../hooks/useApi.js';
 
 const STATUS = {
@@ -52,6 +53,7 @@ function CurrentToken({ token, createdAt }) {
 export default function DocumentRequests() {
   const requests = useDocumentRequests();
   const action = useDocumentRequestAction();
+  const deleteRequest = useDeleteDocumentRequest();
   const [actionError, setActionError] = useState('');
 
   async function runAction(request, nextAction) {
@@ -65,6 +67,16 @@ export default function DocumentRequests() {
     setActionError('');
     try {
       await action.mutateAsync({ id: request.id, action: nextAction });
+    } catch (error) {
+      setActionError(errorMessage(error));
+    }
+  }
+
+  async function removeRequest(request) {
+    if (!window.confirm('Esta solicitud y su historial de correos se eliminarán permanentemente. ¿Deseas continuar?')) return;
+    setActionError('');
+    try {
+      await deleteRequest.mutateAsync(request.id);
     } catch (error) {
       setActionError(errorMessage(error));
     }
@@ -126,6 +138,7 @@ export default function DocumentRequests() {
                   {request.status === 'PENDING' && <button type="button" disabled={action.isPending} onClick={() => runAction(request, 'pause')} className="btn rounded-lg border border-steel-300 px-3 py-2 text-sm font-medium text-ink-900 hover:bg-steel-50 disabled:opacity-50">Pausar</button>}
                   {request.status === 'PAUSED' && <button type="button" disabled={action.isPending} onClick={() => runAction(request, 'resume')} className="btn rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">Reanudar</button>}
                   {['PENDING', 'PAUSED'].includes(request.status) && <button type="button" disabled={action.isPending} onClick={() => runAction(request, 'cancel')} className="btn rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50">Cancelar</button>}
+                  {['PAUSED', 'CANCELLED'].includes(request.status) && <button type="button" disabled={deleteRequest.isPending} onClick={() => removeRequest(request)} className="btn rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100 disabled:opacity-50">Eliminar</button>}
                 </div>
               </article>
             );

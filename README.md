@@ -93,6 +93,31 @@ Al iniciar, el backend sincroniza el esquema (`prisma db push`), ejecuta el *see
 
 ## Tests
 
+### Correos de solicitudes de documentos
+
+Al crear o reanudar una solicitud se registra un correo para la versión vigente
+del token. Cada rotación registra un único recordatorio mediante la restricción
+`(requestId, tokenVersion)`. Los fallos SMTP se conservan y reintentan; pausar,
+cancelar, recibir o eliminar una solicitud cancela entregas pendientes. Los
+registros de correo nunca almacenan el token.
+
+En desarrollo, Docker Compose levanta Mailpit y su bandeja se abre en
+`http://localhost:8025`. Para Railway con Brevo configure:
+
+```dotenv
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_USERNAME=usuario-smtp
+SMTP_PASSWORD=clave-smtp
+SMTP_USE_TLS=true
+MAIL_FROM=remitente-verificado@dominio.cl
+FRONTEND_URL=https://frontend-publico.example
+REQUEST_EMAIL_RETRY_SECONDS=60
+```
+
+Railway no necesita exponer el puerto 587: es una conexión saliente desde el
+backend hacia Brevo. Aplique las migraciones antes de iniciar la nueva versión.
+
 ### Red visual de evidencias (local)
 
 Disponible en **Búsqueda temática → Red visual** (`/search?view=network`) para

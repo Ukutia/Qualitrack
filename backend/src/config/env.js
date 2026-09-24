@@ -24,6 +24,18 @@ export const config = {
     1000,
     parseInt(process.env.REQUEST_SCHEDULER_INTERVAL_MS || '15000', 10) || 15000
   ),
+  requestEmailRetrySeconds: Math.max(
+    10,
+    parseInt(process.env.REQUEST_EMAIL_RETRY_SECONDS || '60', 10) || 60
+  ),
+  smtp: {
+    host: process.env.SMTP_HOST || '',
+    port: parseInt(process.env.SMTP_PORT || '587', 10) || 587,
+    username: process.env.SMTP_USERNAME || '',
+    password: process.env.SMTP_PASSWORD || '',
+    useTls: booleanEnv(process.env.SMTP_USE_TLS, true),
+    from: process.env.MAIL_FROM || '',
+  },
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
