@@ -113,10 +113,13 @@ SMTP_USE_TLS=true
 MAIL_FROM=remitente-verificado@dominio.cl
 FRONTEND_URL=https://frontend-publico.example
 REQUEST_EMAIL_RETRY_SECONDS=60
+BREVO_API_KEY=clave-api-v3-de-brevo
 ```
 
 Railway no necesita exponer el puerto 587: es una conexión saliente desde el
-backend hacia Brevo. Aplique las migraciones antes de iniciar la nueva versión.
+backend hacia Brevo. Si `BREVO_API_KEY` está definida, se prioriza la API HTTPS
+oficial (puerto 443) y SMTP queda como respaldo/local. Aplique las migraciones
+antes de iniciar la nueva versión.
 
 ### Red visual de evidencias (local)
 

@@ -50,6 +50,7 @@ services:
       SMTP_USE_TLS: ${SMTP_USE_TLS:-false}
       MAIL_FROM: ${MAIL_FROM:-notificaciones@example.test}
       REQUEST_EMAIL_RETRY_SECONDS: ${REQUEST_EMAIL_RETRY_SECONDS:-60}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@qualitrack.cl}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
       ADMIN_NAME: ${ADMIN_NAME:-Encargado de Aseguramiento de Calidad}

@@ -7,6 +7,10 @@ function smtpConfigured() {
   return Boolean(config.smtp.host && config.smtp.from);
 }
 
+function brevoApiConfigured() {
+  return Boolean(config.brevoApiKey && config.smtp.from);
+}
+
 function getTransport() {
   if (!smtpConfigured()) {
     const error = new Error('SMTP no está configurado. Defina SMTP_HOST y MAIL_FROM.');
@@ -45,6 +49,39 @@ function subjectFor(type) {
     : 'Solicitud de documento para Qualitrack';
 }
 
+function parseSender(value) {
+  const match = String(value).match(/^\s*(?:"?([^"<]*)"?\s*)?<([^>]+)>\s*$/);
+  if (!match) return { email: String(value).trim() };
+  const name = match[1]?.trim();
+  return { email: match[2].trim(), ...(name ? { name } : {}) };
+}
+
+async function sendWithBrevoApi({ recipientEmail, subject, text, html }) {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'api-key': config.brevoApiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: parseSender(config.smtp.from),
+      to: [{ email: recipientEmail }],
+      subject,
+      textContent: text,
+      htmlContent: html,
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(`Brevo API rechazó el correo (${response.status}): ${body.message || response.statusText}`);
+    error.code = 'BREVO_API_ERROR';
+    throw error;
+  }
+  return { messageId: body.messageId || null };
+}
+
 export async function sendRequestEmail({ recipientEmail, description, publicUrl, type }) {
   const subject = subjectFor(type);
   const intro = type === 'REMINDER'
@@ -62,6 +99,10 @@ export async function sendRequestEmail({ recipientEmail, description, publicUrl,
       <p style="font-size:13px;color:#667085">Este enlace reemplaza cualquier enlace anterior y dejará de funcionar cuando se reciba el documento o se genere un nuevo recordatorio.</p>
     </div>`;
 
+  if (brevoApiConfigured()) {
+    return sendWithBrevoApi({ recipientEmail, subject, text, html });
+  }
+
   return getTransport().sendMail({
     from: config.smtp.from,
     to: recipientEmail,
@@ -72,7 +113,12 @@ export async function sendRequestEmail({ recipientEmail, description, publicUrl,
 }
 
 export function requestEmailConfigurationStatus() {
-  return { configured: smtpConfigured(), host: config.smtp.host, port: config.smtp.port };
+  return {
+    configured: brevoApiConfigured() || smtpConfigured(),
+    transport: brevoApiConfigured() ? 'brevo-api' : 'smtp',
+    host: config.smtp.host,
+    port: config.smtp.port,
+  };
 }
 
 export function resetRequestEmailTransportForTests() {
