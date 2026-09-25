@@ -36,6 +36,7 @@ export const config = {
     useTls: booleanEnv(process.env.SMTP_USE_TLS, true),
     from: process.env.MAIL_FROM || '',
   },
+  brevoApiKey: process.env.BREVO_API_KEY || '',
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
