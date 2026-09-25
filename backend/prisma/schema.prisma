@@ -40,6 +40,20 @@ enum DocumentRequestStatus {
   RECEIVED
 }
 
+enum RequestEmailType {
+  INITIAL
+  REMINDER
+  RESUMED
+}
+
+enum RequestEmailStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
 model User {
   id           Int      @id @default(autoincrement())
   name         String
@@ -85,8 +99,32 @@ model DocumentRequest {
   document   Document? @relation(fields: [documentId], references: [id])
   documentId Int?      @unique
 
+  emails DocumentRequestEmail[]
+
   @@index([status, nextReminderAt])
   @@index([createdById, createdAt])
+}
+
+/// Registro lógico de un correo asociado a una versión del token. No conserva
+/// el token: al enviar se usa únicamente el token vigente de la solicitud.
+model DocumentRequestEmail {
+  id                Int                @id @default(autoincrement())
+  request           DocumentRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId         Int
+  tokenVersion      Int
+  type              RequestEmailType
+  status            RequestEmailStatus @default(PENDING)
+  attemptCount      Int                @default(0)
+  nextAttemptAt     DateTime            @default(now())
+  lastAttemptAt     DateTime?
+  sentAt            DateTime?
+  providerMessageId String?
+  lastError         String?             @db.Text
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@unique([requestId, tokenVersion])
+  @@index([status, nextAttemptAt])
 }
 
 model Criterion {
