@@ -20,11 +20,6 @@ enum AssociationStatus {
   NOT_VALIDATED
 }
 
-enum ClassificationMode {
-  PRIMARY
-  FALLBACK
-}
-
 enum HistoryAction {
   PROPOSED
   VALIDATED
@@ -163,7 +158,21 @@ model Document {
   cloudLocation String?
   documentDate  DateTime       @default(now()) // base para antigüedad (HU02)
   extractedText String?        @db.Text
+  /// Estado del flujo de análisis documental: RECEIVED, PREPARING_ANALYSIS, SENT_TO_ANALYZER,
+  /// RECEIVED_BY_ANALYZER, EXTRACTING_CONTENT, ANALYZING_CONTENT, RECEIVING_RESULT,
+  /// COMPLETED y ERROR.
+  analysisStatus String? @default("RECEIVED")
   /// PROCESSING mientras se generan embeddings; READY al terminar; FAILED si falla.
+  analysisError  String?
+  /// Cuando cambio analysisStatus por ultima vez. Permite reencolar los
+  /// documentos que un worker tomo y nunca termino.
+  analysisStatusUpdatedAt DateTime?
+  /// Explicacion del analisis cuando NO genera asociacion: sin esto, un
+  /// documento descartado por la IA se ve igual que uno nunca analizado.
+  analysisSummary String? @db.Text
+  /// Que motor decidio: el modelo local, gemini o el respaldo por keywords.
+  /// Hace visible en la interfaz cuando la IA no fue la que decidio.
+  analysisEngine String?
   vectorizationStatus String   @default("READY")
   uploadedAt    DateTime       @default(now())
 
@@ -174,6 +183,10 @@ model Document {
 
   associations Association[]
   chunks DocumentChunk[]
+
+  /// El worker consulta la cola cada pocos segundos; sin este indice cada
+  /// sondeo recorre la tabla entera.
+  @@index([analysisStatus, deletedAt])
 }
 
 model Association {
@@ -186,8 +199,11 @@ model Association {
   justification    String?           @db.Text
   evidenceFragment String?           @db.Text
   confidence       Float             @default(0)
+  /// Que produjo esta asociacion: el modelo local, gemini, el respaldo por
+  /// keywords o "manual". Va en la asociacion y no en el documento porque una
+  /// reasignacion manual no debe atribuirse al modelo que analizo antes.
+  engine           String?
   createdAt        DateTime          @default(now())
-  classificationMode ClassificationMode @default(PRIMARY)
 
   validatedBy   User?     @relation("ValidatedBy", fields: [validatedById], references: [id])
   validatedById Int?

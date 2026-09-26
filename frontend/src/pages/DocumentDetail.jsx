@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   useDocument,
@@ -11,6 +11,9 @@ import {
 } from '../hooks/useApi.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ROLES } from '../lib/roles.js';
+import { isAnalysisInProgress, normalizeAnalysisStatus, ANALYSIS_PROGRESS_TEXT, describeEngine } from '../lib/analysisStatus.js';
+
+const LAST_DOCUMENT_KEY = 'qualitrack_last_document_id';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
 const ACTION_LABEL = { PROPOSED: 'Propuesta generada', VALIDATED: 'Validada', REJECTED: 'Descartada' };
@@ -29,10 +32,41 @@ export default function DocumentDetail() {
   const { user } = useAuth();
   const [manualSub, setManualSub] = useState('');
 
+  useEffect(() => {
+    if (id) localStorage.setItem(LAST_DOCUMENT_KEY, String(id));
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return undefined;
+
+    const token = localStorage.getItem('qualitrack_token') || '';
+    const streamUrl = `/api/documents/${id}/stream?token=${encodeURIComponent(token)}`;
+    const source = new EventSource(streamUrl);
+
+    source.addEventListener('document-status', (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload?.id) {
+          localStorage.setItem(LAST_DOCUMENT_KEY, String(payload.id));
+        }
+      } catch {
+        // Ignorar payload inválido del stream sin romper la pantalla.
+      }
+    });
+
+    return () => source.close();
+  }, [id]);
+
   // La papelera es exclusiva del administrador (EP 1.2).
   const canTrash = user?.role === ROLES.ADMIN;
 
   if (isLoading) return <p className="text-steel-500">Cargando documento…</p>;
+
+  // El estado llega en dos formas segun venga del REST o del SSE; se normaliza
+  // antes de comparar para que la interfaz no dependa de cual de las dos llego.
+  const estadoAnalisis = normalizeAnalysisStatus(doc?.analysisStatus);
+  const analizando = isAnalysisInProgress(doc?.analysisStatus);
+  const motor = describeEngine(doc?.analysisEngine);
   if (!doc) return <p className="text-rose-600">Documento no encontrado.</p>;
 
   const classifyResult = classify.data;
@@ -94,6 +128,7 @@ export default function DocumentDetail() {
           </p>
           <p>Ingreso: {fmtDate(doc.uploadedAt)}</p>
           <p>Cargado por: {doc.uploadedBy}</p>
+          <p>Estado del análisis: <span className="font-medium text-steel-700">{doc.analysisStatus || 'recibido'}</span></p>
         </div>
         <div className="flex items-center gap-2">
             <span>Disponibilidad para búsquedas:</span>
@@ -117,10 +152,10 @@ export default function DocumentDetail() {
           {canManage && (
             <button
               onClick={() => classify.mutate(id)}
-              disabled={classify.isPending}
+              disabled={classify.isPending || analizando}
               className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-60"
             >
-              {classify.isPending
+              {classify.isPending || analizando
                 ? 'Analizando…'
                 : hasValidated
                   ? 'Volver a clasificar con IA'
@@ -153,24 +188,43 @@ export default function DocumentDetail() {
           </div>
         )}
 
-        {classifyResult?.alreadyValidated && (
-          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800">
-            <p className="font-medium">
-              La clasificación se mantiene sin cambios
-            </p>
-            <p className="mt-1">
-              {classifyResult.message}
-            </p>
+        {/* Mientras el analisis corre. El POST responde en milisegundos y el
+            trabajo ocurre despues de forma asincrona, asi que el estado tiene
+            que salir del documento, no de la respuesta de la mutacion. */}
+        {analizando && (
+          <div className="rounded-lg bg-brand-50 border border-brand-200 p-4 text-sm text-brand-800 flex gap-3 items-center">
+            <svg className="h-5 w-5 shrink-0 animate-spin text-brand-600" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+              <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+            <div>
+              <p className="font-medium">{ANALYSIS_PROGRESS_TEXT[estadoAnalisis] || 'Analizando…'}</p>
+              <p className="mt-1 text-brand-700">
+                El documento se procesa en el equipo local con IA propia; no sale a ningún servicio externo.
+              </p>
+            </div>
           </div>
         )}
 
-        {classifyResult && !classifyResult.relevant && (
+        {/* Analisis terminado sin asociacion: la IA decidio que el documento no
+            corresponde al Criterio 9. Antes esto se veia como un panel vacio,
+            indistinguible de un documento nunca analizado. */}
+        {!analizando && estadoAnalisis === 'COMPLETED' && doc.associations.length === 0 && (
           <div className="rounded-lg bg-steel-50 border border-steel-200 p-4 text-sm text-steel-600">
-            {classifyResult.justification}
+            <p className="font-medium text-steel-700">El análisis no propuso ningún subcriterio</p>
+            <p className="mt-1">
+              {doc.analysisSummary
+                || 'El documento fue analizado y no se encontró correspondencia con el Criterio 9. Puede asignar un subcriterio manualmente si considera que sí aplica.'}
+            </p>
+            {motor && (
+              <span className={`mt-3 inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${motor.clases}`}>
+                {motor.texto}
+              </span>
+            )}
           </div>
         )}
 
-        {doc.associations.length === 0 && !classifyResult && !classifyError && (
+        {!analizando && estadoAnalisis !== 'COMPLETED' && doc.associations.length === 0 && !classifyError && (
           <p className="text-sm text-steel-500">
             Aún no se ha generado una propuesta. Use “Clasificar” para analizar el documento.
           </p>
@@ -181,7 +235,7 @@ export default function DocumentDetail() {
             .filter((a) => a.status !== 'NOT_VALIDATED')
             .map((a) => {
             const fallbackHistory = a.history.find(
-              (h) => h.snapshot?.classificationMode === 'FALLBACK'
+              (h) => h.snapshot?.engine === 'keywords'
             );
 
             const matchedKeywords = fallbackHistory?.snapshot?.matchedKeywords || [];
@@ -197,16 +251,46 @@ export default function DocumentDetail() {
                     Estado: <span className="font-medium">{STATUS_LABEL[a.status]}</span>
                     {a.confidence ? ` · confianza ${Math.round(a.confidence * 100)}%` : ''}
                   </p>
-                  {a.classificationMode === 'FALLBACK' ? (
-                    <p className="mt-1 text-xs font-medium text-amber-700">
-                      Clasificación de respaldo · basada en palabras clave
-                    </p>
-                  ) : (
-                    <p className="mt-1 text-xs font-medium text-brand-600">
-                      Clasificación principal · IA
-                    </p>
+                  {describeEngine(a.engine) && (
+                    <span
+                      title={describeEngine(a.engine).detalle || ''}
+                      className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${describeEngine(a.engine).clases}`}
+                    >
+                      {describeEngine(a.engine).esIA ? (
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-3.5 w-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path
+                            d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"
+                            strokeLinecap="round"
+                          />
+                          <circle cx="12" cy="12" r="3.5" />
+                        </svg>
+                      ) : (
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-3.5 w-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path
+                            d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+
+                      {describeEngine(a.engine).texto}
+                    </span>
                   )}
-                  {a.classificationMode === 'FALLBACK' && matchedKeywords.length > 0 && (
+
+                  {a.engine === 'keywords' && matchedKeywords.length > 0 && (
                     <p className="mt-1 text-xs text-steel-500">
                       {matchedKeywords.length}{' '}
                       {matchedKeywords.length === 1

@@ -1,10 +1,9 @@
 // HU01 — Asociación de evidencia al Criterio 9 (propuesta / validar / descartar).
 import { prisma } from '../config/prisma.js';
-import {
-  classifyText,
-  classifyByKeywords,
-} from '../services/classifier.service.js';
+import { classifyByKeywords } from '../services/classifier.service.js';
 import { decryptText } from '../services/encryption.service.js';
+import { sendToWorker } from '../services/workerClient.service.js';
+import { updateAnalysisStatus } from '../services/analysisEvents.service.js';
 
 const CRITERION_CODE = '9';
 
@@ -37,132 +36,38 @@ async function supersedeAssociations(tx, { documentId, keepId, userId, snapshot 
 /** POST /documents/:id/classify — genera (o regenera) la propuesta automática. */
 export async function classifyDocument(req, res) {
   const documentId = Number(req.params.id);
+
+  // Sin esto, un id no numerico llega como NaN a Prisma, que lanza; y como
+  // Express 4 no atrapa los rechazos de un handler async, el proceso entero
+  // se cae. Una URL mal formada no puede tumbar el backend.
+  if (!Number.isInteger(documentId) || documentId <= 0) {
+    return res.status(400).json({ error: 'Id de documento invalido.' });
+  }
+
   const doc = await prisma.document.findFirst({
     where: {
       id: documentId,
       deletedAt: null,
     },
   });
+
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
 
-  const subcriteria = await prisma.subcriterion.findMany({
-    where: { criterion: { code: CRITERION_CODE } },
-  });
+  // Dejar el documento en PREPARING_ANALYSIS es todo el despacho: el worker
+  // pregunta por el (GET /worker/jobs) y se lo lleva. El backend no lo llama,
+  // porque el worker corre en una maquina sin IP estable ni puertos abiertos.
+  //
+  // El efecto util de encolar en vez de empujar: si el worker esta caido, el
+  // documento espera en la cola y se procesa al volver, en lugar de fallar.
+  await updateAnalysisStatus(documentId, 'PREPARING_ANALYSIS');
 
-  let result;
-
-  try {
-    result = await classifyText(
-      decryptText(doc.extractedText) || '',
-      subcriteria
-    );
-  } catch (err) {
-    console.error('[classification] Error en clasificación principal:', err.message);
-
-    return res.status(503).json({
-      error:
-        'La clasificación principal no está disponible en este momento. Puede intentar nuevamente o utilizar la clasificación de respaldo.',
-    });
-  }
-
-  if (!result.relevant) {
-    return res.json({
-      relevant: false,
-      justification: result.justification,
-      association: null,
-    });
-  }
-
-  // Si la clasificación principal coincide con una asociación ya validada,
-  // no se genera una propuesta duplicada.
-  const existingValidated = await prisma.association.findFirst({
-    where: {
-      documentId,
-      subcriterionId: result.subcriterionId,
-      status: 'VALIDATED',
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
-
-  if (existingValidated) {
-    return res.json({
-      relevant: true,
-      alreadyValidated: true,
-      message: 'La nueva clasificación coincide con la clasificación ya validada.',
-      association: {
-        id: existingValidated.id,
-        status: existingValidated.status,
-        classificationMode: existingValidated.classificationMode,
-      },
-    });
-  }
-
-   // La nueva clasificación queda pendiente. Sustituye una propuesta pendiente
-  // anterior, pero nunca desplaza la asociación validada hasta que se apruebe.
-  const association = await prisma.$transaction(async (tx) => {
-    const pending = await tx.association.findMany({
-      where: { documentId, status: 'PROPOSED' },
-    });
-
-    if (pending.length) {
-      await tx.association.updateMany({
-        where: { id: { in: pending.map((item) => item.id) } },
-        data: { status: 'NOT_VALIDATED', validatedById: null, validatedAt: null },
-      });
-      await tx.associationHistory.createMany({
-        data: pending.map((item) => ({
-          associationId: item.id,
-          action: 'REJECTED',
-          userId: req.user.id,
-          snapshot: { reemplazadaPorNuevaPropuestaIA: true },
-        })),
-      });
-    }
-
-    const created = await tx.association.create({
-      data: {
-        documentId,
-        subcriterionId: result.subcriterionId,
-        status: 'PROPOSED',
-        classificationMode: 'PRIMARY',
-        justification: result.justification,
-        evidenceFragment: result.evidenceFragment,
-        confidence: result.confidence,
-      },
-      include: { subcriterion: true },
-    });
-
-    await tx.associationHistory.create({
-      data: {
-        associationId: created.id,
-        action: 'PROPOSED',
-        userId: req.user.id,
-        snapshot: {
-          subcriterion: created.subcriterion.code,
-          confidence: result.confidence,
-          matchedKeywords: result.matchedKeywords,
-        },
-      },
-    });
-
-    return created;
-  });
-
-  return res.json({
-    relevant: true,
-    association: {
-      id: association.id,
-      status: association.status,
-      subcriterion: {
-        code: association.subcriterion.code,
-        name: association.subcriterion.name,
-      },
-      justification: association.justification,
-      evidenceFragment: association.evidenceFragment,
-      confidence: association.confidence,
-    },
+  // Se despacha al worker sin esperarlo: clasificar toma segundos y bloquear
+  // aqui dejaria colgada la conexion del usuario. El resultado vuelve por el
+  // webhook y de ahi al navegador por SSE.
+  setImmediate(() => { void sendToWorker(documentId, req.user.id); });
+  return res.status(202).json({
+    accepted: true,
+    analysisStatus: 'PREPARING_ANALYSIS',
   });
 }
 
@@ -200,7 +105,7 @@ export async function classifyDocumentFallback(req, res) {
   if (!result.relevant || !result.subcriterion) {
     return res.json({
       relevant: result.relevant,
-      classificationMode: 'FALLBACK',
+      engine: 'keywords',
       matchedKeywordCount: result.matchedKeywords.length,
       matchedKeywords: result.matchedKeywords,
       justification: result.justification,
@@ -227,7 +132,7 @@ const existingAssociation = await prisma.association.findFirst({
 if (existingAssociation) {
   return res.json({
     relevant: true,
-    classificationMode: 'FALLBACK',
+    engine: 'keywords',
     matchedKeywordCount: result.matchedKeywords.length,
     matchedKeywords: result.matchedKeywords,
     justification: result.justification,
@@ -252,7 +157,7 @@ if (existingAssociation) {
       documentId: doc.id,
       subcriterionId: result.subcriterion.id,
       status: 'PROPOSED',
-      classificationMode: 'FALLBACK',
+      engine: 'keywords',
       justification: result.justification,
       evidenceFragment: result.evidenceFragment,
       confidence: result.confidence,
@@ -266,7 +171,7 @@ if (existingAssociation) {
       action: 'PROPOSED',
       userId: req.user.id,
       snapshot: {
-        classificationMode: 'FALLBACK',
+        engine: 'keywords',
         matchedKeywords: result.matchedKeywords,
         matchedKeywordCount: result.matchedKeywords.length,
       },
@@ -275,7 +180,7 @@ if (existingAssociation) {
 
   return res.json({
     relevant: result.relevant,
-    classificationMode: 'FALLBACK',
+    engine: 'keywords',
     matchedKeywordCount: result.matchedKeywords.length,
     matchedKeywords: result.matchedKeywords,
     justification: result.justification,
@@ -353,13 +258,6 @@ export async function rejectAssociation(req, res) {
 
 /**
  * PUT /documents/:id/association — reasignación manual del subcriterio (EP 1.2).
- *
- * Cuando el usuario elige un subcriterio a mano, la nueva asociación queda
- * validada por él y reemplaza cualquier asociación vigente o propuesta. Las
- * anteriores se conservan como no validadas para mantener la auditoría.
- *
- * La pertenencia del documento (rol User solo sobre lo propio; Admin sin
- * restricción) la resuelve requireOwnDocument en la ruta, no este controller.
  */
 export async function reassignAssociation(req, res) {
   const documentId = Number(req.params.id);
@@ -382,6 +280,7 @@ export async function reassignAssociation(req, res) {
         status: 'VALIDATED',
         justification: 'Asignación manual del usuario.',
         confidence: 0,
+        engine: 'manual',
         validatedById: req.user.id,
         validatedAt: new Date(),
       },
