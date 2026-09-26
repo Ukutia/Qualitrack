@@ -32,6 +32,8 @@ services:
       db:
         condition: service_healthy
       embedding-service:
+        condition: service_healthy
+      mailpit:
         condition: service_started
     environment:
       DROPBOX_APP_KEY: ${DROPBOX_APP_KEY:-}
@@ -42,8 +44,18 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto-en-produccion}
       DOC_ENCRYPTION_KEY: ${DOC_ENCRYPTION_KEY:-}
+      REQUEST_TOKEN_ENCRYPTION_KEY: ${REQUEST_TOKEN_ENCRYPTION_KEY:-}
+      REQUEST_SCHEDULER_INTERVAL_MS: ${REQUEST_SCHEDULER_INTERVAL_MS:-15000}
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-10}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-false}
+      MAIL_FROM: ${MAIL_FROM:-notificaciones@example.test}
+      REQUEST_EMAIL_RETRY_SECONDS: ${REQUEST_EMAIL_RETRY_SECONDS:-60}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@qualitrack.cl}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
       ADMIN_NAME: ${ADMIN_NAME:-Encargado de Aseguramiento de Calidad}
@@ -85,9 +97,22 @@ services:
       # Puerto del host configurable (default 5173) por si está ocupado.
       - "${FRONTEND_PORT:-5173}:5173"
 
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+
   embedding-service:
     build: ./backend/embedding-service
     container_name: qualitrack-embedding
+    # Esperar la carga del modelo y su warm-up antes de iniciar el backend.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      start_period: 15m
+      retries: 12
     restart: unless-stopped
     ports:
       - "8000:8000"

@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma.js';
+import { viewFilter } from '../middleware/ownership.js';
 
 export async function listTopics(req, res, next) {
   try {
@@ -38,12 +39,12 @@ export async function createTopic(req, res, next) {
       });
     }
 
-    const documentCount = await prisma.documentChunk.count({
+    // Uploads are available before asynchronous vectorization finishes.
+    // Use repository visibility, not chunk availability or upload ownership.
+    const documentCount = await prisma.document.count({
       where: {
-        document: {
-          deletedAt: null,
-          uploadedById: req.user.id,
-        },
+        deletedAt: null,
+        ...viewFilter(req.user),
       },
     });
 

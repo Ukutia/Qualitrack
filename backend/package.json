@@ -10,6 +10,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
+    "db:retry-vectorizations": "node scripts/retry-failed-vectorizations.js",
     "db:encrypt-legacy-text": "node scripts/encrypt-existing-text.js",
     "worker:analysis": "node scripts/analysis-woker.js",
     "test": "vitest run"
@@ -27,6 +28,7 @@
     "jsonwebtoken": "^9.0.2",
     "mammoth": "^1.8.0",
     "multer": "^2.0.1",
+    "nodemailer": "^10.0.10",
     "pdf-parse": "^1.1.1",
     "undici": "^7.29.1",
     "xlsx": "^0.18.5"
