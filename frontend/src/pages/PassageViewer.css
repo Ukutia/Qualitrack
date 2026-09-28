@@ -1,0 +1,226 @@
+/* Visor de pasajes: documento original con el fragmento resaltado. */
+
+.passage-quote summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #57534e;
+}
+.passage-quote p {
+  margin-top: 0.5rem;
+  max-height: 9rem;
+  overflow-y: auto;
+  border-left: 3px solid #facc15;
+  background: #fefce8;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #44403c;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.passage-document {
+  overflow: hidden;
+  border-radius: 1.15rem;
+  background: #e7e5e4;
+  box-shadow: inset 0 0 0 1px rgb(214 211 209 / 0.6);
+}
+
+/* Dos niveles: el fragmento completo apenas teñido (contexto) y, dentro de él,
+   las oraciones relacionadas con la temática bien marcadas (foco). */
+mark.passage-mark {
+  background: rgb(250 204 21 / 0.14);
+  color: inherit;
+}
+mark.passage-focus {
+  background: rgb(250 204 21 / 0.6);
+  color: inherit;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgb(234 179 8 / 0.45);
+}
+
+/* ── PDF ─────────────────────────────────────────────────────────── */
+.pdf-viewer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+}
+.pdf-page {
+  position: relative;
+  flex: none;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 8px 24px -12px rgb(0 0 0 / 0.25);
+}
+.pdf-page canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Capa de texto de pdf.js (subconjunto de pdf_viewer.css). */
+.pdf-page .textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  opacity: 1;
+  text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.pdf-page .textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+.pdf-page .textLayer > :not(.markedContent),
+.pdf-page .textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.pdf-page .textLayer .markedContent { display: contents; }
+.pdf-page .textLayer ::selection { background: rgb(0 0 255 / 0.25); }
+.pdf-page .textLayer mark:is(.passage-mark, .passage-focus) {
+  position: static;
+  color: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+.pdf-page .textLayer mark.passage-mark { background: rgb(250 204 21 / 0.12); }
+.pdf-page .textLayer mark.passage-focus { background: rgb(250 204 21 / 0.5); }
+
+/* ── DOCX ────────────────────────────────────────────────────────── */
+.docx-viewer {
+  overflow-x: auto;
+}
+.docx-viewer .docx-wrapper {
+  background: transparent;
+  padding: 1rem;
+}
+.docx-viewer .docx-wrapper > section.docx {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 8px 24px -12px rgb(0 0 0 / 0.25);
+  margin-bottom: 1rem;
+}
+
+/* ── XLSX ────────────────────────────────────────────────────────── */
+.sheet-viewer {
+  background: #fff;
+}
+.sheet-tabs {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  border-bottom: 1px solid #e7e5e4;
+  background: #fafaf9;
+  padding: 0.5rem 0.5rem 0;
+}
+.sheet-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+  border-radius: 0.5rem 0.5rem 0 0;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8125rem;
+  color: #57534e;
+}
+.sheet-tab:hover { background: #f5f5f4; }
+.sheet-tab[aria-selected='true'] {
+  background: #fff;
+  color: #1c1917;
+  font-weight: 600;
+  box-shadow: 0 -1px 0 #e7e5e4 inset, 1px 0 0 #e7e5e4, -1px 0 0 #e7e5e4;
+}
+.sheet-tab-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 9999px;
+  background: #eab308;
+}
+.sheet-scroll {
+  max-height: 70vh;
+  overflow: auto;
+}
+.sheet-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8125rem;
+  color: #292524;
+}
+.sheet-table th,
+.sheet-table td {
+  border-right: 1px solid #e7e5e4;
+  border-bottom: 1px solid #e7e5e4;
+  padding: 0.3rem 0.6rem;
+  white-space: nowrap;
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sheet-table th {
+  position: sticky;
+  background: #f5f5f4;
+  color: #78716c;
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-align: center;
+}
+.sheet-table thead th { top: 0; z-index: 2; }
+.sheet-table tbody th { left: 0; z-index: 1; min-width: 2.75rem; }
+.sheet-table thead th:first-child { left: 0; z-index: 3; }
+.sheet-cell-marked {
+  background: #fefce8;
+}
+.sheet-cell-focus {
+  background: #fde68a;
+}
+.sheet-cell-target {
+  background: #fde047;
+  outline: 2px solid #ca8a04;
+  outline-offset: -2px;
+  font-weight: 500;
+}
+.sheet-more {
+  display: block;
+  width: 100%;
+  border-bottom: 1px solid #e7e5e4;
+  border-top: 1px solid #e7e5e4;
+  background: #fafaf9;
+  padding: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #3778bd;
+}
+.sheet-more:hover { background: #f5f5f4; }
+
+.passage-focus-list {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+.passage-focus-list li {
+  border-left: 3px solid #eab308;
+  background: #fef9c3;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #292524;
+  border-radius: 0 0.5rem 0.5rem 0;
+}

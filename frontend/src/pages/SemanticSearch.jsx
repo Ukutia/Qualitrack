@@ -295,9 +295,11 @@ export default function SemanticSearch() {
 
                 <div className="mt-4 space-y-3">
                   {document.fragments.slice(0, 3).map((fragment) => (
-                    <div
+                    <Link
                       key={`${document.documentId}-${fragment.chunkIndex}`}
-                      className="rounded-lg border border-stone-100 bg-stone-50/70 p-4"
+                      to={`/documents/${document.documentId}/pasajes/${fragment.chunkIndex}?q=${encodeURIComponent(search.data.query)}`}
+                      title="Abrir el documento en este fragmento"
+                      className="group block rounded-lg border border-stone-100 bg-stone-50/70 p-4 transition hover:border-brand-200 hover:bg-brand-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
                     >
                       <p className="text-sm leading-6 text-stone-700">
                         {fragment.content.length > 450
@@ -305,11 +307,16 @@ export default function SemanticSearch() {
                           : fragment.content}
                       </p>
 
-                      <p className="mt-2 text-xs text-stone-400">
-                        Fragmento {fragment.chunkIndex + 1} · similitud{' '}
-                        {fragment.similarity.toFixed(3)}
+                      <p className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-stone-400">
+                        <span>
+                          Fragmento {fragment.chunkIndex + 1} · similitud{' '}
+                          {fragment.similarity.toFixed(3)}
+                        </span>
+                        <span className="font-medium text-brand-600 group-hover:text-brand-700">
+                          Ver en el documento →
+                        </span>
                       </p>
-                    </div>
+                    </Link>
                   ))}
                 </div>
 

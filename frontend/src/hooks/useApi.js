@@ -92,6 +92,54 @@ export function useSemanticSearch() {
   });
 }
 
+// ── Pasajes (visor de fragmentos) ──────────────────────────────────
+// 404/410 significan que el documento ya no existe, está en la papelera o
+// perdió su archivo: no tiene sentido reintentar.
+const noRetryWhenGone = (count, error) =>
+  ![404, 410].includes(error?.response?.status) && count < 2;
+
+export function usePassage(documentId, chunkIndex) {
+  return useQuery({
+    queryKey: ['passage', documentId, chunkIndex],
+    queryFn: async () => (await api.get(`/documents/${documentId}/passages/${chunkIndex}`)).data,
+    retry: noRetryWhenGone,
+  });
+}
+
+/** Oraciones del fragmento relacionadas con la temática (tarda unos segundos). */
+export function usePassageFocus(documentId, chunkIndex, query, enabled) {
+  return useQuery({
+    queryKey: ['passage-focus', documentId, chunkIndex, query],
+    enabled: enabled && !!query,
+    staleTime: Infinity,
+    queryFn: async () =>
+      (await api.get(`/documents/${documentId}/passages/${chunkIndex}/focus`, { params: { q: query } })).data,
+    retry: noRetryWhenGone,
+  });
+}
+
+export function useDocumentFile(documentId, enabled) {
+  return useQuery({
+    queryKey: ['document-file', documentId],
+    enabled,
+    staleTime: Infinity,
+    gcTime: 60_000,
+    retry: noRetryWhenGone,
+    queryFn: async () =>
+      (await api.get(`/documents/${documentId}/file`, { responseType: 'arraybuffer' })).data,
+  });
+}
+
+export function useDocumentSheets(documentId, enabled) {
+  return useQuery({
+    queryKey: ['document-sheets', documentId],
+    enabled,
+    staleTime: Infinity,
+    retry: noRetryWhenGone,
+    queryFn: async () => (await api.get(`/documents/${documentId}/sheets`)).data,
+  });
+}
+
 // ── Temáticas ───────────────────────────────────────────────────────
 export function useTopics() {
   return useQuery({
