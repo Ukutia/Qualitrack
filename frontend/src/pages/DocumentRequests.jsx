@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   useCreateDocumentRequest,
-  useDocumentRequestConfig,
   useDocumentRequestAction,
   useDocumentRequests,
   useDeleteDocumentRequest,
@@ -16,6 +15,12 @@ const STATUS = {
 };
 function formatDate(value) {
   return value ? new Date(value).toLocaleString('es-CL') : '—';
+}
+
+function formatDays(value) {
+  const days = Number(value);
+  if (!Number.isFinite(days)) return '—';
+  return `${days.toLocaleString('es-CL')} ${days === 1 ? 'día' : 'días'}`;
 }
 
 function errorMessage(error) {
@@ -121,7 +126,7 @@ export default function DocumentRequests() {
                 </div>
 
                 <dl className="mt-4 grid gap-3 border-t border-steel-100 pt-4 text-sm sm:grid-cols-3">
-                  <div><dt className="text-steel-500">Frecuencia</dt><dd className="mt-1 font-medium text-ink-900">{request.reminderIntervalMinutes} min</dd></div>
+                  <div><dt className="text-steel-500">Frecuencia</dt><dd className="mt-1 font-medium text-ink-900">{formatDays(request.reminderIntervalDays)}</dd></div>
                   <div><dt className="text-steel-500">Próxima rotación</dt><dd className="mt-1 font-medium text-ink-900">{formatDate(request.nextReminderAt)}</dd></div>
                   <div><dt className="text-steel-500">Versión del token</dt><dd className="mt-1 font-medium text-ink-900">v{request.tokenVersion}</dd></div>
                 </dl>
@@ -152,23 +157,18 @@ export default function DocumentRequests() {
 export function NewDocumentRequest() {
   const navigate = useNavigate();
   const createRequest = useCreateDocumentRequest();
-  const requestConfig = useDocumentRequestConfig();
-  const allowSubdayIntervals = requestConfig.data?.allowSubdayIntervals === true;
-  const minimumDays = requestConfig.data?.minimumIntervalDays ?? 1;
   const [recipientEmail, setRecipientEmail] = useState('');
   const [description, setDescription] = useState('');
   const [days, setDays] = useState('7');
   const [formError, setFormError] = useState('');
-  const minutes = useMemo(() => {
-    const value = Number(days);
-    return Number.isFinite(value) ? Math.round(value * 1440) : 0;
-  }, [days]);
+  const daysValue = Number(days);
+  const validDays = Number.isInteger(daysValue) && daysValue >= 1 && daysValue <= 30;
 
   async function submit(event) {
     event.preventDefault();
     setFormError('');
     try {
-      await createRequest.mutateAsync({ recipientEmail, description, reminderIntervalDays: Number(days) });
+      await createRequest.mutateAsync({ recipientEmail, description, reminderIntervalDays: daysValue });
       navigate('/requests');
     } catch (error) {
       setFormError(errorMessage(error));
@@ -195,12 +195,11 @@ export function NewDocumentRequest() {
         </div>
         <div className="space-y-2 border-t border-steel-200 pt-5">
           <label htmlFor="request-frequency" className="block text-sm font-medium text-ink-900">Frecuencia del recordatorio (días)</label>
-          <input id="request-frequency" type="number" required min={minimumDays} max="30" step={allowSubdayIntervals ? 'any' : 1} value={days} onChange={(event) => setDays(event.target.value)} className="w-44 rounded-lg border border-steel-300 bg-white px-3 py-2.5 text-sm text-ink-900" />
-          <p className="text-sm font-medium text-brand-700">Equivale a {minutes > 0 ? `${minutes.toLocaleString('es-CL')} minuto${minutes === 1 ? '' : 's'}` : 'una frecuencia inválida'}.</p>
-          <p className="text-xs text-steel-500">{allowSubdayIntervals ? 'Modo de prueba: mínimo 1 minuto. En producción real se recomienda exigir entre 1 y 30 días.' : 'Entre 1 y 30 días.'}</p>
+          <input id="request-frequency" type="number" required min="1" max="30" step="1" value={days} onChange={(event) => setDays(event.target.value)} className="w-44 rounded-lg border border-steel-300 bg-white px-3 py-2.5 text-sm text-ink-900" />
+          <p className="text-xs text-steel-500">Entre 1 y 30 días.</p>
         </div>
         <div className="border-t border-steel-200 pt-5">
-          <button type="submit" disabled={createRequest.isPending || minutes < 1} className="btn rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">{createRequest.isPending ? 'Creando…' : 'Crear solicitud y token'}</button>
+          <button type="submit" disabled={createRequest.isPending || !validDays} className="btn rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">{createRequest.isPending ? 'Creando…' : 'Crear solicitud y token'}</button>
         </div>
       </form>
     </div>
