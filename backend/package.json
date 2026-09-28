@@ -28,6 +28,7 @@
     "jsonwebtoken": "^9.0.2",
     "mammoth": "^1.8.0",
     "multer": "^2.0.1",
+    "nodemailer": "^10.0.10",
     "pdf-parse": "^1.1.1",
     "undici": "^7.29.1",
     "xlsx": "^0.18.5"

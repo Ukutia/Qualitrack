@@ -62,6 +62,7 @@ import {
   pauseDocumentRequest,
   resumeDocumentRequest,
   cancelDocumentRequest,
+  deleteDocumentRequest,
 } from '../controllers/documentRequests.controller.js';
 
 const router = Router();
@@ -297,6 +298,7 @@ router.post('/document-requests', createDocumentRequest);
 router.post('/document-requests/:id/pause', pauseDocumentRequest);
 router.post('/document-requests/:id/resume', resumeDocumentRequest);
 router.post('/document-requests/:id/cancel', cancelDocumentRequest);
+router.delete('/document-requests/:id', deleteDocumentRequest);
 
 // Google Drive (HU09)
 router.get('/cloud/google/status', cloud.status);

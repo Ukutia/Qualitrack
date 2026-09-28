@@ -65,6 +65,7 @@ const USER_RULES = [
   rule('GET', /^\/document-requests\/config$/),
   rule('POST', /^\/document-requests$/),
   rule('POST', /^\/document-requests\/\d+\/(pause|resume|cancel)$/),
+  rule('DELETE', /^\/document-requests\/\d+$/),
 ];
 
 const ROLE_RULES = {
