@@ -74,7 +74,7 @@ export function describeEngine(engine) {
 
   if (engine === 'keywords') {
     return {
-      texto: 'Sin IA · coincidencia de terminos',
+      texto: 'Clasificación de respaldo · sin IA',
       detalle:
         'El modelo no estaba disponible o no devolvio un subcriterio valido, ' +
         'asi que la propuesta proviene de buscar palabras clave en el texto. ' +

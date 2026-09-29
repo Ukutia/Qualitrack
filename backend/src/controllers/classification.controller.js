@@ -88,6 +88,29 @@ export async function classifyDocumentFallback(req, res) {
     });
   }
 
+  // El respaldo solo se puede usar si el análisis principal falló
+  // o si han pasado al menos 3 minutos desde que comenzó.
+  const analysisFailed = doc.analysisStatus === 'ERROR';
+
+  const analysisStartedAt = doc.analysisStartedAt
+    ? new Date(doc.analysisStartedAt).getTime()
+    : null;
+
+  const elapsedMs = analysisStartedAt
+    ? Date.now() - analysisStartedAt
+    : 0;
+
+  const fallbackAllowed =
+    analysisFailed || elapsedMs >= 3 * 60 * 1000;
+
+  if (!fallbackAllowed) {
+    return res.status(409).json({
+      code: 'FALLBACK_NOT_AVAILABLE',
+      error:
+        'La clasificación de respaldo estará disponible cuando el análisis principal falle o supere los 3 minutos.',
+    });
+  }
+
   const subcriteria = await prisma.subcriterion.findMany({
     where: {
       criterion: {

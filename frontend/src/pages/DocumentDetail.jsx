@@ -35,14 +35,14 @@ export default function DocumentDetail() {
   const [analysisNow, setAnalysisNow] = useState(Date.now());
 
   useEffect(() => {
-    if (!doc?.analysisStatusUpdatedAt) return undefined;
+    if (!doc?.analysisStartedAt) return undefined;
 
     const timer = setInterval(() => {
       setAnalysisNow(Date.now());
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [doc?.analysisStatusUpdatedAt]);
+  }, [doc?.analysisStartedAt]);
 
   useEffect(() => {
     if (id) localStorage.setItem(LAST_DOCUMENT_KEY, String(id));
@@ -80,8 +80,8 @@ export default function DocumentDetail() {
   const analizando = isAnalysisInProgress(doc?.analysisStatus);
   const motor = describeEngine(doc?.analysisEngine);
 
-  const analysisStartedAt = doc?.analysisStatusUpdatedAt
-    ? new Date(doc.analysisStatusUpdatedAt).getTime()
+  const analysisStartedAt = doc?.analysisStartedAt
+    ? new Date(doc.analysisStartedAt).getTime()
     : null;
 
   const analysisElapsedMs = analysisStartedAt

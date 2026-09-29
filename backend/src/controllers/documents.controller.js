@@ -240,6 +240,7 @@ export async function getDocument(req, res) {
     // la base de datos pero ningun endpoint lo devolvia, aunque el frontend ya
     // lo espera en los eventos SSE.
     analysisStatusUpdatedAt: doc.analysisStatusUpdatedAt ?? null,
+    analysisStartedAt: doc.analysisStartedAt ?? null,
     analysisError: doc.analysisError ?? null,
     analysisSummary: doc.analysisSummary ?? null,
     analysisEngine: doc.analysisEngine ?? null,

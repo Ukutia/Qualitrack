@@ -168,24 +168,6 @@ router.post('/webhooks/worker-update', async (req, res) => {
 
     if (status === 'COMPLETED' && result && result.relevant) {
         await prisma.$transaction(async (tx) => {
-            const pending = await tx.association.findMany({
-                where: { documentId, status: 'PROPOSED' },
-            });
-
-            if (pending.length) {
-                await tx.association.updateMany({
-                    where: { id: { in: pending.map((item) => item.id) } },
-                    data: { status: 'NOT_VALIDATED', validatedById: null, validatedAt: null },
-                });
-                await tx.associationHistory.createMany({
-                    data: pending.map((item) => ({
-                        associationId: item.id,
-                        action: 'REJECTED',
-                        userId,
-                        snapshot: { reemplazadaPorNuevaPropuestaIA: true },
-                    })),
-                });
-            }
 
             const created = await tx.association.create({
                 data: {
