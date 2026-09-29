@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import Documents from './pages/Documents.jsx';
 import DocumentRequests, { NewDocumentRequest } from './pages/DocumentRequests.jsx';
 import DocumentDetail from './pages/DocumentDetail.jsx';
+import PassageViewer from './pages/PassageViewer.jsx';
 import Upload from './pages/Upload.jsx';
 import CriteriaStructure from './pages/CriteriaStructure.jsx';
 import ReportEditor from './pages/ReportEditor.jsx';
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="/search" element={<Guard roles={ADMIN_ONLY}><SemanticSearch /></Guard>} />
         <Route path="/network" element={<Navigate to="/search?view=network" replace />} />
         <Route path="/documents/:id" element={<Guard roles={ADMIN_AND_USER}><DocumentDetail /></Guard>} />
+        <Route path="/documents/:id/pasajes/:chunkIndex" element={<Guard roles={ADMIN_AND_USER}><PassageViewer /></Guard>} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/structure" element={<Guard roles={ADMIN_ONLY}><CriteriaStructure /></Guard>} />
         <Route path="/report" element={<Guard roles={ADMIN_ONLY}><ReportEditor /></Guard>} />
