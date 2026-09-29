@@ -61,12 +61,12 @@ describe('tabla de permisos', () => {
     expect(canAccess(ROLES.USER, 'GET', '/criteria')).toBe(true);
   });
 
-  it('el user no accede al informe ni a la estructura', () => {
+  it('el user no accede al informe ni a la estructura, pero mantiene gestión documental', () => {
     expect(canAccess(ROLES.USER, 'GET', '/report-drafts')).toBe(false);
     expect(canAccess(ROLES.USER, 'PUT', '/report-drafts/1')).toBe(false);
     expect(canAccess(ROLES.USER, 'POST', '/report-structure')).toBe(false);
-    expect(canAccess(ROLES.USER, 'GET', '/documents/trash')).toBe(false);
-    expect(canAccess(ROLES.USER, 'DELETE', '/documents/9')).toBe(false);
+    expect(canAccess(ROLES.USER, 'GET', '/documents/trash')).toBe(true);
+    expect(canAccess(ROLES.USER, 'DELETE', '/documents/9')).toBe(true);
   });
 
   it('un rol desconocido no accede a nada', () => {
