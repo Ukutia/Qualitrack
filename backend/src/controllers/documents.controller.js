@@ -9,6 +9,7 @@ import { ownerFilter, viewFilter } from '../middleware/ownership.js';
 import { encryptText, decryptText } from '../services/encryption.service.js';
 import { normalizeAnalysisStatus, toDisplayAnalysisStatus } from '../services/analysisStatus.service.js';
 import { normalizeVectorizationStatus } from '../services/analysisStatus.service.js';
+import { analysisEvents } from '../services/analysisEvents.service.js';
 
 const MIME = {
   pdf:  'application/pdf',
@@ -285,16 +286,21 @@ function sendDocumentStatus(res, doc, source = 'initial') {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
+const STREAM_SELECT = {
+  id: true,
+  originalName: true,
+  analysisStatus: true,
+  analysisError: true,
+  analysisSummary: true,
+  analysisEngine: true,
+  vectorizationStatus: true,
+};
+
 export async function streamDocumentStatus(req, res) {
   const id = Number(req.params.id);
   const doc = await prisma.document.findUnique({
     where: { id },
-    select: {
-      id: true,
-      originalName: true,
-      analysisStatus: true,
-      vectorizationStatus: true,
-    },
+    select: STREAM_SELECT,
   });
 
   if (!doc) {
@@ -313,6 +319,26 @@ export async function streamDocumentStatus(req, res) {
 
   sendDocumentStatus(res, doc, 'initial');
 
+  let lastSent = { ...doc };
+
+  // Cada cambio de etapa se publica en el bus de eventos en el momento en que
+  // ocurre. Sin escucharlo, el stream dependia solo del sondeo de 2 s y las
+  // etapas que duran milisegundos (recibido por el analizador, extrayendo
+  // contenido, recibiendo resultado) nunca llegaban a la pantalla.
+  const onStatusEvent = (event) => {
+    lastSent = {
+      ...lastSent,
+      analysisStatus: event.analysisStatus,
+      analysisError: event.analysisError ?? null,
+    };
+    try {
+      sendDocumentStatus(res, lastSent, 'event');
+    } catch {
+      // El cierre de la conexion limpia el listener.
+    }
+  };
+  analysisEvents.on(`status-${id}`, onStatusEvent);
+
   const heartbeat = setInterval(() => {
     try {
       res.write(': heartbeat\n\n');
@@ -326,32 +352,20 @@ export async function streamDocumentStatus(req, res) {
     try {
       const next = await prisma.document.findUnique({
         where: { id },
-        select: {
-          id: true,
-          originalName: true,
-          analysisStatus: true,
-          vectorizationStatus: true,
-        },
+        select: STREAM_SELECT,
       });
 
       if (!next) return;
 
-      const previous = await prisma.document.findUnique({
-        where: { id },
-        select: { analysisStatus: true, vectorizationStatus: true },
-      });
-
+      // Respaldo: cubre los cambios que no pasan por el bus (la vectorizacion,
+      // o un estado escrito por otra instancia del backend). Cada conexion
+      // lleva su propio lastSent, asi que solo se escribe en la propia.
       if (
-        previous?.analysisStatus !== next.analysisStatus ||
-        previous?.vectorizationStatus !== next.vectorizationStatus
+        lastSent.analysisStatus !== next.analysisStatus ||
+        lastSent.vectorizationStatus !== next.vectorizationStatus
       ) {
-        for (const stream of listeners) {
-          try {
-            sendDocumentStatus(stream, next, 'db-refresh');
-          } catch {
-            listeners.delete(stream);
-          }
-        }
+        lastSent = next;
+        sendDocumentStatus(res, next, 'db-refresh');
       }
     } catch {
       // El stream sigue vivo aunque la base de datos no responda
@@ -361,6 +375,7 @@ export async function streamDocumentStatus(req, res) {
   req.on('close', () => {
     clearInterval(heartbeat);
     clearInterval(poller);
+    analysisEvents.off(`status-${id}`, onStatusEvent);
     listeners.delete(res);
     if (listeners.size === 0) documentStatusStreams.delete(id);
   });
