@@ -240,6 +240,8 @@ export async function getDocument(req, res) {
     // Sin esto el usuario ve "error" y nada mas: el motivo quedaba guardado en
     // la base de datos pero ningun endpoint lo devolvia, aunque el frontend ya
     // lo espera en los eventos SSE.
+    analysisStatusUpdatedAt: doc.analysisStatusUpdatedAt ?? null,
+    analysisStartedAt: doc.analysisStartedAt ?? null,
     analysisError: doc.analysisError ?? null,
     analysisSummary: doc.analysisSummary ?? null,
     analysisEngine: doc.analysisEngine ?? null,
@@ -258,6 +260,7 @@ export async function getDocument(req, res) {
         action: h.action,
         user: h.user?.name,
         at: h.createdAt,
+        snapshot: h.snapshot,
       })),
     })),
   });
@@ -271,6 +274,7 @@ function sendDocumentStatus(res, doc, source = 'initial') {
     id: doc.id,
     name: doc.originalName,
     analysisStatus: toDisplayAnalysisStatus(doc.analysisStatus),
+    analysisStatusUpdatedAt: doc.analysisStatusUpdatedAt ?? null,
     // Sin esto el usuario ve "error" y nada mas: el motivo quedaba guardado en
     // la base de datos pero ningun endpoint lo devolvia, aunque el frontend ya
     // lo espera en los eventos SSE.

@@ -241,6 +241,9 @@ model Document {
   /// Cuando cambio analysisStatus por ultima vez. Permite reencolar los
   /// documentos que un worker tomo y nunca termino.
   analysisStatusUpdatedAt DateTime?
+  /// Momento en que comenzó el intento actual de análisis.
+  /// No cambia con los estados intermedios y permite medir el timeout de 3 minutos.
+  analysisStartedAt DateTime?
   /// Explicacion del analisis cuando NO genera asociacion: sin esto, un
   /// documento descartado por la IA se ve igual que uno nunca analizado.
   analysisSummary String? @db.Text
