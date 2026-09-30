@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api.js';
-import { normalizeAnalysisStatus } from '../lib/analysisStatus.js';
+import { normalizeAnalysisStatus, isAnalysisInProgress } from '../lib/analysisStatus.js';
+import { watchAnalysis } from '../lib/analysisWatch.js';
 
 const DOCUMENT_IMPORT_TIMEOUT = 300000; // 5 minutos
 
@@ -184,69 +185,97 @@ export function useDeleteTopic() {
   });
 }
 
+// Tiempo mínimo que cada etapa del análisis queda en pantalla. Varias etapas
+// (recibido por el analizador, extrayendo contenido, recibiendo resultado)
+// duran milisegundos: aplicadas tal cual llegan, React las pisa antes de que
+// alguien alcance a leerlas.
+const MIN_STAGE_MS = 700;
+
 export function useDocument(id) {
   const qc = useQueryClient();
+  // Con el stream abierto sobra el sondeo, y además estorba: una respuesta
+  // del sondeo puede adelantarse a la cola de etapas y hacer retroceder el
+  // estado en pantalla.
+  const streamOpen = useRef(false);
 
   useEffect(() => {
-    // Solicitar permiso de notificaciones al montar el componente
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-
     if (!id) return undefined;
 
     const token = localStorage.getItem('qualitrack_token');
-    //const streamUrl = `${api.defaults.baseURL || '/api'}/events/documents/${id}?token=${encodeURIComponent(token || '')}`;
     const streamUrl = `${api.defaults.baseURL || '/api'}/documents/${id}/stream?token=${encodeURIComponent(token || '')}`;
     const source = new EventSource(streamUrl);
+    const queue = [];
+    let timer = null;
+    let shownAt = 0;
+    let lastQueued = null;
 
-    source.addEventListener('analysis-status', (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        qc.invalidateQueries({ queryKey: ['documents'] });
-        qc.invalidateQueries({ queryKey: ['document', String(id)] });
+    const apply = (payload) => {
+      shownAt = Date.now();
+      const previous = qc.getQueryData(['document', id]);
+
+      qc.setQueryData(['document', id], (old) => old ? {
+        ...old,
+        analysisStatus: payload.analysisStatus,
+        analysisError: payload.analysisError ?? null,
+        analysisSummary: payload.analysisSummary ?? old.analysisSummary,
+        analysisEngine: payload.analysisEngine ?? old.analysisEngine,
+        vectorizationStatus: payload.vectorizationStatus ?? old.vectorizationStatus,
+      } : old);
+
+      // Al terminar llegan la propuesta y su historial, que el evento no trae:
+      // se recarga la ficha completa. Solo si el estado cambió, para no
+      // recargar al abrir un documento ya analizado.
+      const changed =
+        normalizeAnalysisStatus(previous?.analysisStatus) !== normalizeAnalysisStatus(payload.analysisStatus);
+      if (changed && !isAnalysisInProgress(payload.analysisStatus)) {
         qc.invalidateQueries({ queryKey: ['document', id] });
-        
-        if (payload.analysisStatus) {
-          qc.setQueryData(['document', id], (old) => old ? { ...old, analysisStatus: payload.analysisStatus, analysisStatusUpdatedAt: payload.analysisStatusUpdatedAt, analysisError: payload.analysisError || null } : old);
-          
-          // Cumplimiento del Paso 3: Notificación si la pestaña está inactiva
-          if (payload.analysisStatus === 'COMPLETED') {
-            localStorage.removeItem('documento_activo'); // Limpiamos el progreso
-            
-            if (document.hidden && Notification.permission === 'granted') {
-              new Notification("Análisis completado", { body: "Tu propuesta ya está lista." });
-            }
-          }
-        }
-      } catch (err) {
-        console.error('No se pudo procesar el evento SSE de análisis del documento:', err);
+        qc.invalidateQueries({ queryKey: ['documents'] });
       }
+    };
+
+    const drain = () => {
+      timer = null;
+      const next = queue.shift();
+      if (!next) return;
+      apply(next);
+      if (queue.length) timer = setTimeout(drain, MIN_STAGE_MS);
+    };
+
+    source.addEventListener('document-status', (event) => {
+      let payload;
+      try {
+        payload = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+
+      // El bus y el sondeo del backend pueden informar el mismo cambio.
+      const key = `${normalizeAnalysisStatus(payload.analysisStatus)}|${payload.vectorizationStatus}`;
+      if (key === lastQueued) return;
+      lastQueued = key;
+
+      queue.push(payload);
+      if (!timer) timer = setTimeout(drain, Math.max(0, shownAt + MIN_STAGE_MS - Date.now()));
     });
 
-    return () => source.close();
+    source.onopen = () => { streamOpen.current = true; };
+    source.onerror = () => { streamOpen.current = false; };
+
+    return () => {
+      clearTimeout(timer);
+      source.close();
+      streamOpen.current = false;
+    };
   }, [id, qc]);
 
-  // ... (mantén el return useQuery exactamente como lo tienes)[cite: 7]
   return useQuery({
     queryKey: ['document', id],
     queryFn: async () => (await api.get(`/documents/${id}`)).data,
     enabled: !!id,
-    refetchInterval: (query) => {
-      // La API devuelve la etiqueta traducida ("preparando analisis") y el SSE
-      // la clave ("PREPARING_ANALYSIS"). Comparar sin normalizar hacia que esta
-      // lista nunca coincidiera y el refresco por sondeo no ocurriera jamas.
-      const status = normalizeAnalysisStatus(query.state.data?.analysisStatus);
-      const active = [
-        'PREPARING_ANALYSIS',
-        'SENT_TO_ANALYZER',
-        'RECEIVED_BY_ANALYZER',
-        'EXTRACTING_CONTENT',
-        'ANALYZING_CONTENT',
-        'RECEIVING_RESULT',
-      ];
-      return active.includes(status) ? 2000 : false;
-    },
+    // Respaldo por si el stream se corta: mientras el análisis sigue en curso
+    // se consulta cada 2 s.
+    refetchInterval: (query) =>
+      !streamOpen.current && isAnalysisInProgress(query.state.data?.analysisStatus) ? 2000 : false,
   });
 }
 
@@ -263,12 +292,7 @@ export function useUploadDocument() {
         })
       ).data;
     },
-    onSuccess: (data) => {
-      // Cumplimiento del Paso 3: Guardar el ID en el almacenamiento local
-      if (data && data.id) {
-         localStorage.setItem('documento_activo', data.id);
-      }
-      
+    onSuccess: () => {
       // No bloquear la resolución de mutateAsync...
       qc.invalidateQueries({ queryKey: ['documents'] });
     },
@@ -319,9 +343,17 @@ export function useClassify() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (docId) => (await api.post(`/documents/${docId}/classify`)).data,
-    onSuccess: (_d, docId) => {
-      qc.invalidateQueries({ queryKey: ['document', String(docId)] });
-      qc.invalidateQueries({ queryKey: ['document', docId] });
+    onSuccess: (data, docId) => {
+      watchAnalysis(docId);
+      // Las etapas siguientes llegan por el stream. Recargar la ficha aquí
+      // podía traer una etapa más nueva que la que la cola está mostrando y
+      // hacer retroceder el estado; solo se marca el inicio, y solo si el
+      // stream no se adelantó ya con una etapa posterior.
+      qc.setQueryData(['document', docId], (old) =>
+        old && !isAnalysisInProgress(old.analysisStatus)
+          ? { ...old, analysisStatus: data.analysisStatus, analysisError: null }
+          : old
+      );
     },
   });
 }
