@@ -10,9 +10,7 @@ import {
   requireViewableDocument,
 } from '../middleware/ownership.js';
 import { upload, structureUpload } from '../middleware/upload.js';
-import { network, documentContent } from '../controllers/network.controller.js';
 import { semanticSearch } from '../controllers/search.controller.js';
-import { getPassage, getPassageFocus, getSheets } from '../controllers/passages.controller.js';
 import { listTopics, createTopic, deleteTopic } from '../controllers/topics.controller.js';
 import {
   listDrafts,
@@ -22,6 +20,18 @@ import {
   deleteDraft,
   getDraftHistory,
   restoreDraftVersion,
+    listDraftSections,
+    updateDraftSection,
+    previewDraftFromDocuments,
+    detectDraftIncoherences,
+    exportDraftPdf,
+    exportDraftDocx,
+    listGenerationSections,
+    createGenerationSection,
+    updateGenerationSection,
+    updateGenerationSectionContent,
+    deleteGenerationSection,
+    importGenerationSections,
 } from '../controllers/reportDrafts.controller.js';
 import { login, me } from '../controllers/auth.controller.js';
 import {
@@ -53,20 +63,8 @@ import {
   restoreStructureVersion,
 } from '../controllers/criteria.controller.js';
 import * as cloud from '../controllers/cloud.controller.js';
-import {
-  listDocumentRequests,
-  getDocumentRequestConfig,
-  getPublicDocumentRequest,
-  uploadPublicDocumentRequest,
-  createDocumentRequest,
-  pauseDocumentRequest,
-  resumeDocumentRequest,
-  cancelDocumentRequest,
-  deleteDocumentRequest,
-} from '../controllers/documentRequests.controller.js';
 
 const router = Router();
-const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 
 // Health
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
@@ -224,15 +222,6 @@ router.post('/webhooks/worker-update', async (req, res) => {
     res.status(200).send('OK');
 });
 
-// El destinatario no necesita cuenta. El token opaco es la única credencial;
-// el controlador nunca expone correo, usuario creador ni datos internos.
-router.get('/document-requests/public/:token', asyncRoute(getPublicDocumentRequest));
-router.post(
-  '/document-requests/public/:token/upload',
-  upload.single('file'),
-  asyncRoute(uploadPublicDocumentRequest)
-);
-
 // A partir de aquí, todo requiere autenticación y un rol con permiso sobre la
 // ruta (EP 1.1 · EP 1.2). La política es de denegación por defecto y se resuelve
 // antes de consultar la base de datos.
@@ -244,7 +233,6 @@ router.post('/search/semantic', semanticSearch);
 
 // Temáticas
 router.get('/topics', listTopics);
-router.get('/topics/network', network);
 router.post('/topics', createTopic);
 router.delete('/topics/:id', deleteTopic);
 
@@ -255,10 +243,6 @@ router.get('/documents/trash', listTrash);
 router.get('/documents/:id/stream', requireViewableDocument, streamDocumentStatus);
 router.get('/documents/:id', requireViewableDocument, getDocument);
 router.get('/documents/:id/file', requireViewableDocument, serveFile);
-router.get('/documents/:id/content', requireViewableDocument, documentContent);
-router.get('/documents/:id/passages/:chunkIndex', requireViewableDocument, getPassage);
-router.get('/documents/:id/passages/:chunkIndex/focus', requireViewableDocument, getPassageFocus);
-router.get('/documents/:id/sheets', requireViewableDocument, getSheets);
 router.patch('/documents/:id/analysis-status', requireOwnDocument, updateDocumentAnalysisStatus);
 router.patch('/documents/:id/date', requireOwnDocument, updateDocumentDate);
 router.post('/documents/:id/trash', requireOwnDocument, trashDocument);
@@ -287,18 +271,21 @@ router.get('/report-drafts', listDrafts);
 router.post('/report-drafts', createDraft);
 router.get('/report-drafts/:id', getDraft);
 router.put('/report-drafts/:id', updateDraft);
+router.get('/report-drafts/:id/sections', listDraftSections);
+router.put('/report-drafts/:id/sections/:sectionId', updateDraftSection);
+router.get('/report-drafts/:id/generation-sections', listGenerationSections);
+router.post('/report-drafts/:id/generation-sections', createGenerationSection);
+router.post('/report-drafts/:id/generation-sections/import', structureUpload.single('file'), importGenerationSections);
+router.put('/report-drafts/:id/generation-sections/:sectionId', updateGenerationSection);
+router.put('/report-drafts/:id/generation-sections/:sectionId/content', updateGenerationSectionContent);
+router.delete('/report-drafts/:id/generation-sections/:sectionId', deleteGenerationSection);
+router.post('/report-drafts/:id/preview', previewDraftFromDocuments);
+router.post('/report-drafts/:id/incoherences', detectDraftIncoherences);
+router.get('/report-drafts/:id/export/pdf', exportDraftPdf);
+router.get('/report-drafts/:id/export/docx', exportDraftDocx);
 router.delete('/report-drafts/:id', deleteDraft);
 router.get('/report-drafts/:id/history', getDraftHistory);
 router.post('/report-drafts/:id/versions/:version/restore', restoreDraftVersion);
-
-// Solicitudes de documentos — primera etapa: ciclo de vida y tokens.
-router.get('/document-requests/config', getDocumentRequestConfig);
-router.get('/document-requests', listDocumentRequests);
-router.post('/document-requests', createDocumentRequest);
-router.post('/document-requests/:id/pause', pauseDocumentRequest);
-router.post('/document-requests/:id/resume', resumeDocumentRequest);
-router.post('/document-requests/:id/cancel', cancelDocumentRequest);
-router.delete('/document-requests/:id', deleteDocumentRequest);
 
 // Google Drive (HU09)
 router.get('/cloud/google/status', cloud.status);

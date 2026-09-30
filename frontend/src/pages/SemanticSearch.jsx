@@ -1,14 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useSemanticSearch, useTopics, useCreateTopic, useDeleteTopic } from '../hooks/useApi.js';
-import EvidenceNetwork from './EvidenceNetwork.jsx';
-import useDocumentMeta from '../lib/useDocumentMeta.js';
-import './SemanticSearch.css';
 
 export default function SemanticSearch() {
-  useDocumentMeta({ title: 'Búsqueda temática', description: 'Explora la evidencia relacionada con tus temáticas en lista o red visual.' });
-  const [params, setParams] = useSearchParams();
-  const view = params.get('view') === 'network' ? 'network' : 'list';
   const search = useSemanticSearch();
   const topics = useTopics();
   const createTopic = useCreateTopic();
@@ -20,10 +14,10 @@ export default function SemanticSearch() {
 
     if (!value || search.isPending) return;
 
-    try { await search.mutateAsync({
+    await search.mutateAsync({
       query: value,
       limit: 10,
-    }); } catch { /* The search error is displayed below. */ }
+    });
   }
 
   const groupedResults = useMemo(() => {
@@ -72,22 +66,6 @@ export default function SemanticSearch() {
         </p>
       </header>
 
-      <div className="thematic-view-toolbar">
-      <span className="thematic-view-label">Visualización</span>
-      <div role="group" aria-label="Visualización de búsqueda temática" className="thematic-view-switch">
-        {[['list', 'Lista'], ['network', 'Red visual']].map(([value, label]) => (
-          <button key={value} type="button" aria-pressed={view === value}
-            onClick={() => setParams((previous) => { const next = new URLSearchParams(previous); next.set('view', value); return next; })}
-            className="thematic-view-option">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              {value === 'list' ? <><path d="M8 6h12M8 12h12M8 18h12" /><circle cx="3.5" cy="6" r=".7" /><circle cx="3.5" cy="12" r=".7" /><circle cx="3.5" cy="18" r=".7" /></> : <><path d="m6 7 10 2M6 8l4 9m7-6-5 6" /><circle cx="5" cy="6" r="3" /><circle cx="19" cy="10" r="3" /><circle cx="11" cy="20" r="3" /></>}
-            </svg>
-            {label}
-          </button>
-        ))}
-      </div>
-      </div>
-
       <form
         onSubmit={async (event) => {
           event.preventDefault();
@@ -96,10 +74,8 @@ export default function SemanticSearch() {
 
           if (value.length < 3) return;
 
-          try {
-            await createTopic.mutateAsync(value);
-            setTopicName('');
-          } catch { /* Keep the name and show the mutation error below. */ }
+          await createTopic.mutateAsync(value);
+          setTopicName('');
         }}
         className="rounded-xl2 bg-white p-5 shadow-soft ring-1 ring-stone-200/60"
       >
@@ -143,9 +119,6 @@ export default function SemanticSearch() {
         )}
       </form>
 
-      <p className="text-sm text-stone-500">Puedes guardar temáticas mientras se procesan los documentos. Sus conexiones aparecerán cuando finalice la vectorización; si no aparecen, revisa el estado del documento en el repositorio y actualiza la red.</p>
-      {view === 'network' && <EvidenceNetwork />}
-      <div hidden={view !== 'list'} className="space-y-6">
       <section className="rounded-xl2 bg-white p-5 shadow-soft ring-1 ring-stone-200/60">
         <div className="mb-4">
           <h2 className="font-display text-xl font-semibold text-ink-900">
@@ -196,7 +169,7 @@ export default function SemanticSearch() {
 
                     if (!confirmed) return;
 
-                    try { await deleteTopic.mutateAsync(topic.id); } catch { /* Displayed below. */ }
+                    await deleteTopic.mutateAsync(topic.id);
                   }}
                   disabled={deleteTopic.isPending}
                   aria-label={`Eliminar temática ${topic.name}`}
@@ -210,8 +183,6 @@ export default function SemanticSearch() {
           </div>
         )}
       </section>
-
-      {deleteTopic.isError && <p role="alert" className="text-sm text-rose-600">No fue posible eliminar la temática.</p>}
 
       {search.isPending && (
         <div className="rounded-xl2 bg-white p-5 text-sm text-stone-500 shadow-soft ring-1 ring-stone-200/60">
@@ -295,11 +266,9 @@ export default function SemanticSearch() {
 
                 <div className="mt-4 space-y-3">
                   {document.fragments.slice(0, 3).map((fragment) => (
-                    <Link
+                    <div
                       key={`${document.documentId}-${fragment.chunkIndex}`}
-                      to={`/documents/${document.documentId}/pasajes/${fragment.chunkIndex}?q=${encodeURIComponent(search.data.query)}`}
-                      title="Abrir el documento en este fragmento"
-                      className="group block rounded-lg border border-stone-100 bg-stone-50/70 p-4 transition hover:border-brand-200 hover:bg-brand-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
+                      className="rounded-lg border border-stone-100 bg-stone-50/70 p-4"
                     >
                       <p className="text-sm leading-6 text-stone-700">
                         {fragment.content.length > 450
@@ -307,16 +276,11 @@ export default function SemanticSearch() {
                           : fragment.content}
                       </p>
 
-                      <p className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-stone-400">
-                        <span>
-                          Fragmento {fragment.chunkIndex + 1} · similitud{' '}
-                          {fragment.similarity.toFixed(3)}
-                        </span>
-                        <span className="font-medium text-brand-600 group-hover:text-brand-700">
-                          Ver en el documento →
-                        </span>
+                      <p className="mt-2 text-xs text-stone-400">
+                        Fragmento {fragment.chunkIndex + 1} · similitud{' '}
+                        {fragment.similarity.toFixed(3)}
                       </p>
-                    </Link>
+                    </div>
                   ))}
                 </div>
 
@@ -333,7 +297,6 @@ export default function SemanticSearch() {
           )}
         </section>
       )}
-      </div>
     </div>
   );
 }

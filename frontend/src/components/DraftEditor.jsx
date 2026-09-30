@@ -32,23 +32,35 @@ function unwrapMisplacedLists(root) {
   }
 }
 
-export default function DraftEditor({ initialHtml = '', onChange, onSelectionChange, onOpenMatches }) {
+export default function DraftEditor({
+  initialHtml = '',
+  onChange,
+  onSelectionChange,
+  onOpenMatches,
+  insertionRequest,
+  onInsertionHandled,
+}) {
   const ref = useRef(null);
   const wrapperRef = useRef(null);
   const [active, setActive] = useState({ h2: false, bold: false, italic: false, list: false });
   // Botón flotante "Buscar coincidencias": aparece sobre el fragmento seleccionado.
   const [matchTrigger, setMatchTrigger] = useState(null); // { top, left, text }
+  const selectionRangeRef = useRef(null);
+  // Último cursor/selección dentro del editor: sirve para insertar texto generado
+  // aunque el foco ya esté en otro botón o en un diálogo.
+  const caretRangeRef = useRef(null);
 
   // El contenido se inyecta una sola vez: mientras se redacta, la fuente de
   // verdad es el DOM del editor. La página lo remonta (`key`) al cambiar de
   // borrador, por lo que no hace falta re-sincronizar en cada render.
   useEffect(() => {
-    if (ref.current) ref.current.innerHTML = initialHtml;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (ref.current) ref.current.innerHTML = initialHtml ?? '';
+  }, [initialHtml]);
 
   const refreshActive = useCallback(() => {
     if (!ref.current || !ref.current.contains(document.getSelection()?.anchorNode ?? null)) return;
+    const current = document.getSelection();
+    if (current?.rangeCount) caretRangeRef.current = current.getRangeAt(0).cloneRange();
     setActive({
       h2: currentBlock() === 'h2',
       bold: document.queryCommandState('bold'),
@@ -91,6 +103,64 @@ export default function DraftEditor({ initialHtml = '', onChange, onSelectionCha
   const emit = useCallback(() => {
     if (ref.current) onChange?.(ref.current.innerHTML);
   }, [onChange]);
+
+  useEffect(() => {
+    if (!insertionRequest?.id || !insertionRequest.text || !ref.current) return;
+    const el = ref.current;
+    const selection = document.getSelection();
+
+    if (insertionRequest.kind === 'generated') {
+      // Texto generado por la IA: párrafos normales y editables, debajo del bloque
+      // donde está el cursor (o al final si el editor no tiene cursor ni contenido).
+      const saved = caretRangeRef.current;
+      const range = saved && el.contains(saved.commonAncestorContainer) ? saved : null;
+      const paragraphs = insertionRequest.text
+        .split(/\n{1,}/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          const p = document.createElement('p');
+          p.textContent = line;
+          return p;
+        });
+      if (paragraphs.length === 0) return;
+
+      let block = range ? range.endContainer : null;
+      while (block && block.parentNode !== el) block = block.parentNode;
+      if (block) block.after(...paragraphs);
+      else el.append(...paragraphs);
+
+      const last = paragraphs[paragraphs.length - 1];
+      const caret = document.createRange();
+      caret.selectNodeContents(last);
+      caret.collapse(false);
+      selection?.removeAllRanges();
+      selection?.addRange(caret);
+      caretRangeRef.current = caret.cloneRange();
+      last.scrollIntoView?.({ block: 'nearest' });
+      emit();
+      onInsertionHandled?.(insertionRequest.id);
+      return;
+    }
+
+    // Evidencia de la búsqueda semántica: reemplaza la selección guardada.
+    const range = selectionRangeRef.current;
+    if (!range || !el.contains(range.commonAncestorContainer)) return;
+
+    const evidence = document.createElement('blockquote');
+    evidence.textContent = insertionRequest.text;
+    evidence.className = 'evidence-fragment';
+    range.deleteContents();
+    range.insertNode(evidence);
+    range.setStartAfter(evidence);
+    range.collapse(true);
+
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    selectionRangeRef.current = range.cloneRange();
+    emit();
+    onInsertionHandled?.(insertionRequest.id);
+  }, [emit, insertionRequest, onInsertionHandled]);
 
   function applyTool(id) {
     const el = ref.current;
@@ -198,6 +268,10 @@ export default function DraftEditor({ initialHtml = '', onChange, onSelectionCha
             e.stopPropagation();
 
             const selectedText = matchTrigger.text;
+            const selection = document.getSelection();
+            selectionRangeRef.current = selection?.rangeCount
+              ? selection.getRangeAt(0).cloneRange()
+              : null;
             onOpenMatches?.(selectedText);
             setMatchTrigger(null);
           }}

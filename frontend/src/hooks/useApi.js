@@ -5,76 +5,13 @@ import { normalizeAnalysisStatus } from '../lib/analysisStatus.js';
 
 const DOCUMENT_IMPORT_TIMEOUT = 300000; // 5 minutos
 
+const FINAL_STATUSES = ['completado', 'error', 'COMPLETED', 'FAILED', 'ERROR'];
+
 function shouldPollDocuments(data) {
   if (!Array.isArray(data)) return false;
   return data.some((doc) => {
     const status = doc.analysisStatus || doc.vectorizationStatus;
-    return status !== 'completado' && status !== 'error';
-  });
-}
-
-// ── Solicitudes de documentos ──────────────────────────────────────
-export function useDocumentRequests() {
-  return useQuery({
-    queryKey: ['document-requests'],
-    queryFn: async () => (await api.get('/document-requests')).data,
-    refetchInterval: 2000,
-  });
-}
-
-export function useDocumentRequestConfig() {
-  return useQuery({
-    queryKey: ['document-requests', 'config'],
-    queryFn: async () => (await api.get('/document-requests/config')).data,
-    staleTime: Infinity,
-  });
-}
-
-export function usePublicDocumentRequest(token) {
-  return useQuery({
-    queryKey: ['public-document-request', token],
-    queryFn: async () => (await api.get(`/document-requests/public/${encodeURIComponent(token)}`)).data,
-    enabled: Boolean(token),
-    retry: false,
-  });
-}
-
-export function useUploadPublicDocumentRequest(token) {
-  return useMutation({
-    mutationFn: async (file) => {
-      const form = new FormData();
-      form.append('file', file);
-      return (
-        await api.post(`/document-requests/public/${encodeURIComponent(token)}/upload`, form, {
-          timeout: DOCUMENT_IMPORT_TIMEOUT,
-        })
-      ).data;
-    },
-  });
-}
-
-export function useCreateDocumentRequest() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (payload) => (await api.post('/document-requests', payload)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-requests'] }),
-  });
-}
-
-export function useDocumentRequestAction() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, action }) =>
-      (await api.post(`/document-requests/${id}/${action}`)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-requests'] }),
-  });
-}
-
-export function useDeleteDocumentRequest() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id) => (await api.delete(`/document-requests/${id}`)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-requests'] }),
+    return !FINAL_STATUSES.includes(status);
   });
 }
 
@@ -97,54 +34,6 @@ export function useSemanticSearch() {
           limit,
         })
       ).data,
-  });
-}
-
-// ── Pasajes (visor de fragmentos) ──────────────────────────────────
-// 404/410 significan que el documento ya no existe, está en la papelera o
-// perdió su archivo: no tiene sentido reintentar.
-const noRetryWhenGone = (count, error) =>
-  ![404, 410].includes(error?.response?.status) && count < 2;
-
-export function usePassage(documentId, chunkIndex) {
-  return useQuery({
-    queryKey: ['passage', documentId, chunkIndex],
-    queryFn: async () => (await api.get(`/documents/${documentId}/passages/${chunkIndex}`)).data,
-    retry: noRetryWhenGone,
-  });
-}
-
-/** Oraciones del fragmento relacionadas con la temática (tarda unos segundos). */
-export function usePassageFocus(documentId, chunkIndex, query, enabled) {
-  return useQuery({
-    queryKey: ['passage-focus', documentId, chunkIndex, query],
-    enabled: enabled && !!query,
-    staleTime: Infinity,
-    queryFn: async () =>
-      (await api.get(`/documents/${documentId}/passages/${chunkIndex}/focus`, { params: { q: query } })).data,
-    retry: noRetryWhenGone,
-  });
-}
-
-export function useDocumentFile(documentId, enabled) {
-  return useQuery({
-    queryKey: ['document-file', documentId],
-    enabled,
-    staleTime: Infinity,
-    gcTime: 60_000,
-    retry: noRetryWhenGone,
-    queryFn: async () =>
-      (await api.get(`/documents/${documentId}/file`, { responseType: 'arraybuffer' })).data,
-  });
-}
-
-export function useDocumentSheets(documentId, enabled) {
-  return useQuery({
-    queryKey: ['document-sheets', documentId],
-    enabled,
-    staleTime: Infinity,
-    retry: noRetryWhenGone,
-    queryFn: async () => (await api.get(`/documents/${documentId}/sheets`)).data,
   });
 }
 
@@ -437,6 +326,61 @@ export function useReportDraft(id) {
   });
 }
 
+export function useReportDraftSections(id) {
+  return useQuery({
+    queryKey: ['report-draft-sections', id],
+    queryFn: async () => (await api.get(`/report-drafts/${id}/sections`)).data,
+    enabled: !!id,
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+}
+
+export function useGenerationSections(id) {
+  return useQuery({
+    queryKey: ['report-generation-sections', id],
+    queryFn: async () => (await api.get(`/report-drafts/${id}/generation-sections`)).data,
+    enabled: !!id,
+    staleTime: Infinity,
+  });
+}
+
+export function useCreateGenerationSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, ...section }) => (await api.post(`/report-drafts/${draftId}/generation-sections`, section)).data,
+    onSuccess: (_data, variables) => qc.invalidateQueries({ queryKey: ['report-generation-sections', variables.draftId] }),
+  });
+}
+
+export function useUpdateGenerationSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, sectionId, ...section }) => (await api.put(`/report-drafts/${draftId}/generation-sections/${sectionId}`, section)).data,
+    onSuccess: (_data, variables) => qc.invalidateQueries({ queryKey: ['report-generation-sections', variables.draftId] }),
+  });
+}
+
+export function useDeleteGenerationSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, sectionId }) => api.delete(`/report-drafts/${draftId}/generation-sections/${sectionId}`),
+    onSuccess: (_data, variables) => qc.invalidateQueries({ queryKey: ['report-generation-sections', variables.draftId] }),
+  });
+}
+
+export function useImportGenerationSections() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, file }) => {
+      const form = new FormData();
+      form.append('file', file);
+      return (await api.post(`/report-drafts/${draftId}/generation-sections/import`, form)).data;
+    },
+    onSuccess: (_data, variables) => qc.invalidateQueries({ queryKey: ['report-generation-sections', variables.draftId] }),
+  });
+}
+
 export function useCreateReportDraft() {
   const qc = useQueryClient();
   return useMutation({
@@ -455,6 +399,32 @@ export function useSaveReportDraft() {
       return (await api.put(`/report-drafts/${id}`, body)).data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['report-drafts'] }),
+  });
+}
+
+export function useSaveReportDraftSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, sectionId, contentHtml }) =>
+      (await api.put(`/report-drafts/${draftId}/sections/${sectionId}`, { contentHtml })).data,
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['report-draft-sections', variables.draftId] });
+      qc.invalidateQueries({ queryKey: ['report-drafts'] });
+    },
+  });
+}
+
+export function useReportDraftPreview() {
+  return useMutation({
+    mutationFn: async ({ draftId, sectionId, documentIds }) =>
+      (await api.post(`/report-drafts/${draftId}/preview`, { sectionId, documentIds })).data,
+  });
+}
+
+export function useReportDraftIncoherences() {
+  return useMutation({
+    mutationFn: async ({ draftId, documentIds }) =>
+      (await api.post(`/report-drafts/${draftId}/incoherences`, { documentIds })).data,
   });
 }
 

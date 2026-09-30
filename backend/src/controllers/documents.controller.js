@@ -52,27 +52,22 @@ export async function ingestDocument({
     },
   });
 
-  queueDocumentVectorization(document.id, extractedText);
-
-  return document;
-}
-
-/** Encola la vectorización sin bloquear la respuesta de carga. */
-export function queueDocumentVectorization(documentId, extractedText) {
   setImmediate(() => {
-    vectorizeDocument(documentId, extractedText)
+    vectorizeDocument(document.id, extractedText)
       .then(() => prisma.document.updateMany({
-        where: { id: documentId },
+        where: { id: document.id },
         data: { vectorizationStatus: 'READY' },
       }))
       .catch(async (error) => {
-        console.error(`Error al vectorizar documento ${documentId}:`, error);
+        console.error(`Error al vectorizar documento ${document.id}:`, error);
         await prisma.document.updateMany({
-          where: { id: documentId },
+          where: { id: document.id },
           data: { vectorizationStatus: 'FAILED' },
         });
       });
   });
+
+  return document;
 }
 
 export async function uploadDocument(req, res) {
@@ -194,7 +189,7 @@ export async function listDocuments(req, res) {
       source: d.source,
       documentDate: d.documentDate,
       uploadedAt: d.uploadedAt,
-      uploadedBy: d.externalUploaderEmail || d.uploadedBy?.name,
+      uploadedBy: d.uploadedBy?.name,
       associationStatus,
       subcriterion: validated?.subcriterion?.code || proposed?.subcriterion?.code || null,
       vectorizationStatus: d.vectorizationStatus,
@@ -233,7 +228,7 @@ export async function getDocument(req, res) {
     documentDate: doc.documentDate,
     uploadedAt: doc.uploadedAt,
     uploadedById: doc.uploadedById,
-    uploadedBy: doc.externalUploaderEmail || doc.uploadedBy?.name,
+    uploadedBy: doc.uploadedBy?.name,
     vectorizationStatus: doc.vectorizationStatus,
     analysisStatus: toDisplayAnalysisStatus(doc.analysisStatus),
     // Sin esto el usuario ve "error" y nada mas: el motivo quedaba guardado en
@@ -460,7 +455,7 @@ export async function listTrash(req, res) {
       sizeBytes: d.sizeBytes,
       uploadedAt: d.uploadedAt,
       deletedAt: d.deletedAt,
-      uploadedBy: d.externalUploaderEmail || d.uploadedBy?.name,
+      uploadedBy: d.uploadedBy?.name,
     }))
   );
 }
