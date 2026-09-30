@@ -5,6 +5,10 @@ import { prisma } from '../config/prisma.js';
 // Esto es lo que permite que el servidor le "grite" al navegador.
 export const analysisEvents = new EventEmitter();
 
+// Cada pestaña abierta en una ficha (y el vigilante global de análisis) suma
+// un listener; el tope por defecto de 10 dispararía avisos falsos de fuga.
+analysisEvents.setMaxListeners(0);
+
 /**
  * Empuja el evento SSE a todos los clientes (navegadores)
  * que estén escuchando este documento en específico.

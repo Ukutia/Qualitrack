@@ -5,6 +5,19 @@ import { dispatcherParaTailnet } from './tailnet.service.js';
 import { prisma } from '../config/prisma.js';
 import { updateAnalysisStatus } from './analysisEvents.service.js'; // O donde tengas esta función
 
+/**
+ * URL con la que el worker debe reconocer a este backend. El worker manda sus
+ * webhooks a su propio BACKEND_URL, no a quien le envio el trabajo, asi que un
+ * backend local conectado al worker de produccion hacia que los estados de
+ * documentos locales se escribieran en los documentos de produccion con el
+ * mismo id. Con esto el worker rechaza el trabajo en vez de cruzar datos.
+ */
+export function publicBackendUrl() {
+  if (process.env.BACKEND_PUBLIC_URL) return process.env.BACKEND_PUBLIC_URL;
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  return `http://localhost:${process.env.PORT || 4000}`;
+}
+
 export async function sendToWorker(documentId, userId) {
   try {
     await updateAnalysisStatus(documentId, 'SENT_TO_ANALYZER');
@@ -102,6 +115,7 @@ export async function sendToWorker(documentId, userId) {
       body: JSON.stringify({
         documentId,
         userId,
+        backendUrl: publicBackendUrl(),
         iv: iv.toString('hex'),
         authTag: authTag.toString('hex'), // Enviamos el sello
         fileData: encryptedFile.toString('base64'),
@@ -111,7 +125,10 @@ export async function sendToWorker(documentId, userId) {
     });
 
     if (!response.ok) {
-       throw new Error('Fallo HTTP al contactar al Worker.');
+      // El worker explica por que rechazo el trabajo (por ejemplo, que
+      // reporta a otro backend); ese motivo es lo que el usuario necesita ver.
+      const detalle = await response.json().catch(() => null);
+      throw new Error(detalle?.error || `Fallo HTTP ${response.status} al contactar al Worker.`);
     }
 
   } catch (error) {

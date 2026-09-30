@@ -13,8 +13,6 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { ROLES } from '../lib/roles.js';
 import { isAnalysisInProgress, normalizeAnalysisStatus, ANALYSIS_PROGRESS_TEXT, describeEngine } from '../lib/analysisStatus.js';
 
-const LAST_DOCUMENT_KEY = 'qualitrack_last_document_id';
-
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
 const ACTION_LABEL = { PROPOSED: 'Propuesta generada', VALIDATED: 'Validada', REJECTED: 'Descartada' };
 const STATUS_LABEL = { PROPOSED: 'Propuesta', VALIDATED: 'Validada', NOT_VALIDATED: 'Descartada' };
@@ -43,31 +41,6 @@ export default function DocumentDetail() {
 
     return () => clearInterval(timer);
   }, [doc?.analysisStartedAt]);
-
-  useEffect(() => {
-    if (id) localStorage.setItem(LAST_DOCUMENT_KEY, String(id));
-  }, [id]);
-
-  useEffect(() => {
-    if (!id) return undefined;
-
-    const token = localStorage.getItem('qualitrack_token') || '';
-    const streamUrl = `/api/documents/${id}/stream?token=${encodeURIComponent(token)}`;
-    const source = new EventSource(streamUrl);
-
-    source.addEventListener('document-status', (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload?.id) {
-          localStorage.setItem(LAST_DOCUMENT_KEY, String(payload.id));
-        }
-      } catch {
-        // Ignorar payload inválido del stream sin romper la pantalla.
-      }
-    });
-
-    return () => source.close();
-  }, [id]);
 
   // La papelera es exclusiva del administrador (EP 1.2).
   const canTrash = user?.role === ROLES.ADMIN;

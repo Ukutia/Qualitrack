@@ -70,6 +70,11 @@ services:
       WORKER_ENCRYPTION_KEY: ${WORKER_ENCRYPTION_KEY:?Falta WORKER_ENCRYPTION_KEY en .env}
       WORKER_WEBHOOK_SECRET: ${WORKER_WEBHOOK_SECRET:?Falta WORKER_WEBHOOK_SECRET en .env}
       WORKER_API_TOKEN: ${WORKER_API_TOKEN:-}
+      # URL con la que el worker reconoce a este backend. Debe coincidir con el
+      # BACKEND_URL del worker o este rechaza los trabajos (evita que un
+      # backend local escriba estados en produccion). En Railway se deduce de
+      # RAILWAY_PUBLIC_DOMAIN.
+      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://localhost:4000}
     volumes:
       - ./backend:/app          # hot-reload: código fuente del host
       - /app/node_modules       # preserva node_modules del contenedor
