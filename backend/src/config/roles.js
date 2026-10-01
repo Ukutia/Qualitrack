@@ -45,7 +45,6 @@ const USER_RULES = [
   rule('PATCH', /^\/documents\/\d+\/analysis-status$/),
   rule('PATCH', /^\/documents\/\d+\/date$/),
   rule('POST', /^\/documents\/\d+\/classify$/),
-  rule('POST', /^\/documents\/\d+\/classify\/fallback$/),
   rule('PUT', /^\/documents\/\d+\/association$/),
   rule('POST', /^\/associations\/\d+\/validate$/),
   rule('POST', /^\/associations\/\d+\/reject$/),
@@ -60,13 +59,6 @@ const USER_RULES = [
   rule('POST', /^\/documents\/\d+\/trash$/),
   rule('POST', /^\/documents\/\d+\/restore$/),
   rule('DELETE', /^\/documents\/\d+$/),
-  // Solicitudes de evidencias: cada usuario no administrador queda acotado a
-  // las que él mismo creó (el controlador aplica esa pertenencia).
-  rule('GET', /^\/document-requests$/),
-  rule('GET', /^\/document-requests\/config$/),
-  rule('POST', /^\/document-requests$/),
-  rule('POST', /^\/document-requests\/\d+\/(pause|resume|cancel)$/),
-  rule('DELETE', /^\/document-requests\/\d+$/),
 ];
 
 const ROLE_RULES = {

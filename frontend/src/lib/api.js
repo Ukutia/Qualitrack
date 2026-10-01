@@ -1,9 +1,7 @@
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_URL || '/api';
-
 export const api = axios.create({
-  baseURL,
+  baseURL: import.meta.env.VITE_API_URL || '/api',
 });
 // Adjunta el JWT guardado en localStorage a cada petición.
 api.interceptors.request.use((config) => {
@@ -16,12 +14,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    const isPublicDocumentRequest = /^\/document-request\/[^/]+\/?$/.test(location.pathname);
-    if (
-      err.response?.status === 401 &&
-      !err.config.url.includes('/auth/login') &&
-      !isPublicDocumentRequest
-    ) {
+    if (err.response?.status === 401 && !err.config.url.includes('/auth/login')) {
       localStorage.removeItem('qualitrack_token');
       if (location.pathname !== '/login') location.href = '/login';
     }

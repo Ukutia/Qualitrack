@@ -24,7 +24,7 @@ function findFragment(originalText, keyword) {
   return originalText.slice(start, end).replace(/\s+/g, ' ').trim();
 }
 
-export function classifyByKeywords(text, subcriteria) {
+function classifyByKeywords(text, subcriteria) {
   const normText = normalize(text);
   let best = null;
   for (const sub of subcriteria) {
@@ -131,9 +131,8 @@ if (!parsed.relevant) {
 
 const matched = subcriteria.find((s) => s.code === parsed.subcriterionCode);
 if (!matched) {
-  throw new Error(
-    `Gemini retornó un subcriterio no válido: ${parsed.subcriterionCode}`
-  );
+  // Gemini retornó un código que no existe — cae a keywords
+  return classifyByKeywords(text, subcriteria);
 }
 
 return {
@@ -154,14 +153,12 @@ return {
  * @param {Array<{id,code,name,keywords:string[]}>} subcriteria
  */
 export async function classifyText(text, subcriteria) {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('El servicio de clasificación principal no está configurado.');
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      return await classifyByAI(text, subcriteria);
+    } catch (err) {
+      console.warn('[classifier] Gemini falló, usando keywords como fallback:', err.message);
+    }
   }
-
-  try {
-    return await classifyByAI(text, subcriteria);
-  } catch (err) {
-    console.error('[classifier] Falló la clasificación principal con Gemini:', err.message);
-    throw err;
-  }
+  return classifyByKeywords(text, subcriteria);
 }

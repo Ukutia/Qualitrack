@@ -1,81 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../lib/api.js';
-import { normalizeAnalysisStatus, isAnalysisInProgress } from '../lib/analysisStatus.js';
-import { watchAnalysis } from '../lib/analysisWatch.js';
+import { normalizeAnalysisStatus } from '../lib/analysisStatus.js';
 
 const DOCUMENT_IMPORT_TIMEOUT = 300000; // 5 minutos
+
+const FINAL_STATUSES = ['completado', 'error', 'COMPLETED', 'FAILED', 'ERROR'];
 
 function shouldPollDocuments(data) {
   if (!Array.isArray(data)) return false;
   return data.some((doc) => {
     const status = doc.analysisStatus || doc.vectorizationStatus;
-    return status !== 'completado' && status !== 'error';
-  });
-}
-
-// ── Solicitudes de documentos ──────────────────────────────────────
-export function useDocumentRequests() {
-  return useQuery({
-    queryKey: ['document-requests'],
-    queryFn: async () => (await api.get('/document-requests')).data,
-    refetchInterval: 2000,
-  });
-}
-
-export function useDocumentRequestConfig() {
-  return useQuery({
-    queryKey: ['document-requests', 'config'],
-    queryFn: async () => (await api.get('/document-requests/config')).data,
-    staleTime: Infinity,
-  });
-}
-
-export function usePublicDocumentRequest(token) {
-  return useQuery({
-    queryKey: ['public-document-request', token],
-    queryFn: async () => (await api.get(`/document-requests/public/${encodeURIComponent(token)}`)).data,
-    enabled: Boolean(token),
-    retry: false,
-  });
-}
-
-export function useUploadPublicDocumentRequest(token) {
-  return useMutation({
-    mutationFn: async (file) => {
-      const form = new FormData();
-      form.append('file', file);
-      return (
-        await api.post(`/document-requests/public/${encodeURIComponent(token)}/upload`, form, {
-          timeout: DOCUMENT_IMPORT_TIMEOUT,
-        })
-      ).data;
-    },
-  });
-}
-
-export function useCreateDocumentRequest() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (payload) => (await api.post('/document-requests', payload)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-requests'] }),
-  });
-}
-
-export function useDocumentRequestAction() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, action }) =>
-      (await api.post(`/document-requests/${id}/${action}`)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-requests'] }),
-  });
-}
-
-export function useDeleteDocumentRequest() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id) => (await api.delete(`/document-requests/${id}`)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-requests'] }),
+    return !FINAL_STATUSES.includes(status);
   });
 }
 
@@ -98,54 +34,6 @@ export function useSemanticSearch() {
           limit,
         })
       ).data,
-  });
-}
-
-// ── Pasajes (visor de fragmentos) ──────────────────────────────────
-// 404/410 significan que el documento ya no existe, está en la papelera o
-// perdió su archivo: no tiene sentido reintentar.
-const noRetryWhenGone = (count, error) =>
-  ![404, 410].includes(error?.response?.status) && count < 2;
-
-export function usePassage(documentId, chunkIndex) {
-  return useQuery({
-    queryKey: ['passage', documentId, chunkIndex],
-    queryFn: async () => (await api.get(`/documents/${documentId}/passages/${chunkIndex}`)).data,
-    retry: noRetryWhenGone,
-  });
-}
-
-/** Oraciones del fragmento relacionadas con la temática (tarda unos segundos). */
-export function usePassageFocus(documentId, chunkIndex, query, enabled) {
-  return useQuery({
-    queryKey: ['passage-focus', documentId, chunkIndex, query],
-    enabled: enabled && !!query,
-    staleTime: Infinity,
-    queryFn: async () =>
-      (await api.get(`/documents/${documentId}/passages/${chunkIndex}/focus`, { params: { q: query } })).data,
-    retry: noRetryWhenGone,
-  });
-}
-
-export function useDocumentFile(documentId, enabled) {
-  return useQuery({
-    queryKey: ['document-file', documentId],
-    enabled,
-    staleTime: Infinity,
-    gcTime: 60_000,
-    retry: noRetryWhenGone,
-    queryFn: async () =>
-      (await api.get(`/documents/${documentId}/file`, { responseType: 'arraybuffer' })).data,
-  });
-}
-
-export function useDocumentSheets(documentId, enabled) {
-  return useQuery({
-    queryKey: ['document-sheets', documentId],
-    enabled,
-    staleTime: Infinity,
-    retry: noRetryWhenGone,
-    queryFn: async () => (await api.get(`/documents/${documentId}/sheets`)).data,
   });
 }
 
@@ -185,97 +73,69 @@ export function useDeleteTopic() {
   });
 }
 
-// Tiempo mínimo que cada etapa del análisis queda en pantalla. Varias etapas
-// (recibido por el analizador, extrayendo contenido, recibiendo resultado)
-// duran milisegundos: aplicadas tal cual llegan, React las pisa antes de que
-// alguien alcance a leerlas.
-const MIN_STAGE_MS = 700;
-
 export function useDocument(id) {
   const qc = useQueryClient();
-  // Con el stream abierto sobra el sondeo, y además estorba: una respuesta
-  // del sondeo puede adelantarse a la cola de etapas y hacer retroceder el
-  // estado en pantalla.
-  const streamOpen = useRef(false);
 
   useEffect(() => {
+    // Solicitar permiso de notificaciones al montar el componente
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
     if (!id) return undefined;
 
     const token = localStorage.getItem('qualitrack_token');
+    //const streamUrl = `${api.defaults.baseURL || '/api'}/events/documents/${id}?token=${encodeURIComponent(token || '')}`;
     const streamUrl = `${api.defaults.baseURL || '/api'}/documents/${id}/stream?token=${encodeURIComponent(token || '')}`;
     const source = new EventSource(streamUrl);
-    const queue = [];
-    let timer = null;
-    let shownAt = 0;
-    let lastQueued = null;
 
-    const apply = (payload) => {
-      shownAt = Date.now();
-      const previous = qc.getQueryData(['document', id]);
-
-      qc.setQueryData(['document', id], (old) => old ? {
-        ...old,
-        analysisStatus: payload.analysisStatus,
-        analysisError: payload.analysisError ?? null,
-        analysisSummary: payload.analysisSummary ?? old.analysisSummary,
-        analysisEngine: payload.analysisEngine ?? old.analysisEngine,
-        vectorizationStatus: payload.vectorizationStatus ?? old.vectorizationStatus,
-      } : old);
-
-      // Al terminar llegan la propuesta y su historial, que el evento no trae:
-      // se recarga la ficha completa. Solo si el estado cambió, para no
-      // recargar al abrir un documento ya analizado.
-      const changed =
-        normalizeAnalysisStatus(previous?.analysisStatus) !== normalizeAnalysisStatus(payload.analysisStatus);
-      if (changed && !isAnalysisInProgress(payload.analysisStatus)) {
-        qc.invalidateQueries({ queryKey: ['document', id] });
-        qc.invalidateQueries({ queryKey: ['documents'] });
-      }
-    };
-
-    const drain = () => {
-      timer = null;
-      const next = queue.shift();
-      if (!next) return;
-      apply(next);
-      if (queue.length) timer = setTimeout(drain, MIN_STAGE_MS);
-    };
-
-    source.addEventListener('document-status', (event) => {
-      let payload;
+    source.addEventListener('analysis-status', (event) => {
       try {
-        payload = JSON.parse(event.data);
-      } catch {
-        return;
+        const payload = JSON.parse(event.data);
+        qc.invalidateQueries({ queryKey: ['documents'] });
+        qc.invalidateQueries({ queryKey: ['document', String(id)] });
+        qc.invalidateQueries({ queryKey: ['document', id] });
+        
+        if (payload.analysisStatus) {
+          qc.setQueryData(['document', id], (old) => old ? { ...old, analysisStatus: payload.analysisStatus, analysisStatusUpdatedAt: payload.analysisStatusUpdatedAt, analysisError: payload.analysisError || null } : old);
+          
+          // Cumplimiento del Paso 3: Notificación si la pestaña está inactiva
+          if (payload.analysisStatus === 'COMPLETED') {
+            localStorage.removeItem('documento_activo'); // Limpiamos el progreso
+            
+            if (document.hidden && Notification.permission === 'granted') {
+              new Notification("Análisis completado", { body: "Tu propuesta ya está lista." });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('No se pudo procesar el evento SSE de análisis del documento:', err);
       }
-
-      // El bus y el sondeo del backend pueden informar el mismo cambio.
-      const key = `${normalizeAnalysisStatus(payload.analysisStatus)}|${payload.vectorizationStatus}`;
-      if (key === lastQueued) return;
-      lastQueued = key;
-
-      queue.push(payload);
-      if (!timer) timer = setTimeout(drain, Math.max(0, shownAt + MIN_STAGE_MS - Date.now()));
     });
 
-    source.onopen = () => { streamOpen.current = true; };
-    source.onerror = () => { streamOpen.current = false; };
-
-    return () => {
-      clearTimeout(timer);
-      source.close();
-      streamOpen.current = false;
-    };
+    return () => source.close();
   }, [id, qc]);
 
+  // ... (mantén el return useQuery exactamente como lo tienes)[cite: 7]
   return useQuery({
     queryKey: ['document', id],
     queryFn: async () => (await api.get(`/documents/${id}`)).data,
     enabled: !!id,
-    // Respaldo por si el stream se corta: mientras el análisis sigue en curso
-    // se consulta cada 2 s.
-    refetchInterval: (query) =>
-      !streamOpen.current && isAnalysisInProgress(query.state.data?.analysisStatus) ? 2000 : false,
+    refetchInterval: (query) => {
+      // La API devuelve la etiqueta traducida ("preparando analisis") y el SSE
+      // la clave ("PREPARING_ANALYSIS"). Comparar sin normalizar hacia que esta
+      // lista nunca coincidiera y el refresco por sondeo no ocurriera jamas.
+      const status = normalizeAnalysisStatus(query.state.data?.analysisStatus);
+      const active = [
+        'PREPARING_ANALYSIS',
+        'SENT_TO_ANALYZER',
+        'RECEIVED_BY_ANALYZER',
+        'EXTRACTING_CONTENT',
+        'ANALYZING_CONTENT',
+        'RECEIVING_RESULT',
+      ];
+      return active.includes(status) ? 2000 : false;
+    },
   });
 }
 
@@ -292,7 +152,12 @@ export function useUploadDocument() {
         })
       ).data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Cumplimiento del Paso 3: Guardar el ID en el almacenamiento local
+      if (data && data.id) {
+         localStorage.setItem('documento_activo', data.id);
+      }
+      
       // No bloquear la resolución de mutateAsync...
       qc.invalidateQueries({ queryKey: ['documents'] });
     },
@@ -343,28 +208,6 @@ export function useClassify() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (docId) => (await api.post(`/documents/${docId}/classify`)).data,
-    onSuccess: (data, docId) => {
-      watchAnalysis(docId);
-      // Las etapas siguientes llegan por el stream. Recargar la ficha aquí
-      // podía traer una etapa más nueva que la que la cola está mostrando y
-      // hacer retroceder el estado; solo se marca el inicio, y solo si el
-      // stream no se adelantó ya con una etapa posterior.
-      qc.setQueryData(['document', docId], (old) =>
-        old && !isAnalysisInProgress(old.analysisStatus)
-          ? { ...old, analysisStatus: data.analysisStatus, analysisError: null }
-          : old
-      );
-    },
-  });
-}
-
-export function useFallbackClassify() {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (docId) =>
-      (await api.post(`/documents/${docId}/classify/fallback`)).data,
-
     onSuccess: (_d, docId) => {
       qc.invalidateQueries({ queryKey: ['document', String(docId)] });
       qc.invalidateQueries({ queryKey: ['document', docId] });
@@ -483,6 +326,61 @@ export function useReportDraft(id) {
   });
 }
 
+export function useReportDraftSections(id) {
+  return useQuery({
+    queryKey: ['report-draft-sections', id],
+    queryFn: async () => (await api.get(`/report-drafts/${id}/sections`)).data,
+    enabled: !!id,
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+}
+
+export function useGenerationSections(id) {
+  return useQuery({
+    queryKey: ['report-generation-sections', id],
+    queryFn: async () => (await api.get(`/report-drafts/${id}/generation-sections`)).data,
+    enabled: !!id,
+    staleTime: Infinity,
+  });
+}
+
+export function useCreateGenerationSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, ...section }) => (await api.post(`/report-drafts/${draftId}/generation-sections`, section)).data,
+    onSuccess: (_data, variables) => qc.invalidateQueries({ queryKey: ['report-generation-sections', variables.draftId] }),
+  });
+}
+
+export function useUpdateGenerationSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, sectionId, ...section }) => (await api.put(`/report-drafts/${draftId}/generation-sections/${sectionId}`, section)).data,
+    onSuccess: (_data, variables) => qc.invalidateQueries({ queryKey: ['report-generation-sections', variables.draftId] }),
+  });
+}
+
+export function useDeleteGenerationSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, sectionId }) => api.delete(`/report-drafts/${draftId}/generation-sections/${sectionId}`),
+    onSuccess: (_data, variables) => qc.invalidateQueries({ queryKey: ['report-generation-sections', variables.draftId] }),
+  });
+}
+
+export function useImportGenerationSections() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, file }) => {
+      const form = new FormData();
+      form.append('file', file);
+      return (await api.post(`/report-drafts/${draftId}/generation-sections/import`, form)).data;
+    },
+    onSuccess: (_data, variables) => qc.invalidateQueries({ queryKey: ['report-generation-sections', variables.draftId] }),
+  });
+}
+
 export function useCreateReportDraft() {
   const qc = useQueryClient();
   return useMutation({
@@ -501,6 +399,32 @@ export function useSaveReportDraft() {
       return (await api.put(`/report-drafts/${id}`, body)).data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['report-drafts'] }),
+  });
+}
+
+export function useSaveReportDraftSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, sectionId, contentHtml }) =>
+      (await api.put(`/report-drafts/${draftId}/sections/${sectionId}`, { contentHtml })).data,
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['report-draft-sections', variables.draftId] });
+      qc.invalidateQueries({ queryKey: ['report-drafts'] });
+    },
+  });
+}
+
+export function useReportDraftPreview() {
+  return useMutation({
+    mutationFn: async ({ draftId, sectionId, documentIds }) =>
+      (await api.post(`/report-drafts/${draftId}/preview`, { sectionId, documentIds })).data,
+  });
+}
+
+export function useReportDraftIncoherences() {
+  return useMutation({
+    mutationFn: async ({ draftId, documentIds }) =>
+      (await api.post(`/report-drafts/${draftId}/incoherences`, { documentIds })).data,
   });
 }
 

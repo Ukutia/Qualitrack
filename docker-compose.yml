@@ -23,17 +23,10 @@ services:
     build: ./backend
     container_name: qualitrack-backend
     restart: unless-stopped
-
-    env_file:
-      - ./backend/.env
-
-
     depends_on:
       db:
         condition: service_healthy
       embedding-service:
-        condition: service_healthy
-      mailpit:
         condition: service_started
     environment:
       DROPBOX_APP_KEY: ${DROPBOX_APP_KEY:-}
@@ -44,25 +37,15 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto-en-produccion}
       DOC_ENCRYPTION_KEY: ${DOC_ENCRYPTION_KEY:-}
-      REQUEST_TOKEN_ENCRYPTION_KEY: ${REQUEST_TOKEN_ENCRYPTION_KEY:-}
-      REQUEST_SCHEDULER_INTERVAL_MS: ${REQUEST_SCHEDULER_INTERVAL_MS:-15000}
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-10}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
-      SMTP_HOST: ${SMTP_HOST:-mailpit}
-      SMTP_PORT: ${SMTP_PORT:-1025}
-      SMTP_USERNAME: ${SMTP_USERNAME:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_USE_TLS: ${SMTP_USE_TLS:-false}
-      MAIL_FROM: ${MAIL_FROM:-notificaciones@example.test}
-      REQUEST_EMAIL_RETRY_SECONDS: ${REQUEST_EMAIL_RETRY_SECONDS:-60}
-      BREVO_API_KEY: ${BREVO_API_KEY:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@qualitrack.cl}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
       ADMIN_NAME: ${ADMIN_NAME:-Encargado de Aseguramiento de Calidad}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:4000/api/cloud/google/callback}
-      #GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       EMBEDDING_SERVICE_URL: http://embedding-service:8000
       # El worker de analisis corre en el HOST, junto a la GPU: un contenedor
       # aislado no alcanza a Ollama en 127.0.0.1. Ver qualitrack-worker.
@@ -70,11 +53,6 @@ services:
       WORKER_ENCRYPTION_KEY: ${WORKER_ENCRYPTION_KEY:?Falta WORKER_ENCRYPTION_KEY en .env}
       WORKER_WEBHOOK_SECRET: ${WORKER_WEBHOOK_SECRET:?Falta WORKER_WEBHOOK_SECRET en .env}
       WORKER_API_TOKEN: ${WORKER_API_TOKEN:-}
-      # URL con la que el worker reconoce a este backend. Debe coincidir con el
-      # BACKEND_URL del worker o este rechaza los trabajos (evita que un
-      # backend local escriba estados en produccion). En Railway se deduce de
-      # RAILWAY_PUBLIC_DOMAIN.
-      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://localhost:4000}
     volumes:
       - ./backend:/app          # hot-reload: código fuente del host
       - /app/node_modules       # preserva node_modules del contenedor
@@ -85,6 +63,8 @@ services:
       # En Docker Desktop host.docker.internal existe solo; en Linux hay que
       # declararlo para alcanzar el worker en la maquina anfitriona.
       - "host.docker.internal:host-gateway"
+    env_file:
+      - ./backend/.env
 
   frontend:
     build: ./frontend
@@ -102,28 +82,32 @@ services:
       # Puerto del host configurable (default 5173) por si está ocupado.
       - "${FRONTEND_PORT:-5173}:5173"
 
-  mailpit:
-    image: axllent/mailpit:v1.27
-    restart: unless-stopped
-    ports:
-      - "8025:8025"
-
   embedding-service:
     build: ./backend/embedding-service
     container_name: qualitrack-embedding
-    # Esperar la carga del modelo y su warm-up antes de iniciar el backend.
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
-      interval: 10s
-      timeout: 6s
-      start_period: 15m
-      retries: 12
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
       - HF_TOKEN=${HF_TOKEN}
+      - HF_HOME=/models
+    volumes:
+      - hf_cache:/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
 
+  ollama:
+    image: ollama/ollama
+    container_name: qualitrack-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
 volumes:
   pgdata:
   filedata:
+  hf_cache:
+  ollama_data:

@@ -9,7 +9,6 @@ import { ownerFilter, viewFilter } from '../middleware/ownership.js';
 import { encryptText, decryptText } from '../services/encryption.service.js';
 import { normalizeAnalysisStatus, toDisplayAnalysisStatus } from '../services/analysisStatus.service.js';
 import { normalizeVectorizationStatus } from '../services/analysisStatus.service.js';
-import { analysisEvents } from '../services/analysisEvents.service.js';
 
 const MIME = {
   pdf:  'application/pdf',
@@ -53,27 +52,22 @@ export async function ingestDocument({
     },
   });
 
-  queueDocumentVectorization(document.id, extractedText);
-
-  return document;
-}
-
-/** Encola la vectorización sin bloquear la respuesta de carga. */
-export function queueDocumentVectorization(documentId, extractedText) {
   setImmediate(() => {
-    vectorizeDocument(documentId, extractedText)
+    vectorizeDocument(document.id, extractedText)
       .then(() => prisma.document.updateMany({
-        where: { id: documentId },
+        where: { id: document.id },
         data: { vectorizationStatus: 'READY' },
       }))
       .catch(async (error) => {
-        console.error(`Error al vectorizar documento ${documentId}:`, error);
+        console.error(`Error al vectorizar documento ${document.id}:`, error);
         await prisma.document.updateMany({
-          where: { id: documentId },
+          where: { id: document.id },
           data: { vectorizationStatus: 'FAILED' },
         });
       });
   });
+
+  return document;
 }
 
 export async function uploadDocument(req, res) {
@@ -195,7 +189,7 @@ export async function listDocuments(req, res) {
       source: d.source,
       documentDate: d.documentDate,
       uploadedAt: d.uploadedAt,
-      uploadedBy: d.externalUploaderEmail || d.uploadedBy?.name,
+      uploadedBy: d.uploadedBy?.name,
       associationStatus,
       subcriterion: validated?.subcriterion?.code || proposed?.subcriterion?.code || null,
       vectorizationStatus: d.vectorizationStatus,
@@ -234,14 +228,12 @@ export async function getDocument(req, res) {
     documentDate: doc.documentDate,
     uploadedAt: doc.uploadedAt,
     uploadedById: doc.uploadedById,
-    uploadedBy: doc.externalUploaderEmail || doc.uploadedBy?.name,
+    uploadedBy: doc.uploadedBy?.name,
     vectorizationStatus: doc.vectorizationStatus,
     analysisStatus: toDisplayAnalysisStatus(doc.analysisStatus),
     // Sin esto el usuario ve "error" y nada mas: el motivo quedaba guardado en
     // la base de datos pero ningun endpoint lo devolvia, aunque el frontend ya
     // lo espera en los eventos SSE.
-    analysisStatusUpdatedAt: doc.analysisStatusUpdatedAt ?? null,
-    analysisStartedAt: doc.analysisStartedAt ?? null,
     analysisError: doc.analysisError ?? null,
     analysisSummary: doc.analysisSummary ?? null,
     analysisEngine: doc.analysisEngine ?? null,
@@ -260,7 +252,6 @@ export async function getDocument(req, res) {
         action: h.action,
         user: h.user?.name,
         at: h.createdAt,
-        snapshot: h.snapshot,
       })),
     })),
   });
@@ -274,7 +265,6 @@ function sendDocumentStatus(res, doc, source = 'initial') {
     id: doc.id,
     name: doc.originalName,
     analysisStatus: toDisplayAnalysisStatus(doc.analysisStatus),
-    analysisStatusUpdatedAt: doc.analysisStatusUpdatedAt ?? null,
     // Sin esto el usuario ve "error" y nada mas: el motivo quedaba guardado en
     // la base de datos pero ningun endpoint lo devolvia, aunque el frontend ya
     // lo espera en los eventos SSE.
@@ -290,21 +280,16 @@ function sendDocumentStatus(res, doc, source = 'initial') {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
-const STREAM_SELECT = {
-  id: true,
-  originalName: true,
-  analysisStatus: true,
-  analysisError: true,
-  analysisSummary: true,
-  analysisEngine: true,
-  vectorizationStatus: true,
-};
-
 export async function streamDocumentStatus(req, res) {
   const id = Number(req.params.id);
   const doc = await prisma.document.findUnique({
     where: { id },
-    select: STREAM_SELECT,
+    select: {
+      id: true,
+      originalName: true,
+      analysisStatus: true,
+      vectorizationStatus: true,
+    },
   });
 
   if (!doc) {
@@ -323,26 +308,6 @@ export async function streamDocumentStatus(req, res) {
 
   sendDocumentStatus(res, doc, 'initial');
 
-  let lastSent = { ...doc };
-
-  // Cada cambio de etapa se publica en el bus de eventos en el momento en que
-  // ocurre. Sin escucharlo, el stream dependia solo del sondeo de 2 s y las
-  // etapas que duran milisegundos (recibido por el analizador, extrayendo
-  // contenido, recibiendo resultado) nunca llegaban a la pantalla.
-  const onStatusEvent = (event) => {
-    lastSent = {
-      ...lastSent,
-      analysisStatus: event.analysisStatus,
-      analysisError: event.analysisError ?? null,
-    };
-    try {
-      sendDocumentStatus(res, lastSent, 'event');
-    } catch {
-      // El cierre de la conexion limpia el listener.
-    }
-  };
-  analysisEvents.on(`status-${id}`, onStatusEvent);
-
   const heartbeat = setInterval(() => {
     try {
       res.write(': heartbeat\n\n');
@@ -356,20 +321,32 @@ export async function streamDocumentStatus(req, res) {
     try {
       const next = await prisma.document.findUnique({
         where: { id },
-        select: STREAM_SELECT,
+        select: {
+          id: true,
+          originalName: true,
+          analysisStatus: true,
+          vectorizationStatus: true,
+        },
       });
 
       if (!next) return;
 
-      // Respaldo: cubre los cambios que no pasan por el bus (la vectorizacion,
-      // o un estado escrito por otra instancia del backend). Cada conexion
-      // lleva su propio lastSent, asi que solo se escribe en la propia.
+      const previous = await prisma.document.findUnique({
+        where: { id },
+        select: { analysisStatus: true, vectorizationStatus: true },
+      });
+
       if (
-        lastSent.analysisStatus !== next.analysisStatus ||
-        lastSent.vectorizationStatus !== next.vectorizationStatus
+        previous?.analysisStatus !== next.analysisStatus ||
+        previous?.vectorizationStatus !== next.vectorizationStatus
       ) {
-        lastSent = next;
-        sendDocumentStatus(res, next, 'db-refresh');
+        for (const stream of listeners) {
+          try {
+            sendDocumentStatus(stream, next, 'db-refresh');
+          } catch {
+            listeners.delete(stream);
+          }
+        }
       }
     } catch {
       // El stream sigue vivo aunque la base de datos no responda
@@ -379,7 +356,6 @@ export async function streamDocumentStatus(req, res) {
   req.on('close', () => {
     clearInterval(heartbeat);
     clearInterval(poller);
-    analysisEvents.off(`status-${id}`, onStatusEvent);
     listeners.delete(res);
     if (listeners.size === 0) documentStatusStreams.delete(id);
   });
@@ -479,7 +455,7 @@ export async function listTrash(req, res) {
       sizeBytes: d.sizeBytes,
       uploadedAt: d.uploadedAt,
       deletedAt: d.deletedAt,
-      uploadedBy: d.externalUploaderEmail || d.uploadedBy?.name,
+      uploadedBy: d.uploadedBy?.name,
     }))
   );
 }

@@ -13,11 +13,13 @@ export default defineConfig({
     // Windows + Docker no tiene inotify confiable; polling garantiza HMR.
     allowedHosts: true, // Permite .loca.lt de npx
 
+    // El servidor local de Vite usa HTTP; `wss` solo corresponde a un proxy
+    // HTTPS terminado fuera de Vite y provoca ERR_SSL_PROTOCOL_ERROR aquí.
     hmr: {
       host: 'localhost',
       port: 5173,
-      clientPort: 5173, //443
-      protocol: 'wss'
+      clientPort: 5173,
+      protocol: 'ws',
     },
     
     watch: { usePolling: true },

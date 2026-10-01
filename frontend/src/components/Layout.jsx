@@ -2,7 +2,6 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import fullLogoDark from '../assets/fulllogo_darkmode.svg';
 import { navFor, roleLabel } from '../lib/roles.js';
-import AnalysisWatcher from './AnalysisWatcher.jsx';
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -96,7 +95,6 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
-      <AnalysisWatcher />
     </div>
   );
 }

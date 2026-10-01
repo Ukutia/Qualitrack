@@ -3,12 +3,23 @@
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 
+/**
+ * Algunos PDF (Word/Calibri) mapean mal las ligaduras tipográficas:
+ * "ti" sale como "7" o "<" y "fí" como "P" (Ejecu7vo, ins<tucional, desaPos).
+ * Heurística: solo actúa entre letras, así que no toca números reales.
+ */
+export function fixPdfLigatures(text) {
+  return String(text || '')
+    .replace(/(?<=\p{L})[7<](?=\p{L})/gu, 'ti')
+    .replace(/(?<=\p{Ll})P(?=\p{Ll})/gu, 'fí');
+}
+
 // pdf-parse exporta CommonJS; lo importamos dinámicamente para evitar que
 // su "debug mode" intente leer un archivo de prueba al cargar el módulo.
 async function extractPdf(buffer) {
   const { default: pdfParse } = await import('pdf-parse/lib/pdf-parse.js');
   const data = await pdfParse(buffer);
-  return data.text || '';
+  return fixPdfLigatures(data.text || '');
 }
 
 async function extractDocx(buffer) {

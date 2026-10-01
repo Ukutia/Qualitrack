@@ -57,13 +57,3 @@ export async function deleteFile(storagePath) {
     /* el archivo ya no existe: se ignora */
   }
 }
-
-/** Indica si los bytes del documento siguen en el almacenamiento. */
-export async function fileExists(storagePath) {
-  try {
-    await fs.access(storagePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
