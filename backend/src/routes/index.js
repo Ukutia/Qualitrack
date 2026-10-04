@@ -22,6 +22,18 @@ import {
   deleteDraft,
   getDraftHistory,
   restoreDraftVersion,
+  listDraftSections,
+  updateDraftSection,
+  previewDraftFromDocuments,
+  detectDraftIncoherences,
+  exportDraftPdf,
+  exportDraftDocx,
+  listGenerationSections,
+  createGenerationSection,
+  updateGenerationSection,
+  updateGenerationSectionContent,
+  deleteGenerationSection,
+  importGenerationSections,
 } from '../controllers/reportDrafts.controller.js';
 import { login, me } from '../controllers/auth.controller.js';
 import {
@@ -271,6 +283,18 @@ router.get('/report-drafts', listDrafts);
 router.post('/report-drafts', createDraft);
 router.get('/report-drafts/:id', getDraft);
 router.put('/report-drafts/:id', updateDraft);
+router.get('/report-drafts/:id/sections', listDraftSections);
+router.put('/report-drafts/:id/sections/:sectionId', updateDraftSection);
+router.get('/report-drafts/:id/generation-sections', listGenerationSections);
+router.post('/report-drafts/:id/generation-sections', createGenerationSection);
+router.post('/report-drafts/:id/generation-sections/import', structureUpload.single('file'), importGenerationSections);
+router.put('/report-drafts/:id/generation-sections/:sectionId', updateGenerationSection);
+router.put('/report-drafts/:id/generation-sections/:sectionId/content', updateGenerationSectionContent);
+router.delete('/report-drafts/:id/generation-sections/:sectionId', deleteGenerationSection);
+router.post('/report-drafts/:id/preview', previewDraftFromDocuments);
+router.post('/report-drafts/:id/incoherences', detectDraftIncoherences);
+router.get('/report-drafts/:id/export/pdf', exportDraftPdf);
+router.get('/report-drafts/:id/export/docx', exportDraftDocx);
 router.delete('/report-drafts/:id', deleteDraft);
 router.get('/report-drafts/:id/history', getDraftHistory);
 router.post('/report-drafts/:id/versions/:version/restore', restoreDraftVersion);
