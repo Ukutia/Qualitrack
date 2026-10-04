@@ -96,29 +96,58 @@ function MatchesPanel({ query, search, elapsedMs, onClose, onRequestInsertEviden
           <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-stone-500">Coincidencias</p>
           <h3 className="mt-1 font-display text-lg font-semibold text-ink-900">Documentos relacionados</h3>
         </div>
-        <button type="button" onClick={onClose} className="btn rounded-lg px-2 py-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700">✕</button>
+        <button type="button" onClick={onClose} aria-label="Cerrar coincidencias" className="btn rounded-lg px-2 py-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700">✕</button>
       </div>
       <blockquote className="mt-4 rounded-lg bg-stone-50 p-3 text-xs leading-5 text-stone-600 ring-1 ring-stone-900/5">“{query}”</blockquote>
       {elapsedMs !== null && elapsedMs !== undefined && <p className={`mt-2 text-xs ${elapsedMs < 1000 ? 'text-emerald-600' : 'text-rose-600'}`}>Procesado en {(elapsedMs / 1000).toFixed(2)} s</p>}
-      {search.isPending && <div className="mt-4 space-y-2"><div className="skeleton h-20" /><p className="text-center text-xs text-stone-500">Buscando contenido relacionado…</p></div>}
-      {search.isError && <div className="mt-4 rounded-lg bg-rose-50 p-3 text-xs text-rose-700 ring-1 ring-rose-600/20">Error en el repositorio.</div>}
-      {search.data && !search.isPending && documents.length === 0 && <div className="mt-4 rounded-lg bg-stone-50 p-4 text-center"><p className="text-sm font-medium text-ink-900">No se hallaron coincidencias</p></div>}
+      {search.isPending && (
+        <div className="mt-4 space-y-2">
+          <div className="skeleton h-20" />
+          <div className="skeleton h-20" />
+          <p className="text-center text-xs text-stone-500">Buscando contenido relacionado…</p>
+        </div>
+      )}
+      {search.isError && (
+        <div className="mt-4 rounded-lg bg-rose-50 p-3 text-xs text-rose-700 ring-1 ring-rose-600/20">
+          No fue posible realizar la revisión en el repositorio. Puede continuar editando el borrador normalmente.
+        </div>
+      )}
+      {search.data && !search.isPending && documents.length === 0 && (
+        <div className="mt-4 rounded-lg bg-stone-50 p-4 text-center">
+          <p className="text-sm font-medium text-ink-900">No se hallaron coincidencias</p>
+          <p className="mt-1 text-xs text-stone-500">
+            No se encontraron pasajes suficientemente relacionados en el repositorio. Puede continuar editando el borrador normalmente.
+          </p>
+        </div>
+      )}
       {documents.length > 0 && (
         <div className="mt-4 max-h-[55vh] space-y-3 overflow-y-auto pr-1">
+          <p className="text-xs text-stone-500">
+            {documents.length} {documents.length === 1 ? 'documento relacionado' : 'documentos relacionados'}
+          </p>
           {documents.map((document) => (
             <article key={document.documentId} className="rounded-xl border border-stone-900/10 bg-stone-50/60 p-3">
               <div className="flex items-start justify-between gap-2">
-                <Link to={`/documents/${document.documentId}`} className="block truncate text-sm font-medium text-brand-700 hover:underline">{document.originalName}</Link>
+                <div className="min-w-0">
+                  <Link to={`/documents/${document.documentId}`} className="block truncate text-sm font-medium text-brand-700 hover:underline">{document.originalName}</Link>
+                  {document.subcriterionCode && (
+                    <p className="mt-1 text-[11px] text-stone-500">
+                      Subcriterio {document.subcriterionCode}{document.subcriterionName ? ` — ${document.subcriterionName}` : ''}
+                    </p>
+                  )}
+                </div>
                 <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[10px] font-medium text-stone-600 ring-1 ring-stone-900/10">{(document.bestSimilarity * 100).toFixed(0)}%</span>
               </div>
               <div className="mt-3 space-y-2">
                 {document.fragments.slice(0, 2).map((fragment) => (
                   <div key={`${document.documentId}-${fragment.chunkIndex}`} className="rounded-lg bg-white p-2.5 ring-1 ring-stone-900/5">
                     <p className="text-xs leading-5 text-stone-700">{fragment.content.length > 280 ? `${fragment.content.slice(0, 280)}…` : fragment.content}</p>
+                    <p className="mt-1 text-[10px] text-stone-400">Similitud semántica {(fragment.similarity * 100).toFixed(0)}%</p>
                     <button type="button" onClick={() => onRequestInsertEvidence?.(fragment.content)} className="btn mt-2 rounded-lg bg-ink-800 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-ink-700">Insertar evidencia</button>
                   </div>
                 ))}
               </div>
+              <Link to={`/documents/${document.documentId}`} className="mt-3 inline-block text-xs font-medium text-brand-700 hover:underline">Ver documento →</Link>
             </article>
           ))}
         </div>
