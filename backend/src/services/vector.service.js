@@ -1,4 +1,5 @@
 import { prisma } from "../config/prisma.js";
+import { Prisma } from '@prisma/client';
 import {
   generateEmbedding,
   EMBEDDING_MODEL,
@@ -262,4 +263,46 @@ export async function searchSimilarChunks(
   });
 
   return enrichedResults;
+}
+
+/** Busca pares de fragmentos similares entre documentos distintos. */
+export async function searchSimilarCrossDocumentPairs(documentIds, { limit = 10, threshold = 0.82 } = {}) {
+  const ids = [...new Set(documentIds.map(Number))].filter(Number.isInteger);
+  if (ids.length < 2) return [];
+
+  const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 10, 1), 30);
+  const safeThreshold = Math.min(Math.max(Number(threshold) || 0.82, 0), 1);
+
+  const pairs = await prisma.$queryRaw`
+    SELECT
+      a."documentId" AS "documentIdA",
+      da."originalName" AS "originalNameA",
+      a.content AS "contentA",
+      b."documentId" AS "documentIdB",
+      db."originalName" AS "originalNameB",
+      b.content AS "contentB",
+      1 - (a.embedding <=> b.embedding) AS similarity
+    FROM "DocumentChunk" a
+    JOIN "DocumentChunk" b ON a."documentId" < b."documentId"
+    JOIN "Document" da ON da.id = a."documentId"
+    JOIN "Document" db ON db.id = b."documentId"
+    WHERE a."documentId" IN (${Prisma.join(ids)})
+      AND b."documentId" IN (${Prisma.join(ids)})
+      AND da."deletedAt" IS NULL
+      AND db."deletedAt" IS NULL
+      AND a.embedding IS NOT NULL
+      AND b.embedding IS NOT NULL
+      AND a."embeddingModel" = ${EMBEDDING_MODEL}
+      AND b."embeddingModel" = ${EMBEDDING_MODEL}
+      AND 1 - (a.embedding <=> b.embedding) >= ${safeThreshold}
+    ORDER BY similarity DESC
+    LIMIT ${safeLimit}
+  `;
+
+  return pairs.map((pair) => ({
+    ...pair,
+    similarity: Number(pair.similarity),
+    contentA: decryptText(pair.contentA),
+    contentB: decryptText(pair.contentB),
+  }));
 }

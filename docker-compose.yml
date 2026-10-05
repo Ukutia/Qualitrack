@@ -123,7 +123,11 @@ services:
       - "8000:8000"
     environment:
       - HF_TOKEN=${HF_TOKEN}
+      - HF_HOME=/models
+    volumes:
+      - hf_cache:/models
 
 volumes:
   pgdata:
   filedata:
+  hf_cache:
