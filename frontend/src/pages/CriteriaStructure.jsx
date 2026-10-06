@@ -71,7 +71,8 @@ export default function CriteriaStructure() {
       (parseResult.sections || []).map((s) => ({
         code: s.code,
         name: s.name,
-        description: '',
+        description: s.description || '',
+        requirements: s.requirements || null,
         required: s.required,
       }))
     );
@@ -85,6 +86,8 @@ export default function CriteriaStructure() {
         (parseResult.sections || []).map((s) => ({
           code: s.code,
           name: s.name,
+          description: s.description || undefined,
+          requirements: s.requirements || undefined,
           required: s.required,
         }))
       );
@@ -104,6 +107,7 @@ export default function CriteriaStructure() {
         code: s.code,
         name: s.name,
         description: s.description || '',
+        requirements: s.requirements || null,
         required: s.required,
       }))
     );
@@ -113,7 +117,7 @@ export default function CriteriaStructure() {
     setDraft((d) => d.map((row, idx) => (idx === i ? { ...row, [field]: value } : row)));
   }
   function addRow() {
-    setDraft((d) => [...d, { code: nextCode(d), name: '', description: '', required: true }]);
+    setDraft((d) => [...d, { code: nextCode(d), name: '', description: '', requirements: null, required: true }]);
   }
   function removeRow(i) {
     setDraft((d) => d.filter((_, idx) => idx !== i));
@@ -183,6 +187,7 @@ export default function CriteriaStructure() {
           code: s.code.trim(),
           name: s.name.trim(),
           description: s.description.trim() || undefined,
+          requirements: s.requirements || undefined,
           required: s.required,
         }))
       );

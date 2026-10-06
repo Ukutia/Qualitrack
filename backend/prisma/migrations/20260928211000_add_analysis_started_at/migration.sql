@@ -1,0 +1,2 @@
+ALTER TABLE "Document"
+ADD COLUMN IF NOT EXISTS "analysisStartedAt" TIMESTAMP(3);

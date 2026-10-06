@@ -35,6 +35,9 @@ export function parseStructureSections(text) {
  *   "1. Título"   "1.1 Subtítulo"   "2.3.1. Campo"   "1) Título"
  */
 function parseSectionLine(line) {
+  // Una extensión como "5 páginas" es una regla del bloque, no una sección.
+  if (/^\d+\s+p[aá]ginas?$/i.test(line)) return null;
+
   // Código numérico separado por puntos, seguido de separador y nombre
   const m = line.match(/^(\d+(?:\.\d+)*)[\s.)\-:]+(.+)$/);
   if (!m) return null;

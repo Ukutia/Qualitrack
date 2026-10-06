@@ -23,6 +23,11 @@ services:
     build: ./backend
     container_name: qualitrack-backend
     restart: unless-stopped
+
+    env_file:
+      - ./backend/.env
+
+
     depends_on:
       db:
         condition: service_healthy
@@ -57,7 +62,7 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:4000/api/cloud/google/callback}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      #GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       EMBEDDING_SERVICE_URL: http://embedding-service:8000
       # El worker de analisis corre en el HOST, junto a la GPU: un contenedor
       # aislado no alcanza a Ollama en 127.0.0.1. Ver qualitrack-worker.
@@ -118,7 +123,11 @@ services:
       - "8000:8000"
     environment:
       - HF_TOKEN=${HF_TOKEN}
+      - HF_HOME=/models
+    volumes:
+      - hf_cache:/models
 
 volumes:
   pgdata:
   filedata:
+  hf_cache:

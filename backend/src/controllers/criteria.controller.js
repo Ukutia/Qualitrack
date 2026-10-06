@@ -2,6 +2,7 @@
 import { prisma } from '../config/prisma.js';
 import { extractText } from '../services/textExtraction.service.js';
 import { parseStructureSections } from '../services/structureParser.service.js';
+import { parseSectionRules } from '../services/sectionRulesParser.service.js';
 import { formatFromName } from '../middleware/upload.js';
 
 const CRITERION_CODE = '9';
@@ -28,9 +29,13 @@ export async function getReportStructure(req, res) {
     version: version.version,
     uploadedAt: version.uploadedAt,
     sections: version.sections.map((s) => ({
+      id: s.id,
       code: s.code,
       name: s.name,
       description: s.description,
+      requirements: s.requirements,
+      parentId: s.parentId,
+      order: s.order,
       label: s.required ? 'Obligatoria' : 'Opcional',
       required: s.required,
       changeType: s.changeType,
@@ -61,7 +66,13 @@ export async function parseStructureDocument(req, res) {
   }
 
   const sections = parseStructureSections(text);
-  if (sections.length === 0) {
+  const rulesByCode = new Map(parseSectionRules(text).map((section) => [section.code, section]));
+  const sectionsWithRules = sections.map((section) => ({
+    ...section,
+    description: rulesByCode.get(section.code)?.description ?? null,
+    requirements: rulesByCode.get(section.code)?.requirements ?? null,
+  }));
+  if (sectionsWithRules.length === 0) {
     return res.status(422).json({
       error:
         'No se encontraron secciones numeradas en el documento. ' +
@@ -71,8 +82,8 @@ export async function parseStructureDocument(req, res) {
 
   return res.json({
     filename: req.file.originalname,
-    totalSections: sections.length,
-    sections,
+    totalSections: sectionsWithRules.length,
+    sections: sectionsWithRules,
   });
 }
 
@@ -116,6 +127,7 @@ export async function uploadReportStructure(req, res) {
       code: s.code,
       name: s.name,
       description: s.description ?? null,
+      requirements: s.requirements ?? null,
       required: s.required ?? true,
       order: i,
       changeType,

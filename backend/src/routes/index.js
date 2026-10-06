@@ -22,6 +22,18 @@ import {
   deleteDraft,
   getDraftHistory,
   restoreDraftVersion,
+  listDraftSections,
+  updateDraftSection,
+  previewDraftFromDocuments,
+  detectDraftIncoherences,
+  exportDraftPdf,
+  exportDraftDocx,
+  listGenerationSections,
+  createGenerationSection,
+  updateGenerationSection,
+  updateGenerationSectionContent,
+  deleteGenerationSection,
+  importGenerationSections,
 } from '../controllers/reportDrafts.controller.js';
 import { login, me } from '../controllers/auth.controller.js';
 import {
@@ -43,6 +55,7 @@ import {
   validateAssociation,
   rejectAssociation,
   reassignAssociation,
+  classifyDocumentFallback,
 } from '../controllers/classification.controller.js';
 import { getCompliance } from '../controllers/compliance.controller.js';
 import {
@@ -169,24 +182,6 @@ router.post('/webhooks/worker-update', async (req, res) => {
 
     if (status === 'COMPLETED' && result && result.relevant) {
         await prisma.$transaction(async (tx) => {
-            const pending = await tx.association.findMany({
-                where: { documentId, status: 'PROPOSED' },
-            });
-
-            if (pending.length) {
-                await tx.association.updateMany({
-                    where: { id: { in: pending.map((item) => item.id) } },
-                    data: { status: 'NOT_VALIDATED', validatedById: null, validatedAt: null },
-                });
-                await tx.associationHistory.createMany({
-                    data: pending.map((item) => ({
-                        associationId: item.id,
-                        action: 'REJECTED',
-                        userId,
-                        snapshot: { reemplazadaPorNuevaPropuestaIA: true },
-                    })),
-                });
-            }
 
             const created = await tx.association.create({
                 data: {
@@ -269,6 +264,7 @@ router.delete('/documents/:id', requireOwnDocument, destroyDocument);
 // Clasificación (HU01)
 router.post('/documents/:id/classify', requireOwnDocument, classifyDocument);
 router.get('/documents/:id/transmission-preview', requireOwnDocument, asyncRoute(previewTransmission));
+router.post('/documents/:id/classify/fallback', requireOwnDocument, classifyDocumentFallback);
 router.post('/associations/:id/validate', requireOwnAssociation, validateAssociation);
 router.post('/associations/:id/reject', requireOwnAssociation, rejectAssociation);
 router.put('/documents/:id/association', requireOwnDocument, reassignAssociation);
@@ -289,6 +285,18 @@ router.get('/report-drafts', listDrafts);
 router.post('/report-drafts', createDraft);
 router.get('/report-drafts/:id', getDraft);
 router.put('/report-drafts/:id', updateDraft);
+router.get('/report-drafts/:id/sections', listDraftSections);
+router.put('/report-drafts/:id/sections/:sectionId', updateDraftSection);
+router.get('/report-drafts/:id/generation-sections', listGenerationSections);
+router.post('/report-drafts/:id/generation-sections', createGenerationSection);
+router.post('/report-drafts/:id/generation-sections/import', structureUpload.single('file'), importGenerationSections);
+router.put('/report-drafts/:id/generation-sections/:sectionId', updateGenerationSection);
+router.put('/report-drafts/:id/generation-sections/:sectionId/content', updateGenerationSectionContent);
+router.delete('/report-drafts/:id/generation-sections/:sectionId', deleteGenerationSection);
+router.post('/report-drafts/:id/preview', previewDraftFromDocuments);
+router.post('/report-drafts/:id/incoherences', detectDraftIncoherences);
+router.get('/report-drafts/:id/export/pdf', exportDraftPdf);
+router.get('/report-drafts/:id/export/docx', exportDraftDocx);
 router.delete('/report-drafts/:id', deleteDraft);
 router.get('/report-drafts/:id/history', getDraftHistory);
 router.post('/report-drafts/:id/versions/:version/restore', restoreDraftVersion);

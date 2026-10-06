@@ -358,6 +358,20 @@ export function useClassify() {
   });
 }
 
+export function useFallbackClassify() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (docId) =>
+      (await api.post(`/documents/${docId}/classify/fallback`)).data,
+
+    onSuccess: (_d, docId) => {
+      qc.invalidateQueries({ queryKey: ['document', String(docId)] });
+      qc.invalidateQueries({ queryKey: ['document', docId] });
+    },
+  });
+}
+
 export function useAssociationAction() {
   const qc = useQueryClient();
   return useMutation({
@@ -469,6 +483,68 @@ export function useReportDraft(id) {
   });
 }
 
+export function useReportDraftSections(id) {
+  return useQuery({
+    queryKey: ['report-draft-sections', id],
+    queryFn: async () => (await api.get(`/report-drafts/${id}/sections`)).data,
+    enabled: !!id,
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+}
+
+export function useGenerationSections(id) {
+  return useQuery({
+    queryKey: ['report-generation-sections', id],
+    queryFn: async () => (await api.get(`/report-drafts/${id}/generation-sections`)).data,
+    enabled: !!id,
+    staleTime: Infinity,
+  });
+}
+
+export function useCreateGenerationSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, ...section }) =>
+      (await api.post(`/report-drafts/${draftId}/generation-sections`, section)).data,
+    onSuccess: (_data, variables) =>
+      qc.invalidateQueries({ queryKey: ['report-generation-sections', variables.draftId] }),
+  });
+}
+
+export function useUpdateGenerationSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, sectionId, ...section }) =>
+      (await api.put(`/report-drafts/${draftId}/generation-sections/${sectionId}`, section)).data,
+    onSuccess: (_data, variables) =>
+      qc.invalidateQueries({ queryKey: ['report-generation-sections', variables.draftId] }),
+  });
+}
+
+export function useDeleteGenerationSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, sectionId }) =>
+      api.delete(`/report-drafts/${draftId}/generation-sections/${sectionId}`),
+    onSuccess: (_data, variables) =>
+      qc.invalidateQueries({ queryKey: ['report-generation-sections', variables.draftId] }),
+  });
+}
+
+export function useImportGenerationSections() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, file }) => {
+      const form = new FormData();
+      form.append('file', file);
+      return (await api.post(`/report-drafts/${draftId}/generation-sections/import`, form)).data;
+    },
+    onSuccess: (_data, variables) =>
+      qc.invalidateQueries({ queryKey: ['report-generation-sections', variables.draftId] }),
+  });
+}
+
 export function useCreateReportDraft() {
   const qc = useQueryClient();
   return useMutation({
@@ -487,6 +563,32 @@ export function useSaveReportDraft() {
       return (await api.put(`/report-drafts/${id}`, body)).data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['report-drafts'] }),
+  });
+}
+
+export function useSaveReportDraftSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, sectionId, contentHtml }) =>
+      (await api.put(`/report-drafts/${draftId}/sections/${sectionId}`, { contentHtml })).data,
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['report-draft-sections', variables.draftId] });
+      qc.invalidateQueries({ queryKey: ['report-drafts'] });
+    },
+  });
+}
+
+export function useReportDraftPreview() {
+  return useMutation({
+    mutationFn: async ({ draftId, sectionId, documentIds }) =>
+      (await api.post(`/report-drafts/${draftId}/preview`, { sectionId, documentIds })).data,
+  });
+}
+
+export function useReportDraftIncoherences() {
+  return useMutation({
+    mutationFn: async ({ draftId, documentIds }) =>
+      (await api.post(`/report-drafts/${draftId}/incoherences`, { documentIds })).data,
   });
 }
 

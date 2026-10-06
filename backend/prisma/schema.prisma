@@ -115,13 +115,13 @@ model DocumentRequestEmail {
   type              RequestEmailType
   status            RequestEmailStatus @default(PENDING)
   attemptCount      Int                @default(0)
-  nextAttemptAt     DateTime            @default(now())
+  nextAttemptAt     DateTime           @default(now())
   lastAttemptAt     DateTime?
   sentAt            DateTime?
   providerMessageId String?
-  lastError         String?             @db.Text
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  lastError         String?            @db.Text
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@unique([requestId, tokenVersion])
   @@index([status, nextAttemptAt])
@@ -165,19 +165,21 @@ model ReportStructureVersion {
 }
 
 model ReportSection {
-  id          Int                    @id @default(autoincrement())
-  version     ReportStructureVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  versionId   Int
-  code        String
-  name        String
-  description String?
-  required    Boolean                @default(true)
-  order       Int                    @default(0)
-  changeType  SectionChange          @default(NONE)
+  id           Int                    @id @default(autoincrement())
+  version      ReportStructureVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  versionId    Int
+  code         String
+  name         String
+  description  String?
+  requirements Json?
+  required     Boolean                @default(true)
+  order        Int                    @default(0)
+  changeType   SectionChange          @default(NONE)
 
-  parent   ReportSection?  @relation("SectionChildren", fields: [parentId], references: [id])
-  parentId Int?
-  children ReportSection[] @relation("SectionChildren")
+  parent        ReportSection?       @relation("SectionChildren", fields: [parentId], references: [id])
+  parentId      Int?
+  children      ReportSection[]      @relation("SectionChildren")
+  draftSections ReportDraftSection[]
 }
 
 /// Borrador del informe redactado dentro de la plataforma (HU redacción).
@@ -195,9 +197,47 @@ model ReportDraft {
   author   User @relation(fields: [authorId], references: [id])
   authorId Int
 
-  versions ReportDraftVersion[]
+  versions           ReportDraftVersion[]
+  sections           ReportDraftSection[]
+  generationSections ReportGenerationSection[]
 
   @@index([authorId, updatedAt])
+}
+
+/// Contenido editable asociado a una sección de la estructura oficial.
+/// ReportDraft.contentHtml se conserva para compatibilidad con borradores existentes.
+model ReportDraftSection {
+  id                 Int           @id @default(autoincrement())
+  draft              ReportDraft   @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  draftId            Int
+  structureSection   ReportSection @relation(fields: [structureSectionId], references: [id], onDelete: Cascade)
+  structureSectionId Int
+  contentHtml        String        @default("") @db.Text
+  contentText        String        @default("") @db.Text
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@unique([draftId, structureSectionId])
+  @@index([draftId, updatedAt])
+}
+
+/// Configuración editable de secciones usada para generar contenido.
+/// Se mantiene separada de la plantilla oficial ReportSection.
+model ReportGenerationSection {
+  id           Int         @id @default(autoincrement())
+  draft        ReportDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  draftId      Int
+  code         String
+  name         String
+  description  String?     @db.Text
+  requirements Json?
+  contentHtml  String      @default("") @db.Text
+  contentText  String      @default("") @db.Text
+  order        Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([draftId, order])
 }
 
 /// Instantánea de un ReportDraft en un punto del tiempo. No se crea en cada
@@ -221,37 +261,40 @@ model ReportDraftVersion {
 }
 
 model Document {
-  id            Int            @id @default(autoincrement())
-  originalName  String
-  storedName    String         @unique
-  format        String // pdf | docx | xlsx
-  sizeBytes     Int
-  storagePath   String
-  source        DocumentSource @default(UPLOAD)
-  cloudFileId   String?
-  cloudLocation String?
-  documentDate  DateTime       @default(now()) // base para antigüedad (HU02)
-  extractedText String?        @db.Text
+  id                      Int            @id @default(autoincrement())
+  originalName            String
+  storedName              String         @unique
+  format                  String // pdf | docx | xlsx
+  sizeBytes               Int
+  storagePath             String
+  source                  DocumentSource @default(UPLOAD)
+  cloudFileId             String?
+  cloudLocation           String?
+  documentDate            DateTime       @default(now()) // base para antigüedad (HU02)
+  extractedText           String?        @db.Text
   /// Estado del flujo de análisis documental: RECEIVED, PREPARING_ANALYSIS, SENT_TO_ANALYZER,
   /// RECEIVED_BY_ANALYZER, EXTRACTING_CONTENT, ANALYZING_CONTENT, RECEIVING_RESULT,
   /// COMPLETED y ERROR.
-  analysisStatus String? @default("RECEIVED")
+  analysisStatus          String?        @default("RECEIVED")
   /// PROCESSING mientras se generan embeddings; READY al terminar; FAILED si falla.
-  analysisError  String?
+  analysisError           String?
   /// Cuando cambio analysisStatus por ultima vez. Permite reencolar los
   /// documentos que un worker tomo y nunca termino.
   analysisStatusUpdatedAt DateTime?
+  /// Momento en que comenzó el intento actual de análisis.
+  /// No cambia con los estados intermedios y permite medir el timeout de 3 minutos.
+  analysisStartedAt       DateTime?
   /// Explicacion del analisis cuando NO genera asociacion: sin esto, un
   /// documento descartado por la IA se ve igual que uno nunca analizado.
-  analysisSummary String? @db.Text
+  analysisSummary         String?        @db.Text
   /// Que motor decidio: el modelo local, gemini o el respaldo por keywords.
   /// Hace visible en la interfaz cuando la IA no fue la que decidio.
-  analysisEngine String?
-  vectorizationStatus String   @default("READY")
-  uploadedAt    DateTime       @default(now())
+  analysisEngine          String?
+  vectorizationStatus     String         @default("READY")
+  uploadedAt              DateTime       @default(now())
 
-  uploadedBy   User @relation(fields: [uploadedById], references: [id])
-  uploadedById Int
+  uploadedBy            User    @relation(fields: [uploadedById], references: [id])
+  uploadedById          Int
   /// Correo del destinatario cuando el documento fue cargado mediante una
   /// solicitud pública. La propiedad interna sigue siendo `uploadedById`.
   externalUploaderEmail String?
@@ -259,8 +302,8 @@ model Document {
   deletedAt DateTime? // null = activo, fecha = en papelera
 
   associations Association[]
-  chunks DocumentChunk[]
-  request DocumentRequest?
+  chunks       DocumentChunk[]
+  request      DocumentRequest?
 
   /// El worker consulta la cola cada pocos segundos; sin este indice cada
   /// sondeo recorre la tabla entera.
@@ -318,13 +361,13 @@ model CloudConnection {
 }
 
 model DocumentChunk {
-  id             Int      @id @default(autoincrement())
+  id             Int                         @id @default(autoincrement())
   documentId     Int
   chunkIndex     Int
-  content        String   @db.Text
+  content        String                      @db.Text
   embedding      Unsupported("vector(768)")?
-  embeddingModel String   @default("Qwen/Qwen3-Embedding-0.6B")
-  createdAt      DateTime @default(now())
+  embeddingModel String                      @default("Qwen/Qwen3-Embedding-0.6B")
+  createdAt      DateTime                    @default(now())
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
