@@ -2,6 +2,11 @@
 import { prisma } from '../config/prisma.js';
 import { sendToWorker } from '../services/workerClient.service.js';
 import { updateAnalysisStatus } from '../services/analysisEvents.service.js';
+import {
+  plainWorkerContent,
+  encryptedWorkerContent,
+  decryptWorkerContent,
+} from '../services/workerPayload.service.js';
 
 const CRITERION_CODE = '9';
 
@@ -28,6 +33,48 @@ async function supersedeAssociations(tx, { documentId, keepId, userId, snapshot 
       userId,
       snapshot,
     })),
+  });
+}
+
+/**
+ * GET /documents/:id/transmission-preview — lo que se enviaría al worker
+ * (CDA2). Usa la misma función que el envío real, así que lo mostrado es
+ * exactamente lo que sale a la red, con un IV nuevo como cualquier envío. No
+ * cambia el estado del documento ni contacta al worker.
+ */
+export async function previewTransmission(req, res) {
+  const documentId = Number(req.params.id);
+  const doc = await prisma.document.findFirst({ where: { id: documentId, deletedAt: null } });
+  if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
+
+  let contenido;
+  let payload;
+  try {
+    ({ contenido } = await plainWorkerContent(doc));
+    payload = await encryptedWorkerContent(doc);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  const cifrado = Buffer.from(payload.fileData, 'base64');
+  const texto = contenido.toString('utf-8');
+  // Una frase del original para buscarla dentro de lo transmitido.
+  const muestra = texto.replace(/\s+/g, ' ').trim().slice(0, 40);
+  let coincidencias = 0;
+  for (let i = 0; i < contenido.length; i++) if (contenido[i] === cifrado[i]) coincidencias++;
+
+  return res.json({
+    algorithm: 'AES-256-GCM',
+    format: payload.format,
+    iv: payload.iv,
+    authTag: payload.authTag,
+    original: texto,
+    transmitted: payload.fileData,
+    bytes: contenido.length,
+    sample: muestra,
+    sampleFound: cifrado.includes(muestra) || payload.fileData.includes(muestra),
+    matchingBytesPct: contenido.length ? (coincidencias / contenido.length) * 100 : 0,
+    roundTripOk: decryptWorkerContent(payload).equals(contenido),
   });
 }
 

@@ -39,6 +39,7 @@ import {
 } from '../controllers/documents.controller.js';
 import {
   classifyDocument,
+  previewTransmission,
   validateAssociation,
   rejectAssociation,
   reassignAssociation,
@@ -267,6 +268,7 @@ router.delete('/documents/:id', requireOwnDocument, destroyDocument);
 
 // Clasificación (HU01)
 router.post('/documents/:id/classify', requireOwnDocument, classifyDocument);
+router.get('/documents/:id/transmission-preview', requireOwnDocument, asyncRoute(previewTransmission));
 router.post('/associations/:id/validate', requireOwnAssociation, validateAssociation);
 router.post('/associations/:id/reject', requireOwnAssociation, rejectAssociation);
 router.put('/documents/:id/association', requireOwnDocument, reassignAssociation);
