@@ -1,6 +1,4 @@
-import crypto from 'node:crypto';
-import { readFile } from './storage.service.js';
-import { decryptText } from './encryption.service.js';
+import { encryptedWorkerContent } from './workerPayload.service.js';
 import { dispatcherParaTailnet } from './tailnet.service.js';
 import { prisma } from '../config/prisma.js';
 import { updateAnalysisStatus } from './analysisEvents.service.js'; // O donde tengas esta función
@@ -34,52 +32,9 @@ export async function sendToWorker(documentId, userId) {
     });
     // --------------------------------------------------------
 
-    // Encriptación del archivo antes de salir a la red (Paso 4)
-    // Encriptación GCM (Protección de Integridad)
-    // Se manda el texto ya extraido, no el archivo. El backend lo extrae al
-    // subir el documento y lo guarda cifrado en la base de datos, asi que
-    // reenviar el PDF obligaba al worker a repetir ese trabajo y ataba la
-    // clasificacion a que el archivo siguiera en disco, algo que en un PaaS sin
-    // volumen persistente no se cumple: los registros sobreviven y los bytes no.
-    //
-    // De paso el payload baja de ~125 KB en base64 a ~27 KB de texto.
-    const texto = decryptText(doc.extractedText) || '';
-
-    let contenido;
-    let formato;
-
-    if (texto.trim()) {
-      contenido = Buffer.from(texto, 'utf-8');
-      formato = 'text';
-    } else {
-      // Sin texto extraido (por ejemplo un PDF escaneado) queda el archivo,
-      // si es que todavia existe.
-      contenido = await readFile(doc.storagePath);
-      formato = doc.format;
-    }
-
-    const fileBuffer = contenido;
-    const algorithm = 'aes-256-gcm';
-
-    // Sin llave por defecto: una constante en el codigo fuente no protege
-    // nada, y ademas no coincidiria con la del worker, lo que produce un
-    // "unable to authenticate data" dificil de rastrear. Mejor fallar aqui.
-    const secretKey = process.env.WORKER_ENCRYPTION_KEY;
-
-    if (!secretKey || !/^[0-9a-fA-F]{64}$/.test(secretKey)) {
-      throw new Error(
-        'WORKER_ENCRYPTION_KEY debe ser 64 caracteres hexadecimales y coincidir ' +
-        'con la del worker. Genera una con: ' +
-        'node -e "console.log(require(`crypto`).randomBytes(32).toString(`hex`))"'
-      );
-    }
-
-    const key = Buffer.from(secretKey, 'hex');
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
-    
-    const encryptedFile = Buffer.concat([cipher.update(fileBuffer), cipher.final()]);
-    const authTag = cipher.getAuthTag(); // El sello matemático de seguridad
+    // Encriptación GCM antes de salir a la red (Paso 4). Viaja el texto ya
+    // extraido, no el archivo; ver workerPayload.service.js.
+    const contenidoCifrado = await encryptedWorkerContent(doc);
 
     const workerUrl = process.env.WORKER_URL;
 
@@ -116,10 +71,7 @@ export async function sendToWorker(documentId, userId) {
         documentId,
         userId,
         backendUrl: publicBackendUrl(),
-        iv: iv.toString('hex'),
-        authTag: authTag.toString('hex'), // Enviamos el sello
-        fileData: encryptedFile.toString('base64'),
-        format: formato,
+        ...contenidoCifrado,
         subcriteria
       })
     });

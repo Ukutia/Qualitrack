@@ -6,10 +6,8 @@
 // o de una VPN, y hace que un documento encolado mientras el worker está caído
 // se procese al volver, en vez de perderse con estado ERROR.
 
-import crypto from 'node:crypto';
 import { prisma } from '../config/prisma.js';
-import { readFile } from './storage.service.js';
-import { decryptText } from './encryption.service.js';
+import { encryptedWorkerContent } from './workerPayload.service.js';
 import { updateAnalysisStatus } from './analysisEvents.service.js';
 
 const CRITERION_CODE = '9';
@@ -19,19 +17,6 @@ export const PENDING_STATUS = 'PREPARING_ANALYSIS';
 
 /** Estado con el que se marca al entregarlo, para que nadie más lo tome. */
 export const CLAIMED_STATUS = 'SENT_TO_ANALYZER';
-
-function loadEncryptionKey() {
-  const secretKey = process.env.WORKER_ENCRYPTION_KEY;
-
-  if (!secretKey || !/^[0-9a-fA-F]{64}$/.test(secretKey)) {
-    throw new Error(
-      'WORKER_ENCRYPTION_KEY debe ser 64 caracteres hexadecimales y coincidir ' +
-        'con la del worker.'
-    );
-  }
-
-  return Buffer.from(secretKey, 'hex');
-}
 
 /**
  * Entrega el siguiente documento pendiente, ya cifrado, o null si no hay.
@@ -61,34 +46,13 @@ export async function claimNextJob() {
     where: { criterion: { code: CRITERION_CODE } },
   });
 
-  // Igual que en el despacho por push: viaja el texto ya extraido, que vive en
-  // la base de datos, y no el archivo. Asi la cola no depende de que el archivo
-  // siga en disco, algo que sin volumen persistente no se cumple.
-  const texto = decryptText(candidato.extractedText) || '';
-
-  let contenido;
-  let formato;
-
-  if (texto.trim()) {
-    contenido = Buffer.from(texto, 'utf-8');
-    formato = 'text';
-  } else {
-    // Sin texto extraido queda el archivo, si es que todavia existe.
-    contenido = await readFile(candidato.storagePath);
-    formato = candidato.format;
-  }
-
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-gcm', loadEncryptionKey(), iv);
-  const encryptedFile = Buffer.concat([cipher.update(contenido), cipher.final()]);
+  // Igual que en el despacho por push: mismo contenido y mismo cifrado.
+  const contenidoCifrado = await encryptedWorkerContent(candidato);
 
   return {
     documentId: candidato.id,
     userId: candidato.uploadedById,
-    format: formato,
-    iv: iv.toString('hex'),
-    authTag: cipher.getAuthTag().toString('hex'),
-    fileData: encryptedFile.toString('base64'),
+    ...contenidoCifrado,
     subcriteria,
   };
 }

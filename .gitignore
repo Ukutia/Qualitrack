@@ -35,3 +35,6 @@ coverage/
 
 # Misc extraction helper
 _qualitrack_extract.txt
+
+# Salida de scripts/inspect-worker-payload.js (contiene texto de documentos)
+evidencia-cda2/

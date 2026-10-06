@@ -29,7 +29,17 @@ export default function AnalysisWatcher() {
   const notify = useCallback((toast) => {
     const key = `${toast.id}-${Date.now()}`;
     setToasts((list) => [...list, { ...toast, key }]);
-    setTimeout(() => dismiss(key), TOAST_MS);
+
+    // El plazo corre solo con la pestaña a la vista. Antes empezaba aunque el
+    // usuario estuviera en otra pestaña, y el aviso se cerraba antes de que
+    // volviera: el análisis terminaba sin que nadie lo viera.
+    const startTimer = () => {
+      if (document.hidden) return;
+      document.removeEventListener('visibilitychange', startTimer);
+      setTimeout(() => dismiss(key), TOAST_MS);
+    };
+    document.addEventListener('visibilitychange', startTimer);
+    startTimer();
 
     // Con la pestaña del navegador oculta el aviso en pantalla no se ve;
     // ahí se recurre a la notificación del sistema, si hay permiso.
