@@ -45,6 +45,7 @@ const USER_RULES = [
   rule('PATCH', /^\/documents\/\d+\/analysis-status$/),
   rule('PATCH', /^\/documents\/\d+\/date$/),
   rule('POST', /^\/documents\/\d+\/classify$/),
+  rule('GET', /^\/documents\/\d+\/transmission-preview$/),
   rule('POST', /^\/documents\/\d+\/classify\/fallback$/),
   rule('PUT', /^\/documents\/\d+\/association$/),
   rule('POST', /^\/associations\/\d+\/validate$/),

@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { ROLES } from '../lib/roles.js';
 import { isAnalysisInProgress, normalizeAnalysisStatus, ANALYSIS_PROGRESS_TEXT, describeEngine } from '../lib/analysisStatus.js';
 import { requestNotificationPermission } from '../lib/analysisWatch.js';
+import TransmissionPreview from '../components/TransmissionPreview.jsx';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
 const ACTION_LABEL = { PROPOSED: 'Propuesta generada', VALIDATED: 'Validada', REJECTED: 'Descartada' };
@@ -431,6 +432,8 @@ export default function DocumentDetail() {
           </pre>
         </section>
       )}
+
+      {canManage && <TransmissionPreview docId={id} />}
     </div>
   );
 }
