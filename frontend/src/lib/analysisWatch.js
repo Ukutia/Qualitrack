@@ -30,9 +30,15 @@ function save(ids) {
 export function watchAnalysis(id) {
   const ids = watchedAnalyses();
   if (!ids.includes(String(id))) save([...ids, String(id)]);
+}
 
-  // Se pide aquí y no al abrir la ficha: los navegadores solo muestran el
-  // diálogo de permiso tras un gesto del usuario, como pulsar "Clasificar".
+/**
+ * Pide permiso para la notificación del sistema. Debe llamarse dentro del
+ * gesto del usuario (el clic en "Clasificar"): los navegadores solo muestran
+ * el diálogo tras uno, y al terminar la petición a la API ese gesto puede
+ * haber caducado.
+ */
+export function requestNotificationPermission() {
   if ('Notification' in window && Notification.permission === 'default') {
     Promise.resolve(Notification.requestPermission()).catch(() => {});
   }

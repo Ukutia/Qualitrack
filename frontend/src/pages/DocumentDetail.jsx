@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import { ROLES } from '../lib/roles.js';
 import { isAnalysisInProgress, normalizeAnalysisStatus, ANALYSIS_PROGRESS_TEXT, describeEngine } from '../lib/analysisStatus.js';
+import { requestNotificationPermission } from '../lib/analysisWatch.js';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
 const ACTION_LABEL = { PROPOSED: 'Propuesta generada', VALIDATED: 'Validada', REJECTED: 'Descartada' };
@@ -122,7 +123,10 @@ export default function DocumentDetail() {
           <h2 className="font-semibold text-steel-800">Asociación al Criterio 9</h2>
           {canManage && (
             <button
-              onClick={() => classify.mutate(id)}
+              onClick={() => {
+                requestNotificationPermission();
+                classify.mutate(id);
+              }}
               disabled={classify.isPending || analizando}
               className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-60"
             >
