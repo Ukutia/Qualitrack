@@ -1,11 +1,15 @@
 import { searchSimilarChunks } from './vector.service.js';
-import { generateWithGemini } from './gemini.service.js';
+import { generateText, llmLabel } from './llm.service.js';
 
 // Tope fijo de la vista previa. NO depende de las reglas de la sección
 // (el "Extensión máxima: N páginas" de la CNA aplica al informe final, no a esta vista).
 export const MAX_PREVIEW_WORDS = 150;
-const TARGET_WORDS_HINT = 130; // se pide menos para que el recorte casi nunca haga falta
-const CACHE_TTL_MS = 15 * 60 * 1000;
+const TARGET_WORDS_HINT = 100; // se pide menos: en CPU cada palabra extra son segundos de espera
+// Por debajo de esta cantidad de palabras de evidencia no se llama al modelo: con tan poco
+// texto un modelo local rellena con generalidades en vez de decir que no hay base.
+const MIN_EVIDENCE_WORDS = 40;
+// La caché vive en memoria: se pierde al reiniciar o reconstruir el backend.
+const CACHE_TTL_MS = (Number(process.env.LLM_CACHE_TTL_MINUTES) || 24 * 60) * 60 * 1000;
 const previewCache = new Map();
 const DEFAULT_REQUIREMENTS = {
   minSources: 1,
@@ -13,15 +17,27 @@ const DEFAULT_REQUIREMENTS = {
   instructions: [],
 };
 const BASE_SYSTEM_PROMPT = `
-Eres un redactor de informes de autoevaluación para procesos de acreditación universitaria.
-Redactas directamente el contenido de la sección pedida, en español, con tono formal, claro y objetivo,
-en tercera persona institucional ("La institución…").
-Los extractos son evidencia interna: úsalos como base de hechos, cifras y logros, pero NO describas los
+Eres un profesional de aseguramiento de la calidad de una universidad chilena. Redactas, en primera persona plural ("nuestra carrera", "implementamos"), secciones del informe de autoevaluación para la CNA.
+Cómo escribes:
+- Objetividad: todo lo que afirmas se apoya en la evidencia entregada. Si falta un dato, no lo rellenes con generalidades: escribe menos.
+- Empieza por lo concreto: un hecho, cifra, año, instancia o resultado. Nunca abras con una frase general.
+- Sigue la lógica del ciclo de mejora: qué detectamos, qué hicimos, qué resultado tuvo y qué sigue pendiente.
+- Reconoce las debilidades con naturalidad, explicando su causa, sin maquillarlas ni adornarlas.
+- El texto ES la sección. No hables de la sección, del documento ni de "la institución" en tercera persona.
+- Evita el lenguaje de resumen: "se presenta", "se destaca", "sintetiza", "se identificaron fortalezas", "con el fin de fortalecer", "con enfoque en".
+- Mezcla frases cortas y largas, usa voz activa y escribe en párrafos corridos, sin listas ni viñetas.
+- Cierra con el último hecho relevante, no con una frase de buenas intenciones.
+- Utiliza la terminología de la CNA y de la guía de la sección, pero no repitas sus frases textuales.
+
+Reglas:
+- Los extractos son evidencia interna: úsalos como base de hechos, cifras y logros, pero NO describas los
 documentos ni sus nombres ("el documento indica…", "según el archivo…"), NO enumeres las fuentes y NO comentes su calidad.
-No inventes datos ni uses conocimiento externo. Si dos extractos se contradicen, omite el dato dudoso;
-no señales incoherencias: eso se revisa con otra herramienta.
-Si los extractos no permiten redactar la sección, dilo en una sola frase.
-Devuelve únicamente el texto de la sección, sin títulos ni introducciones, y termina siempre con una oración completa.
+- Cada afirmación debe poder rastrearse a un extracto. No inventes datos ni uses conocimiento externo.
+- La guía de la sección indica qué temas cubre, pero NO son hechos: si los extractos no tratan un tema, no lo menciones.
+- Si solo hay evidencia parcial, escribe únicamente lo respaldado, aunque sean una o dos oraciones.
+- Si dos extractos se contradicen, omite el dato dudoso; no señales incoherencias: eso se revisa con otra herramienta.
+- Si los extractos no contienen nada relevante, responde exactamente: "Los documentos seleccionados no contienen información suficiente para redactar esta sección."
+- Devuelve únicamente el texto de la sección, sin títulos ni introducciones, y termina siempre con una oración completa.
 `;
 
 /**
@@ -66,7 +82,8 @@ function cacheKey(section, requirements, documentIds) {
     sectionDescription: section.description || null,
     requirements,
     documentIds: [...documentIds].sort((a, b) => a - b),
-    promptVersion: 'report-preview-gemini-v3',
+    promptVersion: 'report-preview-v4',
+    llm: llmLabel(),
   });
 }
 
@@ -98,8 +115,8 @@ export async function generateReportPreview({ section, requirements, documentIds
   if (cached) return cached;
 
   const query = `${section.name}. ${section.description || ''}`;
-  // ~9 fragmentos en total: con 1 documento se usan más por archivo (antes solo 3).
-  const perDocument = Math.max(3, Math.ceil(9 / documentIds.length));
+  // ~5 fragmentos en total (antes ~9): menos texto de entrada = respuesta más rápida en CPU.
+  const perDocument = Math.max(2, Math.ceil(5 / documentIds.length));
   const results = await Promise.all(
     documentIds.map((documentId) => searchSimilarChunks(query, { limit: perDocument, documentId }))
   );
@@ -107,6 +124,14 @@ export async function generateReportPreview({ section, requirements, documentIds
 
   if (chunks.length === 0) {
     const error = new Error('No se encontraron fragmentos indexados para los documentos seleccionados.');
+    error.code = 'NO_RELEVANT_CONTENT';
+    throw error;
+  }
+
+  const evidenceWords = [...new Set(chunks.map((chunk) => String(chunk.content)))]
+    .reduce((total, content) => total + (content.match(/\S+/g) || []).length, 0);
+  if (evidenceWords < MIN_EVIDENCE_WORDS) {
+    const error = new Error('Los documentos seleccionados no tienen contenido suficiente para redactar esta sección.');
     error.code = 'NO_RELEVANT_CONTENT';
     throw error;
   }
@@ -127,7 +152,7 @@ export async function generateReportPreview({ section, requirements, documentIds
   const prompt = `
 Redacta la sección "${section.name}" del informe de autoevaluación.
 
-Qué debe contener (guía oficial de la sección):
+Temas que cubre la sección (solo guía; NO son hechos):
 ${section.description || 'No especificada'}
 
 Indicaciones adicionales del usuario:
@@ -139,11 +164,11 @@ Extractos de evidencia (uso interno; no los describas):
 ${sourceContext}
 `;
 
-  const generatedText = await generateWithGemini({ system: BASE_SYSTEM_PROMPT, prompt });
+  const generatedText = await generateText({ system: BASE_SYSTEM_PROMPT, prompt });
   const limited = limitWords(generatedText, MAX_PREVIEW_WORDS);
 
   const value = {
-    generatedBy: configLabel(),
+    generatedBy: llmLabel(),
     contentText: limited.text,
     wordCount: limited.wordCount,
     truncated: limited.truncated,
@@ -159,8 +184,4 @@ ${sourceContext}
 
 export function clearReportPreviewCache() {
   previewCache.clear();
-}
-
-function configLabel() {
-  return 'gemini';
 }

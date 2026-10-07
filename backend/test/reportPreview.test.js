@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../src/services/vector.service.js', () => ({ searchSimilarChunks: vi.fn() }));
-vi.mock('../src/services/gemini.service.js', () => ({ generateWithGemini: vi.fn() }));
+vi.mock('../src/services/llm.service.js', () => ({
+  generateText: vi.fn(),
+  llmLabel: () => 'test',
+}));
 
 const { searchSimilarChunks } = await import('../src/services/vector.service.js');
-const { generateWithGemini } = await import('../src/services/gemini.service.js');
+const { generateText } = await import('../src/services/gemini.service.js');
 const { generateReportPreview, clearReportPreviewCache, limitWords } =
   await import('../src/services/reportPreview.service.js');
 
@@ -42,20 +45,20 @@ describe('generateReportPreview — límite y reglas', () => {
   });
 
   it('respeta 150 palabras aunque la IA se exceda', async () => {
-    generateWithGemini.mockResolvedValue(longText);
+    generateText.mockResolvedValue(longText);
     const result = await generateReportPreview({ section, requirements: {}, documentIds: [1] });
     expect(result.wordCount).toBeLessThanOrEqual(150);
     expect(result.truncated).toBe(true);
   });
 
   it('ignora maxPages/dimensions/rawInstructions de la CNA en el prompt', async () => {
-    generateWithGemini.mockResolvedValue('Texto breve.');
+    generateText.mockResolvedValue('Texto breve.');
     await generateReportPreview({
       section,
       requirements: { maxPages: 5, rawInstructions: 'TEXTO CRUDO DEL PDF', dimensions: [{ code: 'I' }], instructions: [] },
       documentIds: [1],
     });
-    const { prompt } = generateWithGemini.mock.calls[0][0];
+    const { prompt } = generateText.mock.calls[0][0];
     expect(prompt).not.toContain('TEXTO CRUDO DEL PDF');
     expect(prompt).toContain('150 palabras');
   });

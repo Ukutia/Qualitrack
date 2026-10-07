@@ -399,12 +399,35 @@ function inlineRuns(node, inherited = {}) {
 function formattedParagraphs(html) {
   const root = parseDocument(html || '');
   const paragraphs = [];
+
   const visit = (node, options = {}) => {
-    if (!node || node.type !== 'tag') return;
+    if (!node) return;
+
+    // Permite contenido escrito sin envolver en <p>
+    if (node.type === 'text') {
+      if (node.data.trim()) {
+        paragraphs.push(new Paragraph({
+          children: [new TextRun({ text: node.data.trim() })],
+        }));
+      }
+      return;
+    }
+
+    if (node.type !== 'tag') {
+      for (const child of node.children || []) visit(child, options);
+      return;
+    }
+
     const name = node.name;
+
     if (['p', 'h1', 'h2', 'h3', 'blockquote', 'li'].includes(name)) {
       const children = (node.children || []).flatMap((child) => inlineRuns(child));
-      const heading = name === 'h1' ? HeadingLevel.HEADING_1 : name === 'h2' ? HeadingLevel.HEADING_2 : name === 'h3' ? HeadingLevel.HEADING_3 : undefined;
+      const heading =
+        name === 'h1' ? HeadingLevel.HEADING_1 :
+        name === 'h2' ? HeadingLevel.HEADING_2 :
+        name === 'h3' ? HeadingLevel.HEADING_3 :
+        undefined;
+
       paragraphs.push(new Paragraph({
         children,
         heading,
@@ -413,12 +436,24 @@ function formattedParagraphs(html) {
       }));
       return;
     }
-    const listLevel = name === 'ul' || name === 'ol' ? (options.listLevel || 0) + 1 : options.listLevel;
-    for (const child of node.children || []) visit(child, { listLevel });
+
+    const listLevel =
+      name === 'ul' || name === 'ol'
+        ? (options.listLevel || 0) + 1
+        : options.listLevel;
+
+    for (const child of node.children || []) {
+      visit(child, { listLevel });
+    }
   };
-  for (const node of root.children || []) visit(node);
+
+  for (const node of root.children || []) {
+    visit(node);
+  }
+
   return paragraphs;
 }
+
 
 export async function exportDraftPdf(req, res) {
   const data = await getExportData(req, Number(req.params.id));

@@ -113,11 +113,11 @@ services:
     container_name: qualitrack-embedding
     # Esperar la carga del modelo y su warm-up antes de iniciar el backend.
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 2)"]
       interval: 10s
-      timeout: 6s
-      start_period: 15m
-      retries: 12
+      timeout: 5s
+      retries: 30
+      start_period: 120s
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -127,7 +127,14 @@ services:
     volumes:
       - hf_cache:/models
 
+  ollama:
+    image: ollama/ollama
+    container_name: qualitrack-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
 volumes:
   pgdata:
   filedata:
   hf_cache:
+  ollama_data:
