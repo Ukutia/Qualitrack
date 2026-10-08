@@ -255,7 +255,7 @@ router.get('/documents/:id/content', requireViewableDocument, documentContent);
 router.get('/documents/:id/passages/:chunkIndex', requireViewableDocument, getPassage);
 router.get('/documents/:id/passages/:chunkIndex/focus', requireViewableDocument, getPassageFocus);
 router.get('/documents/:id/sheets', requireViewableDocument, getSheets);
-router.patch('/documents/:id/analysis-status', requireOwnDocument, updateDocumentAnalysisStatus);
+router.patch('/documents/:id/analysis-status', requireOwnDocument, asyncRoute(updateDocumentAnalysisStatus));
 router.patch('/documents/:id/date', requireOwnDocument, updateDocumentDate);
 router.post('/documents/:id/trash', requireOwnDocument, trashDocument);
 router.post('/documents/:id/restore', requireOwnDocument, restoreDocument);
