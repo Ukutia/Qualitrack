@@ -14,6 +14,7 @@ import { ROLES } from '../lib/roles.js';
 import { isAnalysisInProgress, normalizeAnalysisStatus, ANALYSIS_PROGRESS_TEXT, describeEngine } from '../lib/analysisStatus.js';
 import { requestNotificationPermission } from '../lib/analysisWatch.js';
 import TransmissionPreview from '../components/TransmissionPreview.jsx';
+import { api } from '../lib/api.js';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
 const ACTION_LABEL = { PROPOSED: 'Propuesta generada', VALIDATED: 'Validada', REJECTED: 'Descartada' };
@@ -154,6 +155,14 @@ export default function DocumentDetail() {
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-steel-800">Asociación al Criterio 9</h2>
           {canManage && (
+            <div className="flex gap-2">
+            {/* Solo para pruebas (HU14): simula que la IA local se cayó. */}
+            <button
+              onClick={() => api.patch(`/documents/${id}/analysis-status`, { analysisStatus: 'ERROR' }).then(() => window.location.reload())}
+              className="rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2 text-xs font-medium"
+            >
+              Simular caída de IA
+            </button>
             <button
               onClick={() => {
                 requestNotificationPermission();
@@ -168,6 +177,7 @@ export default function DocumentDetail() {
                   ? 'Volver a clasificar con IA'
                   : 'Clasificar con propuesta automática'}
             </button>
+            </div>
           )}
         </div>
 
