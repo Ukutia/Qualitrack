@@ -12,6 +12,11 @@ import { updateAnalysisStatus } from './analysisEvents.service.js';
 
 const CRITERION_CODE = '9';
 
+// Pruebas HU14: mientras la IA esta "caida" el worker no recibe trabajo y el
+// documento queda esperando, como si el analisis tardara.
+export const caidaIA = { hasta: 0 };
+export const iaCaida = () => Date.now() < caidaIA.hasta;
+
 /** Estado en que un documento queda esperando que el worker lo tome. */
 export const PENDING_STATUS = 'PREPARING_ANALYSIS';
 
@@ -25,6 +30,7 @@ export const CLAIMED_STATUS = 'SENT_TO_ANALYZER';
  * workers preguntan a la vez, solo uno ve count=1 y el otro sigue de largo.
  */
 export async function claimNextJob() {
+  if (iaCaida()) return null;
   const candidato = await prisma.document.findFirst({
     where: { analysisStatus: PENDING_STATUS, deletedAt: null },
     orderBy: { id: 'asc' },

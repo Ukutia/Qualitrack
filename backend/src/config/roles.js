@@ -47,6 +47,7 @@ const USER_RULES = [
   rule('POST', /^\/documents\/\d+\/classify$/),
   rule('GET', /^\/documents\/\d+\/transmission-preview$/),
   rule('POST', /^\/documents\/\d+\/classify\/fallback$/),
+  rule('POST', /^\/simular-caida-ia$/),
   rule('PUT', /^\/documents\/\d+\/association$/),
   rule('POST', /^\/associations\/\d+\/validate$/),
   rule('POST', /^\/associations\/\d+\/reject$/),

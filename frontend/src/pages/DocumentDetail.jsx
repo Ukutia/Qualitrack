@@ -16,6 +16,7 @@ import { requestNotificationPermission } from '../lib/analysisWatch.js';
 import TransmissionPreview from '../components/TransmissionPreview.jsx';
 import { api } from '../lib/api.js';
 
+const fmtMs = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
 const ACTION_LABEL = { PROPOSED: 'Propuesta generada', VALIDATED: 'Validada', REJECTED: 'Descartada' };
 const STATUS_LABEL = { PROPOSED: 'Propuesta', VALIDATED: 'Validada', NOT_VALIDATED: 'Descartada' };
@@ -34,16 +35,17 @@ export default function DocumentDetail() {
   const [manualSub, setManualSub] = useState('');
 
   const [analysisNow, setAnalysisNow] = useState(Date.now());
+  const [caidaHasta, setCaidaHasta] = useState(0);
 
   useEffect(() => {
-    if (!doc?.analysisStartedAt) return undefined;
+    if (!doc?.analysisStartedAt && !caidaHasta) return undefined;
 
     const timer = setInterval(() => {
       setAnalysisNow(Date.now());
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [doc?.analysisStartedAt]);
+  }, [doc?.analysisStartedAt, caidaHasta]);
 
   // La papelera es exclusiva del administrador (EP 1.2).
   const canTrash = user?.role === ROLES.ADMIN;
@@ -158,7 +160,7 @@ export default function DocumentDetail() {
             <div className="flex gap-2">
             {/* Solo para pruebas (HU14): simula que la IA local se cayó. */}
             <button
-              onClick={() => api.patch(`/documents/${id}/analysis-status`, { analysisStatus: 'ERROR' }).then(() => window.location.reload()).catch((e) => alert(e.response?.data?.error || e.message))}
+              onClick={() => api.post('/simular-caida-ia').then((r) => setCaidaHasta(new Date(r.data.hasta).getTime())).catch((e) => alert(e.response?.data?.error || e.message))}
               className="rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2 text-xs font-medium"
             >
               Simular caída de IA
@@ -180,6 +182,13 @@ export default function DocumentDetail() {
             </div>
           )}
         </div>
+
+        {(caidaHasta > analysisNow || analizando) && (
+          <p className="text-xs text-steel-500">
+            {caidaHasta > analysisNow && <>IA apagada · vuelve en {fmtMs(caidaHasta - analysisNow)}. </>}
+            {analizando && <>Análisis lleva {fmtMs(analysisElapsedMs)} (respaldo disponible a los 3:00).</>}
+          </p>
+        )}
 
         {showFallback && (
           <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800 flex gap-3">
