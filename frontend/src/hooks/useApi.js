@@ -351,7 +351,7 @@ export function useClassify() {
       // stream no se adelantó ya con una etapa posterior.
       qc.setQueryData(['document', docId], (old) =>
         old && !isAnalysisInProgress(old.analysisStatus)
-          ? { ...old, analysisStatus: data.analysisStatus, analysisError: null }
+          ? { ...old, analysisStatus: data.analysisStatus, analysisError: null, analysisStartedAt: new Date().toISOString() }
           : old
       );
     },
