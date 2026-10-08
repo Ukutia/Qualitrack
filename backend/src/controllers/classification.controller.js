@@ -159,6 +159,10 @@ export async function classifyDocumentFallback(req, res) {
     });
   }
 
+  // Usar el respaldo cancela el análisis con IA: el worker ya no toma el
+  // documento y un resultado que llegue tarde se ignora (ver webhook).
+  await updateAnalysisStatus(documentId, 'COMPLETED');
+
   const subcriteria = await prisma.subcriterion.findMany({
     where: {
       criterion: {

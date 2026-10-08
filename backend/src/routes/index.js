@@ -161,6 +161,10 @@ router.post('/webhooks/worker-update', async (req, res) => {
     }
     const { documentId, status, result, userId, error } = req.body;
 
+    // Análisis cancelado (p. ej. se usó el respaldo): se descarta lo que llegue.
+    const actual = await prisma.document.findUnique({ where: { id: documentId }, select: { analysisStatus: true } });
+    if (['COMPLETED', 'ERROR'].includes(actual?.analysisStatus)) return res.status(200).send('IGNORED');
+
     await prisma.document.update({
         where: { id: documentId },
         data: {
