@@ -7,7 +7,7 @@ import { vectorizeDocument } from '../services/vector.service.js';
 import { formatFromName } from '../middleware/upload.js';
 import { ownerFilter, viewFilter } from '../middleware/ownership.js';
 import { encryptText, decryptText } from '../services/encryption.service.js';
-import { normalizeAnalysisStatus, toDisplayAnalysisStatus } from '../services/analysisStatus.service.js';
+import { ANALYSIS_STATUS_LABELS, normalizeAnalysisStatus, toDisplayAnalysisStatus } from '../services/analysisStatus.service.js';
 import { normalizeVectorizationStatus } from '../services/analysisStatus.service.js';
 import { analysisEvents } from '../services/analysisEvents.service.js';
 
