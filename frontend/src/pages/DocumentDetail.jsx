@@ -14,7 +14,6 @@ import { ROLES } from '../lib/roles.js';
 import { isAnalysisInProgress, normalizeAnalysisStatus, ANALYSIS_PROGRESS_TEXT, describeEngine } from '../lib/analysisStatus.js';
 import { requestNotificationPermission } from '../lib/analysisWatch.js';
 import TransmissionPreview from '../components/TransmissionPreview.jsx';
-import { api } from '../lib/api.js';
 
 const fmtMs = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
@@ -35,21 +34,19 @@ export default function DocumentDetail() {
   const [manualSub, setManualSub] = useState('');
 
   const [analysisNow, setAnalysisNow] = useState(Date.now());
-  const [caidaHasta, setCaidaHasta] = useState(0);
 
   useEffect(() => {
-    if (!doc?.analysisStartedAt && !caidaHasta) return undefined;
+    if (!doc?.analysisStartedAt) return undefined;
 
     const timer = setInterval(() => {
       setAnalysisNow(Date.now());
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [doc?.analysisStartedAt, caidaHasta]);
+  }, [doc?.analysisStartedAt]);
 
   // La papelera es exclusiva del administrador (EP 1.2).
   const canTrash = user?.role === ROLES.ADMIN;
-  const canSimulateFailure = import.meta.env.DEV && user?.role === ROLES.ADMIN;
 
   if (isLoading) return <p className="text-steel-500">Cargando documento…</p>;
 
@@ -159,14 +156,6 @@ export default function DocumentDetail() {
           <h2 className="font-semibold text-steel-800">Asociación al Criterio 9</h2>
           {canManage && (
             <div className="flex gap-2">
-            {canSimulateFailure && (
-              <button
-                onClick={() => api.post('/simular-caida-ia').then((r) => setCaidaHasta(new Date(r.data.hasta).getTime())).catch((e) => alert(e.response?.data?.error || e.message))}
-                className="rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2 text-xs font-medium"
-              >
-                Simular caída de IA
-              </button>
-            )}
             <button
               onClick={() => {
                 requestNotificationPermission();
@@ -185,10 +174,9 @@ export default function DocumentDetail() {
           )}
         </div>
 
-        {(caidaHasta > analysisNow || analizando) && (
+        {analizando && (
           <p className="text-xs text-steel-500">
-            {caidaHasta > analysisNow && <>IA apagada · vuelve en {fmtMs(caidaHasta - analysisNow)}. </>}
-            {analizando && <>Análisis lleva {fmtMs(analysisElapsedMs)} (respaldo disponible a los 3:00).</>}
+            Análisis lleva {fmtMs(analysisElapsedMs)} (respaldo disponible a los 3:00).
           </p>
         )}
 

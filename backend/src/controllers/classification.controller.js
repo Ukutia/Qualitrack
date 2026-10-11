@@ -3,7 +3,6 @@ import { prisma } from '../config/prisma.js';
 import { classifyByKeywords } from '../services/classifier.service.js';
 import { decryptText } from '../services/encryption.service.js';
 import { sendToWorker } from '../services/workerClient.service.js';
-import { iaCaida } from '../services/workerQueue.service.js';
 import { updateAnalysisStatus } from '../services/analysisEvents.service.js';
 import {
   plainWorkerContent,
@@ -112,7 +111,7 @@ export async function classifyDocument(req, res) {
   // Se despacha al worker sin esperarlo: clasificar toma segundos y bloquear
   // aqui dejaria colgada la conexion del usuario. El resultado vuelve por el
   // webhook y de ahi al navegador por SSE.
-  if (!iaCaida()) setImmediate(() => { void sendToWorker(documentId, req.user.id); });
+  setImmediate(() => { void sendToWorker(documentId, req.user.id); });
   return res.status(202).json({
     accepted: true,
     analysisStatus: 'PREPARING_ANALYSIS',

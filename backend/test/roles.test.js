@@ -69,10 +69,6 @@ describe('tabla de permisos', () => {
     expect(canAccess(ROLES.USER, 'DELETE', '/documents/9')).toBe(true);
   });
 
-  it('el user no puede detener globalmente la cola de IA', () => {
-    expect(canAccess(ROLES.USER, 'POST', '/simular-caida-ia')).toBe(false);
-  });
-
   it('un rol desconocido no accede a nada', () => {
     expect(canAccess('auditor', 'GET', '/documents')).toBe(false);
     expect(canAccess(undefined, 'POST', '/documents')).toBe(false);
