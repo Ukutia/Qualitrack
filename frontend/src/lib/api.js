@@ -25,11 +25,11 @@ api.interceptors.response.use(
       localStorage.removeItem('qualitrack_token');
       if (location.pathname !== '/login') location.href = '/login';
     }
-    // El backend rechazó la ruta por rol (EP 1.1 · EP 1.2): la sesión sigue
-    // siendo válida, así que se muestra la pantalla de acceso denegado.
-    if (err.response?.status === 403 && err.response?.data?.code === 'FORBIDDEN_ROLE') {
-      if (location.pathname !== '/acceso-denegado') location.href = '/acceso-denegado';
-    }
+    // Las rutas protegidas deciden el acceso mediante los guards de React.
+    // No se redirige globalmente ante un 403: una respuesta tardía de la
+    // sesión anterior podría llegar después de iniciar sesión con otro rol y
+    // reemplazar el destino correcto. El error queda disponible para que la
+    // pantalla que originó la petición lo maneje en su propio contexto.
     return Promise.reject(err);
   }
 );
