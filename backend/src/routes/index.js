@@ -3,7 +3,8 @@ import { prisma } from '../config/prisma.js';
 import { publishAnalysisStatus } from '../services/analysisEvents.service.js';
 import { claimNextJob, caidaIA } from '../services/workerQueue.service.js';
 import { requireAuth } from '../middleware/auth.js';
-import { enforceRolePolicy } from '../middleware/authorize.js';
+import { enforceRolePolicy, requireRole } from '../middleware/authorize.js';
+import { ROLES } from '../config/roles.js';
 import {
   requireOwnDocument,
   requireOwnAssociation,
@@ -269,11 +270,14 @@ router.delete('/documents/:id', requireOwnDocument, destroyDocument);
 router.post('/documents/:id/classify', requireOwnDocument, classifyDocument);
 router.get('/documents/:id/transmission-preview', requireOwnDocument, asyncRoute(previewTransmission));
 router.post('/documents/:id/classify/fallback', requireOwnDocument, classifyDocumentFallback);
-// Pruebas HU14: apaga la IA 5 minutos.
-router.post('/simular-caida-ia', (req, res) => {
-  caidaIA.hasta = Date.now() + 5 * 60 * 1000;
-  res.json({ hasta: new Date(caidaIA.hasta) });
-});
+// Herramienta exclusiva de desarrollo: nunca se registra en producción y,
+// aun fuera de producción, solo un administrador puede detener la cola global.
+if (['development', 'test'].includes(process.env.NODE_ENV)) {
+  router.post('/simular-caida-ia', requireRole(ROLES.ADMIN), (req, res) => {
+    caidaIA.hasta = Date.now() + 5 * 60 * 1000;
+    res.json({ hasta: new Date(caidaIA.hasta) });
+  });
+}
 router.post('/associations/:id/validate', requireOwnAssociation, validateAssociation);
 router.post('/associations/:id/reject', requireOwnAssociation, rejectAssociation);
 router.put('/documents/:id/association', requireOwnDocument, reassignAssociation);

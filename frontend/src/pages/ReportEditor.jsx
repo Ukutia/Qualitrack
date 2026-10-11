@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import DraftEditor from '../components/DraftEditor.jsx';
+import { api } from '../lib/api.js';
 import {
   useReportDrafts,
   useReportDraft,
@@ -251,6 +252,10 @@ export default function ReportEditor() {
   mutateRef.current = { saveDraft: saveDraft.mutateAsync, saveSection: saveSectionDraft.mutateAsync };
   const draftQueueRef = useRef(Promise.resolve());
   const sectionQueueRef = useRef(Promise.resolve());
+  // Permanecen poblados hasta que el servidor confirma el guardado. Así una
+  // petición en curso sigue contando como trabajo sin guardar al cerrar.
+  const inFlightDraftRef = useRef({});
+  const inFlightSectionRef = useRef({});
   const flushRef = useRef(null);
   const flushSectionRef = useRef(null);
 
@@ -258,22 +263,25 @@ export default function ReportEditor() {
     clearTimeout(timerRef.current);
     draftQueueRef.current = draftQueueRef.current.then(async () => {
       const batch = Object.entries(pendingRef.current);
-      if (batch.length === 0) return;
+      if (batch.length === 0) return true;
       pendingRef.current = {};
+      for (const [id, changes] of batch) inFlightDraftRef.current[id] = changes;
       setStatus('saving');
       for (let i = 0; i < batch.length; i += 1) {
         const [id, changes] = batch[i];
         try {
           const data = await mutateRef.current.saveDraft({ id: Number(id), ...changes });
+          delete inFlightDraftRef.current[id];
           setSavedAt(data?.updatedAt ?? new Date().toISOString());
         } catch {
           // Devuelve lo que falló a la cola sin pisar ediciones más recientes.
           for (const [key, value] of batch.slice(i)) {
             pendingRef.current[key] = { ...value, ...(pendingRef.current[key] ?? {}) };
+            delete inFlightDraftRef.current[key];
           }
           setStatus('error');
           timerRef.current = setTimeout(() => flushRef.current?.(), RETRY_MS);
-          return;
+          return false;
         }
       }
       if (hasPending(pendingRef)) {
@@ -282,6 +290,7 @@ export default function ReportEditor() {
       } else {
         setStatus('saved');
       }
+      return true;
     });
     return draftQueueRef.current;
   }, []);
@@ -291,21 +300,24 @@ export default function ReportEditor() {
     clearTimeout(sectionTimerRef.current);
     sectionQueueRef.current = sectionQueueRef.current.then(async () => {
       const batch = Object.entries(sectionPendingRef.current);
-      if (batch.length === 0) return;
+      if (batch.length === 0) return true;
       sectionPendingRef.current = {};
+      for (const [key, patch] of batch) inFlightSectionRef.current[key] = patch;
       setSectionStatus('saving');
       for (let i = 0; i < batch.length; i += 1) {
-        const [, patch] = batch[i];
+        const [key, patch] = batch[i];
         try {
           const data = await mutateRef.current.saveSection({ draftId: patch.draftId, sectionId: patch.sectionId, contentHtml: patch.contentHtml });
+          delete inFlightSectionRef.current[key];
           setSectionSavedAt(data?.updatedAt ?? new Date().toISOString());
         } catch {
           for (const [key, value] of batch.slice(i)) {
             if (!(key in sectionPendingRef.current)) sectionPendingRef.current[key] = value;
+            delete inFlightSectionRef.current[key];
           }
           setSectionStatus('error');
           sectionTimerRef.current = setTimeout(() => flushSectionRef.current?.(), RETRY_MS);
-          return;
+          return false;
         }
       }
       if (hasPending(sectionPendingRef)) {
@@ -314,12 +326,20 @@ export default function ReportEditor() {
       } else {
         setSectionStatus('saved');
       }
+      return true;
     });
     return sectionQueueRef.current;
   }, []);
   flushSectionRef.current = flushSection;
 
-  const flushAll = useCallback(() => Promise.all([flush(), flushSection()]), [flush, flushSection]);
+  const flushAll = useCallback(async () => {
+    const results = await Promise.all([flush(), flushSection()]);
+    return results.every((result) => result !== false)
+      && !hasPending(pendingRef)
+      && !hasPending(sectionPendingRef)
+      && !hasPending(inFlightDraftRef)
+      && !hasPending(inFlightSectionRef);
+  }, [flush, flushSection]);
 
   const schedule = useCallback((changes, id = selectedRef.current) => {
     if (!id) return;
@@ -346,13 +366,51 @@ export default function ReportEditor() {
   }
 
   useEffect(() => {
+    // `fetch(..., keepalive)` permite que el navegador entregue el último lote
+    // aun cuando la pestaña ya se está cerrando. Los cambios más nuevos de la
+    // cola pendiente prevalecen sobre una petición anterior todavía en vuelo.
+    function persistWithKeepalive() {
+      const token = localStorage.getItem('qualitrack_token') || '';
+      const baseUrl = String(api.defaults.baseURL || '/api').replace(/\/$/, '');
+      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+      const draftsToSave = { ...inFlightDraftRef.current };
+      for (const [id, changes] of Object.entries(pendingRef.current)) {
+        draftsToSave[id] = { ...(draftsToSave[id] ?? {}), ...changes };
+      }
+      for (const [id, changes] of Object.entries(draftsToSave)) {
+        fetch(`${baseUrl}/report-drafts/${id}`, {
+          method: 'PUT', headers, body: JSON.stringify(changes), keepalive: true,
+        }).catch(() => {});
+      }
+
+      const sectionsToSave = { ...inFlightSectionRef.current, ...sectionPendingRef.current };
+      for (const patch of Object.values(sectionsToSave)) {
+        fetch(`${baseUrl}/report-drafts/${patch.draftId}/sections/${patch.sectionId}`, {
+          method: 'PUT', headers, body: JSON.stringify({ contentHtml: patch.contentHtml }), keepalive: true,
+        }).catch(() => {});
+      }
+    }
+
     function warn(event) {
-      if (!hasPending(pendingRef) && !hasPending(sectionPendingRef)) return;
+      if (
+        !hasPending(pendingRef)
+        && !hasPending(sectionPendingRef)
+        && !hasPending(inFlightDraftRef)
+        && !hasPending(inFlightSectionRef)
+      ) return;
       event.preventDefault(); event.returnValue = '';
     }
+
+    function pageHide(event) {
+      if (!event.persisted) persistWithKeepalive();
+    }
+
     window.addEventListener('beforeunload', warn);
+    window.addEventListener('pagehide', pageHide);
     return () => {
       window.removeEventListener('beforeunload', warn);
+      window.removeEventListener('pagehide', pageHide);
       flushRef.current?.(); flushSectionRef.current?.();
     };
   }, []);
@@ -465,19 +523,19 @@ export default function ReportEditor() {
     setInsertionRequest({ id: Date.now(), text: pendingEvidence, kind: pendingKind }); setPendingEvidence(null); setMatchesQuery(null); matchesSearch.reset();
   }
 
-  function handleSelect(id) {
+  async function handleSelect(id) {
     if (id === selectedId) return;
-    flush(); flushSection(); setSelectedId(id);
+    if (await flushAll()) setSelectedId(id);
   }
 
   async function handleNew() {
-    flush(); flushSection();
+    if (!(await flushAll())) return;
     const created = await createDraft.mutateAsync({});
     setSelectedId(created.id);
   }
 
   async function handleExport(format) {
-    await flushAll();
+    if (!(await flushAll())) return;
     const token = localStorage.getItem('qualitrack_token');
     const response = await fetch(`/api/report-drafts/${selectedId}/export/${format}`, { headers: { Authorization: `Bearer ${token || ''}` } });
     if (!response.ok) return;

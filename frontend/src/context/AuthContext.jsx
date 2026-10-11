@@ -29,6 +29,7 @@ export function AuthProvider({ children }) {
     const res = await api.post('/auth/login', { email, password });
     localStorage.setItem('qualitrack_token', res.data.token);
     setUser(res.data.user);
+    return res.data.user;
   }
 
   function logout() {

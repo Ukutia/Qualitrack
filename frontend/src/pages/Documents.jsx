@@ -15,6 +15,7 @@ async function openFile(docId) {
 
 const fmtSize = (b) => `${(b / 1024).toFixed(0)} KB`;
 const fmtDate = (d) => new Date(d).toLocaleString('es-CL');
+const errorMessage = (error, fallback) => error?.response?.data?.error || fallback;
 const sourceLabel = (source) => ({
   GOOGLE_DRIVE: 'Google Drive',
   DROPBOX: 'Dropbox',
@@ -53,12 +54,13 @@ function OpenFileButton({ docId }) {
 }
 
 export default function Documents() {
-  const { data: docs, isLoading, refetch } = useDocuments();
+  const { data: docs = [], isLoading, isError, error, refetch } = useDocuments();
   const trash = useTrashDocument();
   const location = useLocation();
   const navigate = useNavigate();
   const [highlightedIds] = useState(() => new Set(location.state?.importedIds || []));
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     if (location.state?.importedIds) {
@@ -70,8 +72,13 @@ export default function Documents() {
   async function handleTrash(id, name) {
     if (!confirm(`¿Mover "${name}" a la papelera?`)) return;
 
-    await trash.mutateAsync(id);
-    await refetch();
+    setActionError('');
+    try {
+      await trash.mutateAsync(id);
+      await refetch();
+    } catch (mutationError) {
+      setActionError(errorMessage(mutationError, 'No fue posible mover el documento a la papelera.'));
+    }
   }
 
   function toggleSelect(id) {
@@ -88,8 +95,8 @@ export default function Documents() {
     });
   }
 
-function toggleSelectAll() {
-    if (!docs?.length) return;
+  function toggleSelectAll() {
+    if (!docs.length) return;
 
     const selectableIds = docs
       .filter((doc) => doc.vectorizationStatus !== 'PROCESSING')
@@ -113,8 +120,22 @@ function toggleSelectAll() {
       return;
     }
 
-    for (const id of selectedIds) {
-      await trash.mutateAsync(id);
+    setActionError('');
+    const ids = [...selectedIds];
+    for (let index = 0; index < ids.length; index += 1) {
+      try {
+        await trash.mutateAsync(ids[index]);
+      } catch (mutationError) {
+        setSelectedIds(new Set(ids.slice(index)));
+        setActionError(
+          `${index} de ${ids.length} documento(s) fueron movidos. ${errorMessage(
+            mutationError,
+            'No fue posible completar el resto de la operación.'
+          )}`
+        );
+        await refetch();
+        return;
+      }
     }
 
     setSelectedIds(new Set());
@@ -145,6 +166,12 @@ function toggleSelectAll() {
           </Link>
         </div>
       </header>
+
+      {actionError && (
+        <div role="alert" className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">
+          {actionError}
+        </div>
+      )}
 
       {selectedIds.size > 0 && (
         <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 flex items-center justify-between">
@@ -198,7 +225,23 @@ function toggleSelectAll() {
               ))}
             </tbody>
           </table>
-        ) : docs?.length === 0 ? (
+        ) : isError ? (
+          <div role="alert" className="flex flex-col items-center justify-center gap-4 px-6 py-14 text-center">
+            <div>
+              <h2 className="font-display text-lg font-semibold text-ink-900">No fue posible cargar el repositorio</h2>
+              <p className="mt-1 text-sm text-steel-500">
+                {errorMessage(error, 'Comprueba tu conexión e inténtalo nuevamente.')}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="btn rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              Reintentar
+            </button>
+          </div>
+        ) : docs.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-50 ring-1 ring-brand-100">
               <svg viewBox="0 0 24 24" className="h-7 w-7 text-brand-500" fill="none" stroke="currentColor" strokeWidth="1.6">

@@ -4,21 +4,33 @@ import { useTrash, useRestoreDocument, useDestroyDocument } from '../hooks/useAp
 
 const fmtDate = (d) => new Date(d).toLocaleString('es-CL');
 const fmtSize = (b) => `${(b / 1024).toFixed(0)} KB`;
+const errorMessage = (error, fallback) => error?.response?.data?.error || fallback;
 
 export default function Trash() {
-  const { data: docs, isLoading } = useTrash();
+  const { data: docs = [], isLoading, isError, error, refetch } = useTrash();
   const restore = useRestoreDocument();
   const destroy = useDestroyDocument();
   const [confirmId, setConfirmId] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [actionError, setActionError] = useState('');
 
   async function handleRestore(id) {
-    await restore.mutateAsync(id);
+    setActionError('');
+    try {
+      await restore.mutateAsync(id);
+    } catch (mutationError) {
+      setActionError(errorMessage(mutationError, 'No fue posible restaurar el documento.'));
+    }
   }
 
   async function handleDestroy(id) {
-    await destroy.mutateAsync(id);
-    setConfirmId(null);
+    setActionError('');
+    try {
+      await destroy.mutateAsync(id);
+      setConfirmId(null);
+    } catch (mutationError) {
+      setActionError(errorMessage(mutationError, 'No fue posible eliminar el documento.'));
+    }
   }
 
   function toggleSelect(id) {
@@ -50,8 +62,21 @@ export default function Trash() {
 
     if (!confirm(`¿Restaurar ${selectedIds.size} documento(s)?`)) return;
 
-    for (const id of selectedIds) {
-      await restore.mutateAsync(id);
+    setActionError('');
+    const ids = [...selectedIds];
+    for (let index = 0; index < ids.length; index += 1) {
+      try {
+        await restore.mutateAsync(ids[index]);
+      } catch (mutationError) {
+        setSelectedIds(new Set(ids.slice(index)));
+        setActionError(
+          `${index} de ${ids.length} documento(s) fueron restaurados. ${errorMessage(
+            mutationError,
+            'No fue posible completar el resto de la operación.'
+          )}`
+        );
+        return;
+      }
     }
 
     setSelectedIds(new Set());
@@ -68,8 +93,21 @@ export default function Trash() {
       return;
     }
 
-    for (const id of selectedIds) {
-      await destroy.mutateAsync(id);
+    setActionError('');
+    const ids = [...selectedIds];
+    for (let index = 0; index < ids.length; index += 1) {
+      try {
+        await destroy.mutateAsync(ids[index]);
+      } catch (mutationError) {
+        setSelectedIds(new Set(ids.slice(index)));
+        setActionError(
+          `${index} de ${ids.length} documento(s) fueron eliminados. ${errorMessage(
+            mutationError,
+            'No fue posible completar el resto de la operación.'
+          )}`
+        );
+        return;
+      }
     }
 
     setSelectedIds(new Set());
@@ -93,6 +131,12 @@ export default function Trash() {
           ← Volver al repositorio
         </Link>
       </header>
+
+      {actionError && (
+        <div role="alert" className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">
+          {actionError}
+        </div>
+      )}
 
       {selectedIds.size > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-steel-50 px-4 py-3 ring-1 ring-steel-200">
@@ -123,7 +167,23 @@ export default function Trash() {
       <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-steel-200/60 overflow-hidden">
         {isLoading ? (
           <p className="px-6 py-10 text-sm text-steel-400">Cargando papelera…</p>
-        ) : docs?.length === 0 ? (
+        ) : isError ? (
+          <div role="alert" className="flex flex-col items-center justify-center gap-4 px-6 py-14 text-center">
+            <div>
+              <h2 className="font-display text-lg font-semibold text-ink-900">No fue posible cargar la papelera</h2>
+              <p className="mt-1 text-sm text-steel-500">
+                {errorMessage(error, 'Comprueba tu conexión e inténtalo nuevamente.')}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="btn rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              Reintentar
+            </button>
+          </div>
+        ) : docs.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-steel-50 ring-1 ring-steel-200">
               <svg viewBox="0 0 24 24" className="h-7 w-7 text-steel-400" fill="none" stroke="currentColor" strokeWidth="1.6">

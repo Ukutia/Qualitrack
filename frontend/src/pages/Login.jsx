@@ -5,6 +5,7 @@ import { LEVEL_ORDER, levelMeta } from '../lib/levels.js';
 import fullLogo from '../assets/fulllogo.svg';
 import fullLogoDark from '../assets/fulllogo_darkmode.svg';
 import useDocumentMeta from '../lib/useDocumentMeta.js';
+import { homeFor } from '../lib/roles.js';
 
 export default function Login() {
   useDocumentMeta({
@@ -22,7 +23,7 @@ export default function Login() {
 
   // Si ya hay sesión, redirige (en efecto, no durante el render).
   useEffect(() => {
-    if (user) navigate('/app', { replace: true });
+    if (user) navigate(homeFor(user.role), { replace: true });
   }, [user, navigate]);
 
   async function handleSubmit(e) {
@@ -30,8 +31,8 @@ export default function Login() {
     setError('');
     setSubmitting(true);
     try {
-      await login(email, password);
-      navigate('/app');
+      const authenticatedUser = await login(email, password);
+      navigate(homeFor(authenticatedUser.role), { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'No fue posible iniciar sesión.');
     } finally {

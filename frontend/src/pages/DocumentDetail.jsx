@@ -49,6 +49,7 @@ export default function DocumentDetail() {
 
   // La papelera es exclusiva del administrador (EP 1.2).
   const canTrash = user?.role === ROLES.ADMIN;
+  const canSimulateFailure = import.meta.env.DEV && user?.role === ROLES.ADMIN;
 
   if (isLoading) return <p className="text-steel-500">Cargando documento…</p>;
 
@@ -158,13 +159,14 @@ export default function DocumentDetail() {
           <h2 className="font-semibold text-steel-800">Asociación al Criterio 9</h2>
           {canManage && (
             <div className="flex gap-2">
-            {/* Solo para pruebas (HU14): simula que la IA local se cayó. */}
-            <button
-              onClick={() => api.post('/simular-caida-ia').then((r) => setCaidaHasta(new Date(r.data.hasta).getTime())).catch((e) => alert(e.response?.data?.error || e.message))}
-              className="rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2 text-xs font-medium"
-            >
-              Simular caída de IA
-            </button>
+            {canSimulateFailure && (
+              <button
+                onClick={() => api.post('/simular-caida-ia').then((r) => setCaidaHasta(new Date(r.data.hasta).getTime())).catch((e) => alert(e.response?.data?.error || e.message))}
+                className="rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2 text-xs font-medium"
+              >
+                Simular caída de IA
+              </button>
+            )}
             <button
               onClick={() => {
                 requestNotificationPermission();
