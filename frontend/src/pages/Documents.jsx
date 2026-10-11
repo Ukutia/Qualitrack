@@ -54,7 +54,14 @@ function OpenFileButton({ docId }) {
 }
 
 export default function Documents() {
-  const { data: docs = [], isLoading, isError, error, refetch } = useDocuments();
+  const {
+    data,
+    isPending,
+    isError,
+    error,
+    refetch,
+  } = useDocuments();
+  const docs = Array.isArray(data) ? data : [];
   const trash = useTrashDocument();
   const location = useLocation();
   const navigate = useNavigate();
@@ -201,7 +208,7 @@ export default function Documents() {
       )}
 
       <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-steel-200/60 overflow-visible">
-        {isLoading ? (
+        {isPending ? (
           <table className="w-full text-sm">
             <thead className="bg-steel-50/80 text-steel-500 text-left">
               <tr>

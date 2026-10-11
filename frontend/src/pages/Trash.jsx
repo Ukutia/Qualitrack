@@ -7,7 +7,14 @@ const fmtSize = (b) => `${(b / 1024).toFixed(0)} KB`;
 const errorMessage = (error, fallback) => error?.response?.data?.error || fallback;
 
 export default function Trash() {
-  const { data: docs = [], isLoading, isError, error, refetch } = useTrash();
+  const {
+    data,
+    isPending,
+    isError,
+    error,
+    refetch,
+  } = useTrash();
+  const docs = Array.isArray(data) ? data : [];
   const restore = useRestoreDocument();
   const destroy = useDestroyDocument();
   const [confirmId, setConfirmId] = useState(null);
@@ -165,7 +172,7 @@ export default function Trash() {
       )}
 
       <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-steel-200/60 overflow-hidden">
-        {isLoading ? (
+        {isPending ? (
           <p className="px-6 py-10 text-sm text-steel-400">Cargando papelera…</p>
         ) : isError ? (
           <div role="alert" className="flex flex-col items-center justify-center gap-4 px-6 py-14 text-center">
