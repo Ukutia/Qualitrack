@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../config/prisma.js';
 import { publishAnalysisStatus } from '../services/analysisEvents.service.js';
-import { claimNextJob, caidaIA } from '../services/workerQueue.service.js';
+import { claimNextJob } from '../services/workerQueue.service.js';
 import { requireAuth } from '../middleware/auth.js';
 import { enforceRolePolicy } from '../middleware/authorize.js';
 import {
@@ -51,7 +51,6 @@ import {
 } from '../controllers/documents.controller.js';
 import {
   classifyDocument,
-  previewTransmission,
   validateAssociation,
   rejectAssociation,
   reassignAssociation,
@@ -267,13 +266,7 @@ router.delete('/documents/:id', requireOwnDocument, destroyDocument);
 
 // Clasificación (HU01)
 router.post('/documents/:id/classify', requireOwnDocument, classifyDocument);
-router.get('/documents/:id/transmission-preview', requireOwnDocument, asyncRoute(previewTransmission));
 router.post('/documents/:id/classify/fallback', requireOwnDocument, classifyDocumentFallback);
-// Pruebas HU14: apaga la IA 5 minutos.
-router.post('/simular-caida-ia', (req, res) => {
-  caidaIA.hasta = Date.now() + 5 * 60 * 1000;
-  res.json({ hasta: new Date(caidaIA.hasta) });
-});
 router.post('/associations/:id/validate', requireOwnAssociation, validateAssociation);
 router.post('/associations/:id/reject', requireOwnAssociation, rejectAssociation);
 router.put('/documents/:id/association', requireOwnDocument, reassignAssociation);
