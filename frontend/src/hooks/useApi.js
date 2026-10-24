@@ -8,10 +8,9 @@ const DOCUMENT_IMPORT_TIMEOUT = 300000; // 5 minutos
 
 function shouldPollDocuments(data) {
   if (!Array.isArray(data)) return false;
-  return data.some((doc) => {
-    const status = doc.analysisStatus || doc.vectorizationStatus;
-    return status !== 'completado' && status !== 'error';
-  });
+  return data.some((doc) =>
+    isAnalysisInProgress(doc.analysisStatus) || doc.vectorizationStatus === 'PROCESSING'
+  );
 }
 
 // ── Solicitudes de documentos ──────────────────────────────────────
@@ -139,13 +138,17 @@ export function useDocumentFile(documentId, enabled) {
   });
 }
 
-export function useDocumentSheets(documentId, enabled) {
+export function useDocumentSheets(documentId, enabled, preview = false) {
   return useQuery({
-    queryKey: ['document-sheets', documentId],
+    queryKey: ['document-sheets', documentId, preview ? 'preview' : 'full'],
     enabled,
     staleTime: Infinity,
     retry: noRetryWhenGone,
-    queryFn: async () => (await api.get(`/documents/${documentId}/sheets`)).data,
+    queryFn: async () => (
+      await api.get(`/documents/${documentId}/sheets`, {
+        params: preview ? { preview: '1' } : undefined,
+      })
+    ).data,
   });
 }
 
@@ -197,9 +200,22 @@ export function useDocument(id) {
   // del sondeo puede adelantarse a la cola de etapas y hacer retroceder el
   // estado en pantalla.
   const streamOpen = useRef(false);
-
+  const query = useQuery({
+    queryKey: ['document', id],
+    queryFn: async () => (await api.get(`/documents/${id}`)).data,
+    enabled: !!id,
+    // Respaldo por si el stream se corta: solo mientras hay trabajo activo.
+    refetchInterval: (current) => {
+      const document = current.state.data;
+      const active = isAnalysisInProgress(document?.analysisStatus) ||
+        document?.vectorizationStatus === 'PROCESSING';
+      return !streamOpen.current && active ? 2000 : false;
+    },
+  });
   useEffect(() => {
-    if (!id) return undefined;
+    const active = isAnalysisInProgress(query.data?.analysisStatus) ||
+      query.data?.vectorizationStatus === 'PROCESSING';
+    if (!id || !active) return undefined;
 
     const token = localStorage.getItem('qualitrack_token');
     const streamUrl = `${api.defaults.baseURL || '/api'}/documents/${id}/stream?token=${encodeURIComponent(token || '')}`;
@@ -266,17 +282,9 @@ export function useDocument(id) {
       source.close();
       streamOpen.current = false;
     };
-  }, [id, qc]);
+  }, [id, qc, query.data?.analysisStatus, query.data?.vectorizationStatus]);
 
-  return useQuery({
-    queryKey: ['document', id],
-    queryFn: async () => (await api.get(`/documents/${id}`)).data,
-    enabled: !!id,
-    // Respaldo por si el stream se corta: mientras el análisis sigue en curso
-    // se consulta cada 2 s.
-    refetchInterval: (query) =>
-      !streamOpen.current && isAnalysisInProgress(query.state.data?.analysisStatus) ? 2000 : false,
-  });
+  return query;
 }
 
 export function useUploadDocument() {

@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../src/config/env.js', () => ({
   config: {
     maxFileSizeMb: 10,
+    embeddings: { enabled: true },
     google: { redirectUri: 'http://localhost:4000/api/cloud/google/callback' },
     dropbox: { redirectUri: 'http://localhost:4000/api/cloud/dropbox/callback' },
   },

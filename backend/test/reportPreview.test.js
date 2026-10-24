@@ -7,13 +7,14 @@ vi.mock('../src/services/llm.service.js', () => ({
 }));
 
 const { searchSimilarChunks } = await import('../src/services/vector.service.js');
-const { generateText } = await import('../src/services/gemini.service.js');
+const { generateText } = await import('../src/services/llm.service.js');
 const { generateReportPreview, clearReportPreviewCache, limitWords } =
   await import('../src/services/reportPreview.service.js');
 
 const section = { id: 12, name: 'Resumen Ejecutivo', description: 'Síntesis general del informe.' };
 const sentence = 'La institución presenta avances relevantes en su gestión académica.';
 const longText = Array.from({ length: 40 }, () => sentence).join(' '); // ~240 palabras
+const sufficientEvidence = Array.from({ length: 8 }, () => sentence).join(' ');
 
 describe('limitWords', () => {
   it('no altera un texto que ya cumple el límite y conserva los párrafos', () => {
@@ -40,7 +41,7 @@ describe('generateReportPreview — límite y reglas', () => {
     vi.clearAllMocks();
     clearReportPreviewCache();
     searchSimilarChunks.mockImplementation(async (_q, { documentId }) => [
-      { documentId, originalName: `doc-${documentId}.pdf`, content: 'Contenido relevante.' },
+      { documentId, originalName: `doc-${documentId}.pdf`, content: sufficientEvidence },
     ]);
   });
 
@@ -61,5 +62,16 @@ describe('generateReportPreview — límite y reglas', () => {
     const { prompt } = generateText.mock.calls[0][0];
     expect(prompt).not.toContain('TEXTO CRUDO DEL PDF');
     expect(prompt).toContain('150 palabras');
+  });
+
+  it('no llama al modelo cuando la evidencia no alcanza 40 palabras', async () => {
+    searchSimilarChunks.mockResolvedValue([
+      { documentId: 1, originalName: 'breve.pdf', content: 'Contenido demasiado breve.' },
+    ]);
+
+    await expect(
+      generateReportPreview({ section, requirements: {}, documentIds: [1] })
+    ).rejects.toMatchObject({ code: 'NO_RELEVANT_CONTENT' });
+    expect(generateText).not.toHaveBeenCalled();
   });
 });

@@ -12,6 +12,14 @@ export const config = {
   maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB || '10', 10),
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
   storageDir: process.env.STORAGE_DIR || '/app/data',
+  embeddings: {
+    enabled: booleanEnv(process.env.EMBEDDINGS_ENABLED, true),
+    serviceUrl: process.env.EMBEDDING_SERVICE_URL || 'http://localhost:8000',
+    timeoutMs: Math.max(
+      1000,
+      parseInt(process.env.EMBEDDING_TIMEOUT_MS || '10000', 10) || 10000
+    ),
+  },
   // Clave para cifrar los archivos en reposo (HDU09). Si se omite, se deriva
   // de JWT_SECRET.
   docEncryptionKey: process.env.DOC_ENCRYPTION_KEY || '',

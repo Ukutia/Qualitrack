@@ -3,8 +3,8 @@
 // interesa probar es qué sobrevive al saneamiento y qué se descarta.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('../src/config/prisma.js', () => ({
-  prisma: {
+vi.mock('../src/config/prisma.js', () => {
+  const prisma = {
     reportDraft: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
@@ -12,8 +12,14 @@ vi.mock('../src/config/prisma.js', () => ({
       update: vi.fn(),
       deleteMany: vi.fn(),
     },
-  },
-}));
+    reportDraftVersion: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
+  };
+  prisma.$transaction = vi.fn((callback) => callback(prisma));
+  return { prisma };
+});
 
 const { prisma } = await import('../src/config/prisma.js');
 const {

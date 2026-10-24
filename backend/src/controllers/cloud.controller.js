@@ -63,9 +63,9 @@ async function importFromCloud(req, res, provider) {
   // Formato: mismas reglas que la carga manual.
   if (!formatFromName(meta.name)) {
     return res.status(400).json({
-      code: 'CLOUD_CONNECTION_ERROR',
+      code: 'INVALID_FORMAT',
       retryable: false,
-      error: `El archivo "${meta.name}" no es PDF, DOCX ni XLSX y no puede importarse.`,
+      error: `El archivo "${meta.name}" no es PDF, DOC, DOCX, XLS ni XLSX y no puede importarse.`,
     });
   }
 
@@ -156,13 +156,13 @@ async function importFromCloud(req, res, provider) {
     if (isCredentialError(err)) {
       await prisma.cloudConnection.deleteMany({ where: { userId: req.user.id, provider: source === 'GOOGLE_DRIVE' ? 'google' : 'dropbox' } });
     }
-    return res.status(400).json({ error: `No fue posible importar el archivo desde ${label}.` });
+    return res.status(400).json(cloudImportError(label, err));
   }
 
   if (file.buffer.length > maxBytes) return res.status(400).json(tooBig(file.buffer.length));
 
   if (existing && onDuplicate === 'replace') {
-        if (existing.vectorizationStatus === 'PROCESSING') {
+        if (config.embeddings.enabled && existing.vectorizationStatus === 'PROCESSING') {
       return res.status(409).json({
         code: 'DOCUMENT_PROCESSING',
         error: 'No se puede reemplazar el documento mientras se prepara para la búsqueda semántica.',

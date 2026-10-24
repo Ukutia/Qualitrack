@@ -3,22 +3,23 @@ import { decryptText } from '../src/services/encryption.service.js';
 import { vectorizeDocument } from '../src/services/vector.service.js';
 
 // Run explicitly after the local embedding service is healthy. No file upload
-// or association changes: rebuild only failed documents' vector chunks.
+// or association changes: rebuild failed documents and those uploaded while
+// the feature was deliberately disabled.
 async function main() {
   const url = process.env.EMBEDDING_SERVICE_URL || 'http://localhost:8000';
   const health = await fetch(`${url}/health`, { signal: AbortSignal.timeout(10000) });
   if (!health.ok) throw new Error(`El servicio de embeddings no está listo (${health.status}).`);
 
   const documents = await prisma.document.findMany({
-    where: { deletedAt: null, vectorizationStatus: 'FAILED' },
+    where: { deletedAt: null, vectorizationStatus: { in: ['FAILED', 'DISABLED'] } },
     select: { id: true }, orderBy: { id: 'asc' },
   });
-  console.log(`Documentos con vectorización fallida: ${documents.length}`);
+  console.log(`Documentos pendientes de vectorización: ${documents.length}`);
   let failed = 0;
   for (const { id } of documents) {
     // Avoid two recovery commands processing the same document simultaneously.
     const claim = await prisma.document.updateMany({
-      where: { id, deletedAt: null, vectorizationStatus: 'FAILED' },
+      where: { id, deletedAt: null, vectorizationStatus: { in: ['FAILED', 'DISABLED'] } },
       data: { vectorizationStatus: 'PROCESSING' },
     });
     if (!claim.count) continue;

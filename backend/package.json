@@ -13,6 +13,7 @@
     "db:retry-vectorizations": "node scripts/retry-failed-vectorizations.js",
     "db:encrypt-legacy-text": "node scripts/encrypt-existing-text.js",
     "worker:analysis": "node scripts/analysis-woker.js",
+    "pretest": "prisma generate",
     "test": "vitest run"
   },
   "prisma": {

@@ -1,8 +1,16 @@
 import { searchSimilarChunks } from "../services/vector.service.js";
+import { config } from '../config/env.js';
 
 
 export async function semanticSearch(req, res, next) {
   try {
+    if (!config.embeddings.enabled) {
+      return res.status(503).json({
+        code: 'EMBEDDINGS_DISABLED',
+        error: 'La búsqueda semántica está desactivada en este entorno.',
+      });
+    }
+
     const {
       query,
       limit = 5,

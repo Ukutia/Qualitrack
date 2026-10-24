@@ -52,6 +52,8 @@ describe('tabla de permisos', () => {
   it('el user hereda al ingestor y suma nube, revisión y detalle', () => {
     expect(canAccess(ROLES.USER, 'POST', '/documents')).toBe(true);
     expect(canAccess(ROLES.USER, 'GET', '/documents/12')).toBe(true);
+    expect(canAccess(ROLES.USER, 'GET', '/documents/12/file')).toBe(true);
+    expect(canAccess(ROLES.USER, 'GET', '/documents/12/sheets')).toBe(true);
     expect(canAccess(ROLES.USER, 'POST', '/documents/12/classify')).toBe(true);
     expect(canAccess(ROLES.USER, 'POST', '/documents/12/classify/fallback')).toBe(true);
     expect(canAccess(ROLES.USER, 'PUT', '/documents/12/association')).toBe(true);

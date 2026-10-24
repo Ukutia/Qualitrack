@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { ROLES } from '../lib/roles.js';
 import { isAnalysisInProgress, normalizeAnalysisStatus, ANALYSIS_PROGRESS_TEXT, describeEngine } from '../lib/analysisStatus.js';
 import { requestNotificationPermission } from '../lib/analysisWatch.js';
+import DocumentFileModal from '../components/DocumentFileModal.jsx';
 
 const fmtMs = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL') : '—');
@@ -31,6 +32,7 @@ export default function DocumentDetail() {
   const { data: criterion } = useCriterion();
   const { user } = useAuth();
   const [manualSub, setManualSub] = useState('');
+  const [showFile, setShowFile] = useState(false);
 
   const [analysisNow, setAnalysisNow] = useState(Date.now());
 
@@ -97,6 +99,18 @@ export default function DocumentDetail() {
         <Link to="/documents" className="text-sm text-brand-600 hover:underline">
           ← Volver al repositorio
         </Link>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowFile(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2.46 12C3.73 7.94 7.52 5 12 5s8.27 2.94 9.54 7C20.27 16.06 16.48 19 12 19S3.73 16.06 2.46 12Z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Ver archivo
+          </button>
         {canTrash && (
         <span className="group relative inline-flex">
         <button
@@ -115,6 +129,7 @@ export default function DocumentDetail() {
           )}
         </span>
         )}
+        </div>
       </div>
 
       <header className="bg-white rounded-xl shadow-sm p-6">
@@ -143,6 +158,8 @@ export default function DocumentDetail() {
               </span>
             ) : doc.vectorizationStatus === 'FAILED' ? (
               <span className="font-medium text-rose-600">Preparación pendiente</span>
+            ) : doc.vectorizationStatus === 'DISABLED' ? (
+              <span className="font-medium text-steel-600">No disponible (desactivada)</span>
             ) : (
               <span className="font-medium text-emerald-600">Disponible</span>
             )}
@@ -437,6 +454,9 @@ export default function DocumentDetail() {
             {doc.textPreview}
           </pre>
         </section>
+      )}
+      {showFile && (
+        <DocumentFileModal document={doc} onClose={() => setShowFile(false)} />
       )}
     </div>
   );

@@ -32,6 +32,7 @@ export function toDisplayAnalysisStatus(status) {
 export function normalizeVectorizationStatus(status) {
   const key = String(status || '').toUpperCase();
 
+  if (key === 'DISABLED') return 'no disponible';
   if (key === 'PROCESSING') return ANALYSIS_STATUS_LABELS.PREPARING_ANALYSIS;
   if (key === 'READY') return ANALYSIS_STATUS_LABELS.COMPLETED;
   if (key === 'FAILED') return ANALYSIS_STATUS_LABELS.ERROR;

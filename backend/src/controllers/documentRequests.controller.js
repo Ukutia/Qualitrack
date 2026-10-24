@@ -134,7 +134,7 @@ export async function uploadPublicDocumentRequest(req, res) {
           storagePath: stored.storagePath,
           source: 'UPLOAD',
           extractedText: encryptText(extractedText),
-          vectorizationStatus: 'PROCESSING',
+          vectorizationStatus: config.embeddings.enabled ? 'PROCESSING' : 'DISABLED',
           documentDate,
           uploadedById: request.createdById,
           externalUploaderEmail: request.recipientEmail,

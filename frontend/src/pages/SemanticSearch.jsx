@@ -251,7 +251,7 @@ export default function SemanticSearch() {
 
       {search.isError && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-          No fue posible realizar la búsqueda.
+          {search.error?.response?.data?.error || 'No fue posible realizar la búsqueda.'}
         </div>
       )}
 

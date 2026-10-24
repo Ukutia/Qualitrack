@@ -1,5 +1,4 @@
-const EMBEDDING_SERVICE_URL =
-  process.env.EMBEDDING_SERVICE_URL || "http://localhost:8000";
+import { config } from '../config/env.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-0.6B";
@@ -12,11 +11,17 @@ const EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-0.6B";
  * - "query": consultas que utilizaremos para buscar
  */
 export async function generateEmbedding(text, type = "passage") {
+  if (!config.embeddings.enabled) {
+    const error = new Error('La búsqueda semántica está desactivada.');
+    error.code = 'EMBEDDINGS_DISABLED';
+    throw error;
+  }
+
   if (!text || !text.trim()) {
     throw new Error("No se puede generar un embedding de un texto vacío");
   }
 
-  const response = await fetch(`${EMBEDDING_SERVICE_URL}/embed`, {
+  const response = await fetch(`${config.embeddings.serviceUrl}/embed`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -25,6 +30,7 @@ export async function generateEmbedding(text, type = "passage") {
       text,
       type,
     }),
+    signal: AbortSignal.timeout(config.embeddings.timeoutMs),
   });
 
   if (!response.ok) {

@@ -10,12 +10,19 @@ import { encryptText, decryptText } from '../services/encryption.service.js';
 import { ANALYSIS_STATUS_LABELS, normalizeAnalysisStatus, toDisplayAnalysisStatus } from '../services/analysisStatus.service.js';
 import { normalizeVectorizationStatus } from '../services/analysisStatus.service.js';
 import { analysisEvents } from '../services/analysisEvents.service.js';
+import { config } from '../config/env.js';
 
 const MIME = {
   pdf:  'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
+
+const effectiveVectorizationStatus = (status) =>
+  config.embeddings.enabled ? status : 'DISABLED';
+
+const vectorizationInProgress = (status) =>
+  config.embeddings.enabled && status === 'PROCESSING';
 
 /**
  * Ingesta común usada por la carga directa (HU07) y por la importación desde
@@ -47,7 +54,7 @@ export async function ingestDocument({
       cloudFileId,
       cloudLocation,
       extractedText: encryptText(extractedText),
-      vectorizationStatus: 'PROCESSING',
+      vectorizationStatus: config.embeddings.enabled ? 'PROCESSING' : 'DISABLED',
       documentDate,
       uploadedById: userId,
     },
@@ -60,6 +67,8 @@ export async function ingestDocument({
 
 /** Encola la vectorización sin bloquear la respuesta de carga. */
 export function queueDocumentVectorization(documentId, extractedText) {
+  if (!config.embeddings.enabled) return;
+
   setImmediate(() => {
     vectorizeDocument(documentId, extractedText)
       .then(() => prisma.document.updateMany({
@@ -133,7 +142,7 @@ export async function uploadDocument(req, res) {
   }
 
 if (existing && onDuplicate === 'replace') {
-    if (existing.vectorizationStatus === 'PROCESSING') {
+    if (vectorizationInProgress(existing.vectorizationStatus)) {
       return res.status(409).json({
         code: 'DOCUMENT_PROCESSING',
         error: 'No se puede reemplazar el documento mientras se prepara para la búsqueda semántica.',
@@ -198,7 +207,7 @@ export async function listDocuments(req, res) {
       uploadedBy: d.externalUploaderEmail || d.uploadedBy?.name,
       associationStatus,
       subcriterion: validated?.subcriterion?.code || proposed?.subcriterion?.code || null,
-      vectorizationStatus: d.vectorizationStatus,
+      vectorizationStatus: effectiveVectorizationStatus(d.vectorizationStatus),
       analysisStatus: toDisplayAnalysisStatus(d.analysisStatus),
       analysisError: d.analysisError ?? null,
     };
@@ -235,7 +244,7 @@ export async function getDocument(req, res) {
     uploadedAt: doc.uploadedAt,
     uploadedById: doc.uploadedById,
     uploadedBy: doc.externalUploaderEmail || doc.uploadedBy?.name,
-    vectorizationStatus: doc.vectorizationStatus,
+    vectorizationStatus: effectiveVectorizationStatus(doc.vectorizationStatus),
     analysisStatus: toDisplayAnalysisStatus(doc.analysisStatus),
     // Sin esto el usuario ve "error" y nada mas: el motivo quedaba guardado en
     // la base de datos pero ningun endpoint lo devolvia, aunque el frontend ya
@@ -281,7 +290,7 @@ function sendDocumentStatus(res, doc, source = 'initial') {
     analysisError: doc.analysisError ?? null,
     analysisSummary: doc.analysisSummary ?? null,
     analysisEngine: doc.analysisEngine ?? null,
-    vectorizationStatus: doc.vectorizationStatus,
+    vectorizationStatus: effectiveVectorizationStatus(doc.vectorizationStatus),
     source,
     message: 'document-status',
   };
@@ -449,7 +458,7 @@ export async function trashDocument(req, res) {
   const doc = await prisma.document.findUnique({ where: { id } });
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado.' });
   if (doc.deletedAt) return res.status(409).json({ error: 'El documento ya está en la papelera.' });
-    if (doc.vectorizationStatus === 'PROCESSING') {
+    if (vectorizationInProgress(doc.vectorizationStatus)) {
     return res.status(409).json({
       code: 'DOCUMENT_PROCESSING',
       error: 'No se puede eliminar el documento mientras se prepara para la búsqueda semántica.',
@@ -573,7 +582,7 @@ export async function destroyDocument(req, res) {
   if (!doc.deletedAt) {
     return res.status(409).json({ error: 'Mueva el documento a la papelera antes de eliminarlo definitivamente.' });
   }
-    if (doc.vectorizationStatus === 'PROCESSING') {
+    if (vectorizationInProgress(doc.vectorizationStatus)) {
     return res.status(409).json({
       code: 'DOCUMENT_PROCESSING',
       error: 'No se puede eliminar el documento mientras se prepara para la búsqueda semántica.',

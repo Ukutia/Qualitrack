@@ -1,18 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildIndex, planHighlights, textNodes, applyHighlights, FOCUS_CLASS } from '../../lib/passageLocator.js';
-
-// pdf.js pesa bastante: solo se descarga cuando se abre un PDF.
-let pdfjsPromise;
-function loadPdfjs() {
-  pdfjsPromise ??= Promise.all([
-    import('pdfjs-dist'),
-    import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
-  ]).then(([pdfjs, worker]) => {
-    pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
-    return pdfjs;
-  });
-  return pdfjsPromise;
-}
+import { loadPdfjs } from '../../lib/pdfjs.js';
 
 const MAX_SCALE = 1.6;
 

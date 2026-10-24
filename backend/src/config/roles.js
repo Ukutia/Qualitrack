@@ -46,6 +46,7 @@ const USER_RULES = [
   rule('GET', /^\/documents\/\d+$/),
   rule('GET', /^\/documents\/\d+\/stream$/),
   rule('GET', /^\/documents\/\d+\/file$/),
+  rule('GET', /^\/documents\/\d+\/sheets$/),
   rule('PATCH', /^\/documents\/\d+\/analysis-status$/),
   rule('PATCH', /^\/documents\/\d+\/date$/),
   rule('POST', /^\/documents\/\d+\/classify$/),

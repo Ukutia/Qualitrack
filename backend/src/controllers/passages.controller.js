@@ -98,16 +98,22 @@ export async function getSheets(req, res, next) {
     if (!doc) return res.status(410).json(DOCUMENT_UNAVAILABLE);
     if (doc.format !== 'xlsx') return res.status(400).json({ error: 'El documento no es una planilla.' });
 
+    const preview = req.query?.preview === '1';
     const workbook = XLSX.read(await readFile(doc.storagePath), { type: 'buffer' });
-    let budget = MAX_SHEET_CELLS;
+    let budget = preview ? 80 : MAX_SHEET_CELLS;
     let truncated = false;
 
-    const sheets = workbook.SheetNames.map((name) => {
+    const sheetNames = preview ? workbook.SheetNames.slice(0, 1) : workbook.SheetNames;
+    const sheets = sheetNames.map((name) => {
       const sheet = workbook.Sheets[name];
       const range = sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : null;
       let rows = [];
 
       if (range) {
+        if (preview && range.e.c - range.s.c + 1 > 8) {
+          range.e.c = range.s.c + 7;
+          truncated = true;
+        }
         const width = range.e.c - range.s.c + 1;
         const maxRows = Math.floor(Math.max(budget, 0) / width);
         if (range.e.r - range.s.r + 1 > maxRows) {
@@ -130,6 +136,8 @@ export async function getSheets(req, res, next) {
         rows: rows.map((row) => row.map((cell) => (cell == null ? '' : String(cell)))),
       };
     });
+
+    if (preview && workbook.SheetNames.length > 1) truncated = true;
 
     return res.json({ sheets, truncated });
   } catch (error) {

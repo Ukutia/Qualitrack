@@ -1,21 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import SelectionCheckbox from '../components/SelectionCheckbox.jsx';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDocuments, useTrashDocument } from '../hooks/useApi.js';
 import { ANALYSIS_LABELS, normalizeAnalysisStatus } from '../lib/analysisStatus.js';
-
-async function openFile(docId) {
-  const token = localStorage.getItem('qualitrack_token');
-  const res = await fetch(`/api/documents/${docId}/file`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return;
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  window.open(url, '_blank');
-}
+import { DocumentThumbnail } from '../components/DocumentPreview.jsx';
 
 const fmtSize = (b) => b >= 1024 * 1024 ? `${(b / (1024 * 1024)).toFixed(1)} MB` : `${Math.ceil(b / 1024)} KB`;
+const fmtDate = (d) => new Date(d).toLocaleString('es-CL');
 const sourceLabel = (source) => ({
   GOOGLE_DRIVE: 'Google Drive',
   DROPBOX: 'Dropbox',
@@ -29,27 +20,36 @@ const STATUS_STYLE = {
   'Sin clasificar': 'bg-steel-100 text-steel-500 ring-steel-200',
 };
 
-function OpenFileButton({ docId }) {
-  const [loading, setLoading] = useState(false);
-
-  async function handle() {
-    setLoading(true);
-    await openFile(docId);
-    setLoading(false);
-  }
-
+function ViewToggle({ value, onChange }) {
   return (
-    <button
-      onClick={handle}
-      disabled={loading}
-      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-brand-600 hover:text-brand-700 hover:bg-brand-50 ring-1 ring-steel-200 hover:ring-brand-200 transition-colors disabled:opacity-50"
-    >
-      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7Z" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      {loading ? 'Abriendo…' : 'Ver archivo'}
-    </button>
+    <div className="inline-flex rounded-lg bg-white p-1 shadow-soft ring-1 ring-steel-200" role="group" aria-label="Forma de visualizar documentos">
+      <button
+        type="button"
+        onClick={() => onChange('list')}
+        aria-pressed={value === 'list'}
+        className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+          value === 'list' ? 'bg-brand-50 text-brand-700' : 'text-steel-600 hover:bg-steel-50'
+        }`}
+      >
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" strokeLinecap="round" />
+        </svg>
+        Lista
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('grid')}
+        aria-pressed={value === 'grid'}
+        className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+          value === 'grid' ? 'bg-brand-50 text-brand-700' : 'text-steel-600 hover:bg-steel-50'
+        }`}
+      >
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z" strokeLinejoin="round" />
+        </svg>
+        Mosaico
+      </button>
+    </div>
   );
 }
 
@@ -60,7 +60,16 @@ export default function Documents() {
   const navigate = useNavigate();
   const [highlightedIds] = useState(() => new Set(location.state?.importedIds || []));
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const selectableIds = docs.filter((doc) => doc.vectorizationStatus !== 'PROCESSING').map((doc) => doc.id);
+  const [viewMode, setViewMode] = useState('list');
+  // El contrato visual es un elemento por registro: incluso si una respuesta
+  // accidentalmente repite una fila, su id aparece una sola vez.
+  const visibleDocs = useMemo(
+    () => Array.from(new Map((docs || []).map((document) => [document.id, document])).values()),
+    [docs]
+  );
+  const selectableIds = visibleDocs
+    .filter((doc) => doc.vectorizationStatus !== 'PROCESSING')
+    .map((doc) => doc.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
   const partiallySelected = !allSelected && selectableIds.some((id) => selectedIds.has(id));
 
@@ -92,14 +101,10 @@ export default function Documents() {
     });
   }
 
-function toggleSelectAll() {
-    if (!docs?.length) return;
+  function toggleSelectAll() {
+    if (!selectableIds.length) return;
 
-    const selectableIds = docs
-      .filter((doc) => doc.vectorizationStatus !== 'PROCESSING')
-      .map((doc) => doc.id);
-
-    if (selectableIds.every((id) => selectedIds.has(id))) {
+    if (allSelected) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(selectableIds));
@@ -152,6 +157,13 @@ function toggleSelectAll() {
           </Link>
         </div>
       </header>
+
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-steel-500">
+          {isLoading ? 'Cargando evidencias…' : `${visibleDocs.length} documento${visibleDocs.length === 1 ? '' : 's'}`}
+        </p>
+        <ViewToggle value={viewMode} onChange={setViewMode} />
+      </div>
 
       {selectedIds.size > 0 && (
         <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 flex flex-wrap gap-3 items-center justify-between">
@@ -206,7 +218,7 @@ function toggleSelectAll() {
               ))}
             </tbody>
           </table>
-        ) : docs?.length === 0 ? (
+        ) : visibleDocs.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-50 ring-1 ring-brand-100">
               <svg viewBox="0 0 24 24" className="h-7 w-7 text-brand-500" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -224,6 +236,82 @@ function toggleSelectAll() {
             >
               Cargar evidencia
             </Link>
+          </div>
+        ) : viewMode === 'grid' ? (
+          <div className="grid gap-5 p-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 card-stagger">
+            {visibleDocs.map((document) => (
+              <article
+                key={document.id}
+                className={`group overflow-hidden rounded-xl bg-white shadow-soft ring-1 transition hover:-translate-y-0.5 hover:shadow-lift ${
+                  selectedIds.has(document.id) ? 'ring-brand-400' : 'ring-steel-200/80'
+                } ${highlightedIds.has(document.id) ? 'animate-pulse-highlight' : ''}`}
+              >
+                <div className="relative border-b border-steel-100">
+                  <Link
+                    to={`/documents/${document.id}`}
+                    aria-label={`Abrir detalle de ${document.name}`}
+                    className="block"
+                  >
+                    <DocumentThumbnail document={document} />
+                  </Link>
+                  <label className="absolute left-3 top-3 grid h-8 w-8 place-items-center rounded-lg bg-white/95 shadow-sm ring-1 ring-steel-200">
+                    <span className="sr-only">Seleccionar {document.name}</span>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(document.id)}
+                      onChange={() => toggleSelect(document.id)}
+                      disabled={document.vectorizationStatus === 'PROCESSING'}
+                      className="h-4 w-4 rounded border-steel-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                    />
+                  </label>
+                  <span className="absolute right-3 top-3 rounded-md bg-white/95 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-steel-700 shadow-sm ring-1 ring-steel-200">
+                    {document.format}
+                  </span>
+                </div>
+
+                <div className="space-y-3 p-4">
+                  <div>
+                    <Link
+                      to={`/documents/${document.id}`}
+                      className="line-clamp-2 font-medium text-ink-900 hover:text-brand-700 hover:underline"
+                    >
+                      {document.name}
+                    </Link>
+                    <p className="mt-1 text-xs text-steel-500">
+                      {fmtSize(document.sizeBytes)} · {sourceLabel(document.source)}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${STATUS_STYLE[document.associationStatus] || ''}`}>
+                      {document.associationStatus}
+                      {document.subcriterion ? ` · ${document.subcriterion}` : ''}
+                    </span>
+                    <span className="inline-flex rounded-full bg-steel-100 px-2.5 py-1 text-xs font-medium text-steel-700 ring-1 ring-steel-200">
+                      {document.analysisStatus || document.vectorizationStatus || 'recibido'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-steel-100 pt-3">
+                    <time className="text-xs text-steel-500" dateTime={document.uploadedAt}>
+                      {fmtDate(document.uploadedAt)}
+                    </time>
+                    <button
+                      type="button"
+                      onClick={() => handleTrash(document.id, document.name)}
+                      disabled={trash.isPending || document.vectorizationStatus === 'PROCESSING'}
+                      aria-label={`Mover ${document.name} a papelera`}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-steel-500 ring-1 ring-steel-200 hover:bg-rose-50 hover:text-rose-600 hover:ring-rose-200 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Papelera
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
           </div>
         ) : (
           <table className="w-full min-w-[960px] table-fixed text-sm">
@@ -246,7 +334,7 @@ function toggleSelectAll() {
               </tr>
             </thead>
             <tbody className="divide-y divide-steel-100">
-              {docs.map((d) => (
+              {visibleDocs.map((d) => (
                 <tr
                   key={d.id}
                   className={`transition-colors hover:bg-brand-50/40 ${
@@ -292,7 +380,6 @@ function toggleSelectAll() {
                   </td>
                   <td className="px-4 py-4 align-top">
                     <div className="flex items-center justify-center gap-2">
-                      {/* <OpenFileButton docId={d.id} /> */}
                       <span className="group relative z-10 inline-flex hover:z-30">
                       <button
                           onClick={() => handleTrash(d.id, d.name)}

@@ -107,6 +107,25 @@ describe('grilla de planillas', () => {
     const res = await run(getSheets, { id: '4' });
     expect(res.status).toHaveBeenCalledWith(410);
   });
+
+  it('limita la miniatura a la primera hoja, diez filas y ocho columnas', async () => {
+    const wb = XLSX.utils.book_new();
+    const rows = Array.from({ length: 20 }, (_, row) =>
+      Array.from({ length: 12 }, (_, column) => `${row}:${column}`)
+    );
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Primera');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['oculta']]), 'Segunda');
+    prisma.document.findUnique.mockResolvedValue(doc({ format: 'xlsx' }));
+    readFile.mockResolvedValue(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+
+    const res = await run(getSheets, { id: '4' }, { preview: '1' });
+    const payload = res.json.mock.calls[0][0];
+    expect(payload.truncated).toBe(true);
+    expect(payload.sheets).toHaveLength(1);
+    expect(payload.sheets[0].name).toBe('Primera');
+    expect(payload.sheets[0].rows).toHaveLength(10);
+    expect(payload.sheets[0].rows.every((row) => row.length <= 8)).toBe(true);
+  });
 });
 
 describe('foco del pasaje', () => {

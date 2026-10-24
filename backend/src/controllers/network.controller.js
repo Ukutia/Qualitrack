@@ -1,9 +1,16 @@
 import { getNetwork } from '../services/network.service.js';
 import { prisma } from '../config/prisma.js';
 import { decryptText } from '../services/encryption.service.js';
+import { config } from '../config/env.js';
 
 export async function network(req, res, next) {
   try {
+    if (!config.embeddings.enabled) {
+      return res.status(503).json({
+        code: 'EMBEDDINGS_DISABLED',
+        error: 'La red temática no está disponible porque la búsqueda semántica está desactivada.',
+      });
+    }
     res.json(await getNetwork(req.user.id));
   } catch (error) { next(error); }
 }
