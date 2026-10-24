@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import NetworkCanvas from '../components/NetworkCanvas.jsx';
 import './EvidenceNetwork.css';
@@ -45,33 +45,35 @@ function positionNetwork(data) {
 const EMPTY = { topics: [], documents: [], connections: [] };
 
 export default function EvidenceNetwork() {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const graph = useQuery({ queryKey: ['topics', 'network'], queryFn: async ({ signal }) => (await api.get('/topics/network', { signal, timeout: 300000 })).data, retry: false });
   const data = graph.data || EMPTY;
   const layout = useMemo(() => positionNetwork(data), [data]);
   const [topicId, setTopicId] = useState(null);
-  const [documentId, setDocumentId] = useState(null);
   const [search, setSearch] = useState('');
-  const content = useQuery({ queryKey: ['network-content', documentId], enabled: !!documentId && data.documents.some((d) => d.id === documentId), queryFn: async ({ signal }) => (await api.get(`/documents/${documentId}/content`, { signal })).data });
   const topic = data.topics.find((t) => t.id === topicId);
-  const currentDocument = data.documents.find((d) => d.id === documentId);
   const related = topic ? data.connections.filter((e) => e.topicId === topic.id) : data.connections;
   const relatedIds = new Set(related.map((e) => e.documentId));
   const visibleDocuments = data.documents.filter((d) => relatedIds.has(d.id) && d.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
   const gaps = data.topics.filter((t) => !t.connections).length;
-  const selectNode = (n) => { if (n.type === 'topic') setTopicId(n.id); else setDocumentId(n.id); };
+  const openDocument = (id) => navigate(`/documents/${id}/pasajes/0`);
+  const selectNode = (n) => {
+    if (n.type === 'topic') setTopicId(n.id);
+    else openDocument(n.id);
+  };
 
   return <div className="evidence-network">
     <header className="network-heading">
       <div><h2 className="font-display text-2xl">Red visual</h2><p>Descubre cómo se conectan tus temáticas y los documentos del repositorio.</p></div>
-      <button className="network-button" disabled={graph.isFetching} onClick={() => { qc.invalidateQueries({ queryKey: ['topics', 'network'] }); qc.invalidateQueries({ queryKey: ['network-content'] }); }}>{graph.isFetching ? 'Construyendo red…' : 'Actualizar red'}</button>
+      <button className="network-button" disabled={graph.isFetching} onClick={() => qc.invalidateQueries({ queryKey: ['topics', 'network'] })}>{graph.isFetching ? 'Construyendo red…' : 'Actualizar red'}</button>
     </header>
     <div className="network-stats"><span><strong>{data.topics.length}</strong> temáticas</span><span><strong>{data.documents.length}</strong> documentos</span><span><strong>{data.connections.length}</strong> conexiones</span><span><strong>{gaps}</strong> temáticas sin evidencia ≥ 60%</span></div>
     {graph.isError && <p role="alert" className="network-error">No se pudo construir la red. Comprueba que la API y el servicio local de embeddings estén disponibles. <button onClick={() => graph.refetch()}>Reintentar</button></p>}
     <div className="network-workspace">
       <section className="network-map" aria-label="Mapa de temáticas y documentos">
         <div className="network-map-title"><strong>Mapa de relaciones</strong><span>Similitud mínima: 60%</span></div>
-        {graph.isPending ? <div className="network-placeholder" role="status">Calculando relaciones semánticas…</div> : !data.topics.length ? <div className="network-placeholder"><strong>Tu red comienza con una temática</strong><p>Carga evidencias y agrega una temática para explorar sus relaciones.</p><Link to="/upload">Cargar evidencia</Link></div> : <NetworkCanvas layout={layout} topicId={topicId} documentId={documentId} onSelect={selectNode} />}
+        {graph.isPending ? <div className="network-placeholder" role="status">Calculando relaciones semánticas…</div> : !data.topics.length ? <div className="network-placeholder"><strong>Tu red comienza con una temática</strong><p>Carga evidencias y agrega una temática para explorar sus relaciones.</p><Link to="/upload">Cargar evidencia</Link></div> : <NetworkCanvas layout={layout} topicId={topicId} documentId={null} onSelect={selectNode} />}
       </section>
       <aside className="network-panel">
         <label htmlFor="network-topic-select" className="network-eyebrow">TEMÁTICA SELECCIONADA</label>
@@ -81,15 +83,9 @@ export default function EvidenceNetwork() {
         {topic && <div className="network-dominant"><span>Subcriterio más presente</span><strong>{topic.dominantSubcriteria.length ? topic.dominantSubcriteria.map((s) => `${s.code} · ${s.name}`).join(' / ') : 'Sin subcriterio asociado'}</strong>{topic.dominantSubcriteria.length > 0 && <small>{topic.dominantSubcriteria[0].count} documento(s){topic.dominantSubcriteria.length > 1 ? ' por subcriterio · empate' : ''}</small>}</div>}
         <div className="network-list-heading"><h3>Documentos ({visibleDocuments.length})</h3>{topic && <button onClick={() => setTopicId(null)}>Ver todos</button>}</div>
         <input aria-label="Buscar documento en la red" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar documento…" />
-        <div className="network-document-list">{visibleDocuments.map((d) => <button key={d.id} className={documentId === d.id ? 'selected' : ''} onClick={() => setDocumentId(d.id)}><span>{d.name}</span>{topic && <small>{(related.find((e) => e.documentId === d.id).similarity * 100).toFixed(1)}% de similitud</small>}</button>)}{!visibleDocuments.length && <p>{search ? 'No hay documentos con ese nombre.' : 'No hay documentos con similitud igual o superior al 60%.'}</p>}</div>
+        <div className="network-document-list">{visibleDocuments.map((d) => <button key={d.id} onClick={() => openDocument(d.id)} title="Abrir documento original"><span>{d.name}</span>{topic && <small>{(related.find((e) => e.documentId === d.id).similarity * 100).toFixed(1)}% de similitud</small>}</button>)}{!visibleDocuments.length && <p>{search ? 'No hay documentos con ese nombre.' : 'No hay documentos con similitud igual o superior al 60%.'}</p>}</div>
       </aside>
     </div>
-    {currentDocument && <section className="network-reader" aria-label="Contenido del documento">
-      <div className="network-reader-heading"><div><p className="network-eyebrow">LECTOR DE EVIDENCIA</p><h2>{currentDocument.name}</h2></div><button className="network-button" onClick={() => setDocumentId(null)}>Cerrar lector</button></div>
-      <label htmlFor="network-document-select">Cambiar documento</label><select id="network-document-select" value={documentId} onChange={(e) => setDocumentId(Number(e.target.value))}>{data.documents.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
-      {content.isPending ? <p role="status">Cargando contenido…</p> : content.isError ? <p role="alert">No se pudo cargar el documento. <button onClick={() => content.refetch()}>Reintentar</button></p> : <div className="network-document-content">{content.data?.content || 'Este documento no tiene texto extraído disponible.'}</div>}
-      <Link to={`/documents/${documentId}`}>Ver ficha y archivo original →</Link>
-    </section>}
   </div>;
 }
 

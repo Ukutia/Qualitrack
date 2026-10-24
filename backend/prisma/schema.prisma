@@ -73,6 +73,47 @@ model User {
   reportDraftVersions ReportDraftVersion[]
   topics              Topic[]
   documentRequests    DocumentRequest[]
+  assignedMilestones Milestone[] @relation("Responsible")
+  createdMilestones Milestone[] @relation("MilestoneCreator")
+  completedMilestones Milestone[] @relation("MilestoneCompleter")
+}
+
+/// Immutable through the API. Actor snapshot survives account/resource changes.
+model SecurityEvent {
+  id Int @id @default(autoincrement())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  actorId Int?
+  actorEmail String?
+  action String
+  resourceType String
+  resourceId String?
+  result String
+  @@index([createdAt, id])
+}
+
+model Milestone {
+  id Int @id @default(autoincrement())
+  title String @db.VarChar(100)
+  dueDate String @db.VarChar(10)
+  responsibleId Int
+  responsible User @relation("Responsible", fields: [responsibleId], references: [id])
+  createdById Int
+  createdBy User @relation("MilestoneCreator", fields: [createdById], references: [id])
+  completedAt DateTime? @db.Timestamptz(3)
+  completedById Int?
+  completedBy User? @relation("MilestoneCompleter", fields: [completedById], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tasks MilestoneTask[]
+  @@index([dueDate])
+}
+
+model MilestoneTask {
+  id Int @id @default(autoincrement())
+  title String @db.VarChar(200)
+  completed Boolean @default(false)
+  milestoneId Int
+  milestone Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
 }
 
 /// Solicitud de una evidencia a una persona externa. El token en claro se

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useSemanticSearch, useTopics, useCreateTopic, useDeleteTopic } from '../hooks/useApi.js';
 import EvidenceNetwork from './EvidenceNetwork.jsx';
@@ -14,6 +15,26 @@ export default function SemanticSearch() {
   const createTopic = useCreateTopic();
   const deleteTopic = useDeleteTopic();
   const [topicName, setTopicName] = useState('');
+  const [topicModalOpen, setTopicModalOpen] = useState(false);
+  const topicDialog = useRef(null);
+  const addTopicButton = useRef(null);
+
+  useEffect(() => {
+    if (!topicModalOpen) return;
+    const dialog = topicDialog.current;
+    const main = document.querySelector('main');
+    const previousMainOverflow = main?.style.overflow;
+    const previousOverflow = document.body.style.overflow;
+    if (main) main.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+      if (main) main.style.overflow = previousMainOverflow;
+      addTopicButton.current?.focus();
+    };
+  }, [topicModalOpen]);
 
   async function handleTopicSearch(topicName) {
     const value = topicName.trim();
@@ -73,7 +94,6 @@ export default function SemanticSearch() {
       </header>
 
       <div className="thematic-view-toolbar">
-      <span className="thematic-view-label">Visualización</span>
       <div role="group" aria-label="Visualización de búsqueda temática" className="thematic-view-switch">
         {[['list', 'Lista'], ['network', 'Red visual']].map(([value, label]) => (
           <button key={value} type="button" aria-pressed={view === value}
@@ -86,8 +106,12 @@ export default function SemanticSearch() {
           </button>
         ))}
       </div>
+      <button ref={addTopicButton} type="button" aria-haspopup="dialog" className="thematic-add-button" onClick={() => { createTopic.reset(); setTopicName(''); setTopicModalOpen(true); }}>+ Agregar temática</button>
       </div>
 
+      {topicModalOpen && createPortal(<dialog ref={topicDialog} className="thematic-topic-modal" aria-labelledby="new-topic-title" aria-describedby="new-topic-description" onCancel={(event) => { event.preventDefault(); if (!createTopic.isPending) setTopicModalOpen(false); }}>
+      <header className="flex items-center justify-between gap-3"><h2 id="new-topic-title" className="font-display text-2xl font-semibold text-ink-900">Nueva temática</h2><button type="button" disabled={createTopic.isPending} aria-label="Cerrar nueva temática" onClick={() => setTopicModalOpen(false)} className="rounded-lg px-3 py-2 text-steel-600 hover:bg-steel-50 disabled:opacity-50">✕</button></header>
+      <p id="new-topic-description" className="mb-5 mt-2 text-sm leading-6 text-steel-600">Escribe el tema que quieres explorar en las evidencias del repositorio.</p>
       <form
         onSubmit={async (event) => {
           event.preventDefault();
@@ -99,34 +123,40 @@ export default function SemanticSearch() {
           try {
             await createTopic.mutateAsync(value);
             setTopicName('');
+            setTopicModalOpen(false);
           } catch { /* Keep the name and show the mutation error below. */ }
         }}
-        className="rounded-xl2 bg-white p-5 shadow-soft ring-1 ring-stone-200/60"
+        className="space-y-3"
       >
         <label
           htmlFor="topic-name"
           className="mb-2 block text-sm font-medium text-ink-900"
         >
-          Nueva temática
+          Nombre de la temática
         </label>
 
-        <div className="flex gap-3">
+        <div className="space-y-5">
           <input
             id="topic-name"
             type="text"
+            autoFocus
+            required
+            minLength={3}
+            disabled={createTopic.isPending}
             value={topicName}
             onChange={(event) => setTopicName(event.target.value)}
             placeholder="Ej: Calidad docente"
-            className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-4 py-3 text-sm text-ink-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            className="w-full rounded-lg border border-stone-200 bg-white px-4 py-3 text-sm text-ink-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
           />
 
-          <button
+          <div className="flex flex-wrap justify-end gap-2"><button type="button" disabled={createTopic.isPending} onClick={() => setTopicModalOpen(false)} className="rounded-lg border border-steel-200 px-4 py-3 text-sm text-steel-700 disabled:opacity-50">Cancelar</button><button
             type="submit"
             disabled={topicName.trim().length < 3 || createTopic.isPending}
             className="btn rounded-lg bg-brand-600 px-5 py-3 text-sm font-medium text-white shadow-soft hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {createTopic.isPending ? 'Guardando…' : 'Guardar temática'}
           </button>
+          </div>
         </div>
 
         {topicName.trim().length > 0 && topicName.trim().length < 3 && (
@@ -142,8 +172,8 @@ export default function SemanticSearch() {
           </p>
         )}
       </form>
-
-      <p className="text-sm text-stone-500">Puedes guardar temáticas mientras se procesan los documentos. Sus conexiones aparecerán cuando finalice la vectorización; si no aparecen, revisa el estado del documento en el repositorio y actualiza la red.</p>
+      <p className="mt-4 text-xs leading-5 text-steel-600">Puedes agregar temáticas mientras se procesan los documentos. Sus conexiones aparecerán al terminar la preparación; después puedes actualizar la red.</p>
+      </dialog>, document.body)}
       {view === 'network' && <EvidenceNetwork />}
       <div hidden={view !== 'list'} className="space-y-6">
       <section className="rounded-xl2 bg-white p-5 shadow-soft ring-1 ring-stone-200/60">

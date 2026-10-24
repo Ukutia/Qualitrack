@@ -30,6 +30,7 @@ export const SECTIONS = [
   { to: '/report', label: 'Redacción informe', roles: [ROLES.ADMIN] },
   { to: '/cloud', label: 'Google Drive', roles: [ROLES.ADMIN, ROLES.USER] },
   { to: '/trash', label: 'Papelera', roles: [ROLES.ADMIN, ROLES.USER] },
+  { to: '/security-events', label: 'Registro de seguridad', roles: [ROLES.ADMIN] },
 ];
 
 export function navFor(role) {
@@ -38,7 +39,9 @@ export function navFor(role) {
 
 /** Primera pantalla del rol tras iniciar sesión. */
 export function homeFor(role) {
-  return navFor(role)[0]?.to || '/upload';
+  if (role === ROLES.ADMIN) return '/app';
+  if (role === ROLES.USER) return '/documents';
+  return '/upload';
 }
 
 export function roleLabel(role) {

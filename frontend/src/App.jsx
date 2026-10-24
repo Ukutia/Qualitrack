@@ -1,10 +1,14 @@
-import { Navigate, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Navigate, Routes, Route, useLocation } from 'react-router-dom';
+import { api } from './lib/api.js';
 import { useAuth } from './context/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Layout from './components/Layout.jsx';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Milestones from './components/Milestones.jsx';
+import SecurityEvents from './pages/SecurityEvents.jsx';
 import Documents from './pages/Documents.jsx';
 import DocumentRequests, { NewDocumentRequest } from './pages/DocumentRequests.jsx';
 import DocumentDetail from './pages/DocumentDetail.jsx';
@@ -28,7 +32,12 @@ const ADMIN_AND_USER = [ROLES.ADMIN, ROLES.USER];
 // Dentro del Layout la sesión ya está garantizada; acá solo se filtra por rol.
 function Guard({ roles, children }) {
   const { user } = useAuth();
-  if (!roles.includes(user?.role)) return <Navigate to="/acceso-denegado" replace />;
+  const { pathname } = useLocation();
+  const denied = !roles.includes(user?.role);
+  useEffect(() => {
+    if (denied) api.post('/auth/access-denied', { section: pathname }).catch((error) => console.error('No se pudo registrar el acceso denegado.', error.response?.status));
+  }, [denied, pathname]);
+  if (denied) return <Navigate to="/acceso-denegado" replace />;
   return children;
 }
 
@@ -47,6 +56,8 @@ export default function App() {
       >
         <Route path="/acceso-denegado" element={<AccessDenied />} />
         <Route path="/app" element={<Guard roles={ADMIN_ONLY}><Dashboard /></Guard>} />
+        <Route path="/milestones" element={<Guard roles={ADMIN_AND_USER}><Milestones /></Guard>} />
+        <Route path="/security-events" element={<SecurityEvents />} />
         <Route path="/documents" element={<Guard roles={ADMIN_AND_USER}><Documents /></Guard>} />
         <Route path="/requests" element={<Guard roles={ADMIN_AND_USER}><DocumentRequests /></Guard>} />
         <Route path="/requests/new" element={<Guard roles={ADMIN_AND_USER}><NewDocumentRequest /></Guard>} />

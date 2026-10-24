@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import SelectionCheckbox from '../components/SelectionCheckbox.jsx';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDocuments, useTrashDocument } from '../hooks/useApi.js';
+import { ANALYSIS_LABELS, normalizeAnalysisStatus } from '../lib/analysisStatus.js';
 
 async function openFile(docId) {
   const token = localStorage.getItem('qualitrack_token');
@@ -13,8 +15,7 @@ async function openFile(docId) {
   window.open(url, '_blank');
 }
 
-const fmtSize = (b) => `${(b / 1024).toFixed(0)} KB`;
-const fmtDate = (d) => new Date(d).toLocaleString('es-CL');
+const fmtSize = (b) => b >= 1024 * 1024 ? `${(b / (1024 * 1024)).toFixed(1)} MB` : `${Math.ceil(b / 1024)} KB`;
 const sourceLabel = (source) => ({
   GOOGLE_DRIVE: 'Google Drive',
   DROPBOX: 'Dropbox',
@@ -53,12 +54,15 @@ function OpenFileButton({ docId }) {
 }
 
 export default function Documents() {
-  const { data: docs, isLoading, refetch } = useDocuments();
+  const { data: docs = [], isLoading, isError, refetch } = useDocuments();
   const trash = useTrashDocument();
   const location = useLocation();
   const navigate = useNavigate();
   const [highlightedIds] = useState(() => new Set(location.state?.importedIds || []));
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const selectableIds = docs.filter((doc) => doc.vectorizationStatus !== 'PROCESSING').map((doc) => doc.id);
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
+  const partiallySelected = !allSelected && selectableIds.some((id) => selectedIds.has(id));
 
   useEffect(() => {
     if (location.state?.importedIds) {
@@ -95,7 +99,7 @@ function toggleSelectAll() {
       .filter((doc) => doc.vectorizationStatus !== 'PROCESSING')
       .map((doc) => doc.id);
 
-    if (selectedIds.size === selectableIds.length) {
+    if (selectableIds.every((id) => selectedIds.has(id))) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(selectableIds));
@@ -133,9 +137,12 @@ function toggleSelectAll() {
         <div className="flex items-center gap-3">
           <Link
             to="/trash"
-            className="rounded-lg border border-steel-200 hover:bg-steel-50 text-steel-500 px-4 py-2.5 text-sm font-medium"
+            className="inline-flex items-center gap-2 rounded-lg border border-steel-200 hover:bg-steel-50 text-steel-600 px-4 py-2.5 text-sm font-medium transition-colors"
           >
-            🗑 Papelera
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M5 6l1 14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-14M10 10v7m4-7v7" />
+            </svg>
+            Papelera
           </Link>
           <Link
             to="/upload"
@@ -147,7 +154,7 @@ function toggleSelectAll() {
       </header>
 
       {selectedIds.size > 0 && (
-        <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 flex items-center justify-between">
+        <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 flex flex-wrap gap-3 items-center justify-between">
           <span className="text-sm font-medium text-brand-900">
             {selectedIds.size} documento(s) seleccionado(s)
           </span>
@@ -173,13 +180,15 @@ function toggleSelectAll() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-steel-200/60 overflow-visible">
-        {isLoading ? (
-          <table className="w-full text-sm">
+      <div className="min-w-0 bg-white rounded-xl2 shadow-soft ring-1 ring-steel-200/60 overflow-hidden">
+        <div role="region" aria-label="Tabla de evidencias, desplazable horizontalmente" tabIndex={0} className="overflow-x-auto overscroll-x-contain">
+        {isError ? <div role="alert" className="p-8 text-center text-sm text-rose-700">No se pudo cargar el repositorio. <button onClick={() => refetch()} className="font-medium underline">Reintentar</button></div> : isLoading ? (
+          <table className="w-full min-w-[960px] table-fixed text-sm">
+            <colgroup><col className="w-12" /><col /><col className="w-28" /><col className="w-32" /><col className="w-36" /><col className="w-36" /><col className="w-28" /></colgroup>
             <thead className="bg-steel-50/80 text-steel-500 text-left">
               <tr>
-                {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación','Estado',''].map(h => (
-                  <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide">{h}</th>
+                {['Selección','Documento','Origen','Ingreso','Clasificación','Análisis','Acciones'].map(h => (
+                  <th key={h} scope="col" className={`px-4 py-3.5 text-xs font-semibold uppercase tracking-wide ${(h === 'Acciones' || h === 'Análisis') ? 'text-center' : ''}`}>{h === 'Selección' ? <span className="sr-only">Selección</span> : h}</th>
                 ))}
               </tr>
             </thead>
@@ -187,12 +196,11 @@ function toggleSelectAll() {
               {Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>
                   <td className="px-5 py-4"> <div className="skeleton h-4 w-4" /></td>
-                  <td className="px-5 py-4"><div className="skeleton h-4 w-44" /></td>
-                  <td className="px-5 py-4"><div className="skeleton h-4 w-10" /></td>
-                  <td className="px-5 py-4"><div className="skeleton h-4 w-14" /></td>
+                  <td className="px-5 py-4"><div className="skeleton h-4 w-full" /></td>
                   <td className="px-5 py-4"><div className="skeleton h-4 w-24" /></td>
                   <td className="px-5 py-4"><div className="skeleton h-4 w-32" /></td>
                   <td className="px-5 py-4"><div className="skeleton h-5 w-20 rounded-full" /></td>
+                  <td className="px-5 py-4"><div className="skeleton h-5 w-full rounded-md" /></td>
                   <td className="px-5 py-4"><div className="skeleton h-6 w-20 rounded-md" /></td>
                 </tr>
               ))}
@@ -218,19 +226,22 @@ function toggleSelectAll() {
             </Link>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[960px] table-fixed text-sm">
+            <caption className="sr-only">Evidencias, origen, fecha de ingreso, clasificación, análisis y acciones.</caption>
+            <colgroup><col className="w-12" /><col /><col className="w-28" /><col className="w-32" /><col className="w-36" /><col className="w-36" /><col className="w-28" /></colgroup>
             <thead className="bg-steel-50/80 text-steel-500 text-left">
               <tr>
-                <th className="px-5 py-3.5">
-                  <input
-                    type="checkbox"
-                    checked={docs.some((doc) => doc.vectorizationStatus !== 'PROCESSING') && selectedIds.size === docs.filter((doc) => doc.vectorizationStatus !== 'PROCESSING').length}
+                <th scope="col" className="px-4 py-3.5">
+                  <SelectionCheckbox
+                    aria-label="Seleccionar todas las evidencias disponibles"
+                    checked={allSelected}
+                    indeterminate={partiallySelected}
+                    disabled={trash.isPending || !selectableIds.length}
                     onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-steel-300 cursor-pointer"
                   />
                 </th>
-                {['Nombre','Formato','Tamaño','Origen','Ingreso','Clasificación','Estado',''].map((h) => (
-                  <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide">{h}</th>
+                {['Documento','Origen','Ingreso','Clasificación','Análisis','Acciones'].map((h) => (
+                  <th key={h} scope="col" className={`px-4 py-3.5 text-xs font-semibold uppercase tracking-wide ${(h === 'Acciones' || h === 'Análisis') ? 'text-center' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -244,61 +255,56 @@ function toggleSelectAll() {
                     selectedIds.has(d.id) ? 'bg-brand-50' : ''
                   }`}
                 >
-                  <td className="px-5 py-3.5">
-                    <input
-                      type="checkbox"
+                  <td className="px-4 py-4 align-top">
+                    <SelectionCheckbox
+                      aria-label={`Seleccionar ${d.name}`}
                       checked={selectedIds.has(d.id)}
                       onChange={() => toggleSelect(d.id)}
                       disabled={d.vectorizationStatus === 'PROCESSING'}
                       title={d.vectorizationStatus === 'PROCESSING' ? 'No se puede eliminar mientras se prepara para la búsqueda semántica.' : undefined}
-                      className="h-4 w-4 rounded border-steel-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                     />
                   </td>
-                  <td className="px-5 py-3.5">
-                    <Link to={`/documents/${d.id}`} className="font-medium text-brand-600 hover:text-brand-700 hover:underline underline-offset-2">
+                  <td className="px-4 py-4 align-top">
+                    <Link to={`/documents/${d.id}`} className="block font-medium leading-5 text-brand-700 [overflow-wrap:anywhere] hover:underline underline-offset-2">
                       {d.name}
                     </Link>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-steel-600"><span className="rounded border border-steel-200 bg-steel-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase">{d.format}</span><span className="tabular-nums">{fmtSize(d.sizeBytes)}</span></div>
                   </td>
-                  <td className="px-5 py-3.5 uppercase text-steel-500">{d.format}</td>
-                  <td className="px-5 py-3.5 tnum text-steel-500">{fmtSize(d.sizeBytes)}</td>
-                  <td className="px-5 py-3.5 text-steel-500">
+                  <td className="px-4 py-4 align-top text-xs leading-5 text-steel-600">
                     {sourceLabel(d.source)}
                   </td>
-                  <td className="px-5 py-3.5 tnum text-steel-500">{fmtDate(d.uploadedAt)}</td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-4 py-4 align-top text-xs tnum text-steel-700"><time dateTime={d.uploadedAt}>{new Date(d.uploadedAt).toLocaleDateString('es-CL')}<span className="mt-1 block text-steel-600">{new Date(d.uploadedAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</span></time></td>
+                  <td className="px-4 py-4 align-top">
                     <span
-                      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${
+                      className={`inline-block max-w-full rounded-md px-2 py-1 text-xs leading-5 font-medium ring-1 ring-inset ${
                         STATUS_STYLE[d.associationStatus] || ''
                       }`}
                     >
                       {d.associationStatus}
-                      {d.subcriterion ? ` · ${d.subcriterion}` : ''}
                     </span>
+                    {d.subcriterion && <p className="mt-2 text-xs text-steel-600">Subcriterio {d.subcriterion}</p>}
                   </td>
-                  <td className="px-5 py-3.5">
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ring-1 bg-steel-100 text-steel-700 ring-steel-200">
-                      {d.analysisStatus || d.vectorizationStatus || 'recibido'}
+                  <td className="px-4 py-4 align-top text-center">
+                    <span className={`inline-flex max-w-full rounded-md px-2 py-1 text-xs leading-5 font-medium ${normalizeAnalysisStatus(d.analysisStatus) === 'ERROR' ? 'bg-rose-50 text-rose-800' : normalizeAnalysisStatus(d.analysisStatus) === 'COMPLETED' ? 'bg-emerald-50 text-emerald-800' : 'bg-brand-50 text-brand-800'}`}>
+                      {ANALYSIS_LABELS[normalizeAnalysisStatus(d.analysisStatus)]}
                     </span>
+                    {d.vectorizationStatus === 'PROCESSING' && <p className="mt-2 text-xs text-steel-600">Preparando búsqueda…</p>}
                   </td>
-                  <td className="px-5 py-3.5 overflow-visible">
-                    <div className="flex items-center gap-2">
+                  <td className="px-4 py-4 align-top">
+                    <div className="flex items-center justify-center gap-2">
                       {/* <OpenFileButton docId={d.id} /> */}
                       <span className="group relative z-10 inline-flex hover:z-30">
                       <button
                           onClick={() => handleTrash(d.id, d.name)}
                           disabled={trash.isPending || d.vectorizationStatus === 'PROCESSING'}
-                          aria-label="Mover a papelera"
-                          className="inline-flex items-center rounded-md px-2 py-1 text-xs text-steel-400 hover:text-rose-500 hover:bg-rose-50 ring-1 ring-steel-200 hover:ring-rose-200 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label={`Mover ${d.name} a la papelera`}
+                          title={d.vectorizationStatus === 'PROCESSING' ? 'No se puede eliminar mientras se prepara para las búsquedas.' : 'Mover a papelera'}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs text-steel-600 hover:text-rose-700 hover:bg-rose-50 ring-1 ring-steel-200 hover:ring-rose-200 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
                             <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
-                        {d.vectorizationStatus === 'PROCESSING' && (
-                          <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-64 rounded-lg bg-ink-900 px-3 py-2 text-xs leading-relaxed text-white shadow-lg group-hover:block">
-                            No se puede eliminar todavía porque el documento se está preparando para las búsquedas.
-                          </span>
-                        )}
                       </span>
                     </div>
                   </td>
@@ -307,6 +313,7 @@ function toggleSelectAll() {
             </tbody>
           </table>
         )}
+        </div>
       </div>
     </div>
   );
