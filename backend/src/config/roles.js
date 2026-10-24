@@ -29,6 +29,7 @@ const rule = (method, pattern) => ({ method, pattern });
 // propia sesión. Nada más.
 const INGESTOR_RULES = [
   rule('GET', /^\/auth\/me$/),
+  rule('POST', /^\/auth\/access-denied$/),
   rule('POST', /^\/documents$/),
 ];
 
@@ -38,6 +39,9 @@ const INGESTOR_RULES = [
 // solo decide qué rutas existen para el rol.
 const USER_RULES = [
   ...INGESTOR_RULES,
+  rule('GET', /^\/milestones(?:\/responsibles)?$/),
+  rule('POST', /^\/milestones(?:\/\d+\/complete)?$/),
+  rule('PUT', /^\/milestones\/\d+$/),
   rule('GET', /^\/documents$/),
   rule('GET', /^\/documents\/\d+$/),
   rule('GET', /^\/documents\/\d+\/stream$/),

@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCompliance } from '../hooks/useApi.js';
 import TrafficLight from '../components/TrafficLight.jsx';
+import Milestones from '../components/Milestones.jsx';
 import { LEVEL_ORDER, levelMeta } from '../lib/levels.js';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('es-CL') : '—');
@@ -245,6 +247,7 @@ function SubcriterionCard({ item }) {
 }
 
 export default function Dashboard() {
+  const [tab, setTab] = useState('subcriteria');
   const { data, isLoading, error } = useCompliance();
 
   if (isLoading)
@@ -309,6 +312,22 @@ export default function Dashboard() {
         </h1>
         <p className="text-steel-500 mt-1">{data.criterion?.name}</p>
       </header>
+
+      <div role="tablist" aria-label="Vistas del tablero" className="flex gap-6 border-b border-steel-200/70 sm:gap-8">
+        {[['subcriteria', 'Subcriterios'], ['milestones', 'Hitos de acreditación']].map(([id, label], index) => <button
+          key={id} id={`tab-${id}`} type="button" role="tab" aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
+          onClick={() => setTab(id)}
+          onKeyDown={(event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const next = event.key === 'Home' ? 'subcriteria' : event.key === 'End' ? 'milestones' : index === 0 ? 'milestones' : 'subcriteria';
+            setTab(next); document.getElementById(`tab-${next}`)?.focus();
+          }}
+          className={`-mb-px border-b-2 px-1 pb-3 pt-1 text-sm font-medium transition-colors ${tab === id ? 'border-brand-600 text-brand-700' : 'border-transparent text-steel-600 hover:border-steel-300 hover:text-ink-900'}`}
+        >{label}</button>)}
+      </div>
+
+      {tab === 'milestones' ? <div id="panel-milestones" role="tabpanel" aria-labelledby="tab-milestones"><Milestones panel /></div> : <div id="panel-subcriteria" role="tabpanel" aria-labelledby="tab-subcriteria" className="space-y-7">
 
       {!data.canCalculate ? (
         <div className="alert-in rounded-xl2 bg-amber-50 border border-amber-200 text-amber-800 p-6">
@@ -376,6 +395,7 @@ export default function Dashboard() {
           ))}
         </>
       )}
+      </div>}
     </div>
   );
 }

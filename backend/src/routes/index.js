@@ -4,6 +4,9 @@ import { publishAnalysisStatus } from '../services/analysisEvents.service.js';
 import { claimNextJob } from '../services/workerQueue.service.js';
 import { requireAuth } from '../middleware/auth.js';
 import { enforceRolePolicy } from '../middleware/authorize.js';
+import { auditRequests } from '../middleware/audit.js';
+import { listSecurityEvents, recordDeniedNavigation } from '../controllers/securityEvents.controller.js';
+import { listMilestones, milestoneResponsibles, saveMilestone, completeMilestone } from '../controllers/milestones.controller.js';
 import {
   requireOwnDocument,
   requireOwnAssociation,
@@ -236,7 +239,16 @@ router.post(
 // ruta (EP 1.1 · EP 1.2). La política es de denegación por defecto y se resuelve
 // antes de consultar la base de datos.
 router.use(requireAuth);
+router.use(auditRequests);
 router.use(enforceRolePolicy);
+
+router.get('/security-events', asyncRoute(listSecurityEvents));
+router.post('/auth/access-denied', asyncRoute(recordDeniedNavigation));
+router.get('/milestones', asyncRoute(listMilestones));
+router.get('/milestones/responsibles', asyncRoute(milestoneResponsibles));
+router.post('/milestones', asyncRoute(saveMilestone));
+router.put('/milestones/:id', asyncRoute(saveMilestone));
+router.post('/milestones/:id/complete', asyncRoute(completeMilestone));
 
 // Búsqueda semántica
 router.post('/search/semantic', semanticSearch);

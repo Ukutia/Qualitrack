@@ -91,7 +91,7 @@ export default function Layout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">
+      <main className="min-w-0 flex-1 overflow-auto">
         <div className="max-w-6xl mx-auto px-8 pt-8 pb-14">
           <Outlet />
         </div>

@@ -93,6 +93,9 @@ Al iniciar, el backend sincroniza el esquema (`prisma db push`), ejecuta el *see
 
 ## Tests
 
+Implementación inicial de **HU20 (auditoría)** y **HU24 (hitos)**: consultar
+[reglas, integración y pasos de validación](docs/HU20-HU24.md).
+
 ### Correos de solicitudes de documentos
 
 Al crear o reanudar una solicitud se registra un correo para la versión vigente

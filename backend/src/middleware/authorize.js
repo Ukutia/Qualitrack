@@ -12,7 +12,7 @@ export const ACCESS_DENIED = {
 
 export function enforceRolePolicy(req, res, next) {
   if (canAccess(req.user?.role, req.method, req.path)) return next();
-  return res.status(403).json(ACCESS_DENIED);
+  return res.status(403).json(req.path === '/security-events' ? { ...ACCESS_DENIED, error: 'Acceso Denegado' } : ACCESS_DENIED);
 }
 
 /** Restringe una ruta a roles concretos (uso puntual fuera de la tabla). */
