@@ -42,6 +42,7 @@ import { login, me } from '../controllers/auth.controller.js';
 import {
   uploadDocument,
   listDocuments,
+  listDocumentFilterOptions,
   getDocument,
   serveFile,
   streamDocumentStatus,
@@ -262,6 +263,7 @@ router.delete('/topics/:id', deleteTopic);
 // Documentos (HU07)
 router.post('/documents', upload.single('file'), uploadDocument);
 router.get('/documents', listDocuments);
+router.get('/documents/filter-options', listDocumentFilterOptions);
 router.get('/documents/trash', listTrash);
 router.get('/documents/:id/stream', requireViewableDocument, streamDocumentStatus);
 router.get('/documents/:id', requireViewableDocument, getDocument);

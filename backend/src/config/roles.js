@@ -43,6 +43,7 @@ const USER_RULES = [
   rule('POST', /^\/milestones(?:\/\d+\/complete)?$/),
   rule('PUT', /^\/milestones\/\d+$/),
   rule('GET', /^\/documents$/),
+  rule('GET', /^\/documents\/filter-options$/),
   rule('GET', /^\/documents\/\d+$/),
   rule('GET', /^\/documents\/\d+\/stream$/),
   rule('GET', /^\/documents\/\d+\/file$/),

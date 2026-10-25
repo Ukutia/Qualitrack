@@ -79,11 +79,33 @@ export function useDeleteDocumentRequest() {
 }
 
 // ── Documentos (HU07) ───────────────────────────────────────────────
-export function useDocuments() {
+function documentQueryParams(filters = {}) {
+  const params = {};
+  if (filters.text?.trim()) params.q = filters.text.trim();
+  if (filters.sources?.length) params.sources = filters.sources.join(',');
+  if (filters.uploaders?.length) params.uploaders = filters.uploaders.join(',');
+  if (filters.subcriteria?.length) params.subcriteria = filters.subcriteria.join(',');
+  if (filters.associationStatuses?.length) {
+    params.associationStatuses = filters.associationStatuses.join(',');
+  }
+  return params;
+}
+
+export function useDocuments(filters = {}) {
   return useQuery({
-    queryKey: ['documents'],
-    queryFn: async () => (await api.get('/documents')).data,
+    queryKey: ['documents', filters],
+    queryFn: async () => (await api.get('/documents', {
+      params: documentQueryParams(filters),
+    })).data,
     refetchInterval: (query) => (shouldPollDocuments(query.state.data) ? 2000 : false),
+  });
+}
+
+export function useDocumentFilterOptions() {
+  return useQuery({
+    queryKey: ['documents', 'filter-options'],
+    queryFn: async () => (await api.get('/documents/filter-options')).data,
+    staleTime: 60_000,
   });
 }
 

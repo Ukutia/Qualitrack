@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import SelectionCheckbox from '../components/SelectionCheckbox.jsx';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useDocuments, useTrashDocument } from '../hooks/useApi.js';
+import { useDocumentFilterOptions, useDocuments, useTrashDocument } from '../hooks/useApi.js';
 import { ANALYSIS_LABELS, normalizeAnalysisStatus } from '../lib/analysisStatus.js';
 import { DocumentThumbnail } from '../components/DocumentPreview.jsx';
 
@@ -19,6 +19,50 @@ const STATUS_STYLE = {
   Descartada: 'bg-steel-200 text-steel-600 ring-steel-300',
   'Sin clasificar': 'bg-steel-100 text-steel-500 ring-steel-200',
 };
+
+const emptyFilters = () => ({
+  text: '',
+  sources: [],
+  uploaders: [],
+  subcriteria: [],
+  associationStatuses: [],
+});
+
+const hasFilters = (filters) => Boolean(
+  filters.text.trim()
+  || filters.sources.length
+  || filters.uploaders.length
+  || filters.subcriteria.length
+  || filters.associationStatuses.length
+);
+
+function FilterChoices({ legend, options = [], selected, onToggle, emptyLabel }) {
+  return (
+    <fieldset className="min-w-0 rounded-lg border border-steel-200 bg-steel-50/50 p-3">
+      <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-steel-600">
+        {legend}
+      </legend>
+      <div className="mt-1 max-h-32 space-y-1 overflow-y-auto pr-1">
+        {options.length ? options.map((option) => (
+          <label
+            key={option.value}
+            className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-sm text-steel-700 hover:bg-white"
+          >
+            <input
+              type="checkbox"
+              checked={selected.includes(option.value)}
+              onChange={(event) => onToggle(option.value, event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-steel-300 text-brand-600"
+            />
+            <span className="min-w-0 break-words">{option.label}</span>
+          </label>
+        )) : (
+          <p className="px-2 py-1.5 text-xs text-steel-500">{emptyLabel}</p>
+        )}
+      </div>
+    </fieldset>
+  );
+}
 
 function ViewToggle({ value, onChange }) {
   return (
@@ -54,13 +98,17 @@ function ViewToggle({ value, onChange }) {
 }
 
 export default function Documents() {
-  const { data: docs = [], isLoading, isError, refetch } = useDocuments();
-  const trash = useTrashDocument();
   const location = useLocation();
   const navigate = useNavigate();
   const [highlightedIds] = useState(() => new Set(location.state?.importedIds || []));
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [viewMode, setViewMode] = useState('list');
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [draftFilters, setDraftFilters] = useState(emptyFilters);
+  const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
+  const { data: docs = [], isLoading, isError, refetch } = useDocuments(appliedFilters);
+  const { data: filterOptions = {}, isError: filterOptionsError } = useDocumentFilterOptions();
+  const trash = useTrashDocument();
   // El contrato visual es un elemento por registro: incluso si una respuesta
   // accidentalmente repite una fila, su id aparece una sola vez.
   const visibleDocs = useMemo(
@@ -72,6 +120,11 @@ export default function Documents() {
     .map((doc) => doc.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
   const partiallySelected = !allSelected && selectableIds.some((id) => selectedIds.has(id));
+  const filtersAreApplied = hasFilters(appliedFilters);
+  const selectedFilterCount = draftFilters.sources.length
+    + draftFilters.uploaders.length
+    + draftFilters.subcriteria.length
+    + draftFilters.associationStatuses.length;
 
   useEffect(() => {
     if (location.state?.importedIds) {
@@ -130,6 +183,38 @@ export default function Documents() {
     await refetch();
   }
 
+  function toggleFilter(group, value, checked) {
+    const updateGroup = (current) => ({
+      ...current,
+      [group]: checked
+        ? [...current[group], value].sort()
+        : current[group].filter((item) => item !== value),
+    });
+
+    setSelectedIds(new Set());
+    setDraftFilters(updateGroup);
+    setAppliedFilters(updateGroup);
+  }
+
+  function applyFilters(event) {
+    event.preventDefault();
+    setSelectedIds(new Set());
+    setAppliedFilters({
+      ...draftFilters,
+      text: draftFilters.text.trim(),
+      sources: [...draftFilters.sources].sort(),
+      uploaders: [...draftFilters.uploaders].sort(),
+      subcriteria: [...draftFilters.subcriteria].sort(),
+      associationStatuses: [...draftFilters.associationStatuses].sort(),
+    });
+  }
+
+  function clearFilters() {
+    setSelectedIds(new Set());
+    setDraftFilters(emptyFilters());
+    setAppliedFilters(emptyFilters());
+  }
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -160,10 +245,125 @@ export default function Documents() {
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-steel-500">
-          {isLoading ? 'Cargando evidencias…' : `${visibleDocs.length} documento${visibleDocs.length === 1 ? '' : 's'}`}
+          {isLoading
+            ? 'Buscando evidencias…'
+            : `${visibleDocs.length} ${filtersAreApplied ? 'resultado' : 'documento'}${visibleDocs.length === 1 ? '' : 's'}`}
         </p>
         <ViewToggle value={viewMode} onChange={setViewMode} />
       </div>
+
+      <form
+        onSubmit={applyFilters}
+        className="space-y-4 rounded-xl2 bg-white p-5 shadow-soft ring-1 ring-steel-200/60"
+        aria-label="Buscar y filtrar evidencias"
+      >
+        <div>
+          <label htmlFor="document-name-search" className="text-sm font-medium text-ink-900">
+            Nombre del documento
+          </label>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <input
+              id="document-name-search"
+              type="search"
+              maxLength={200}
+              value={draftFilters.text}
+              onChange={(event) => setDraftFilters((current) => ({
+                ...current,
+                text: event.target.value,
+              }))}
+              placeholder="Buscar por nombre completo o parcial"
+              className="min-w-0 flex-1 rounded-lg border border-steel-300 px-3 py-2.5 text-sm text-ink-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            />
+            <button
+              type="submit"
+              className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white shadow-soft hover:bg-brand-700"
+            >
+              Buscar
+            </button>
+            <button
+              type="button"
+              onClick={clearFilters}
+              disabled={!hasFilters(draftFilters) && !filtersAreApplied}
+              className="rounded-lg border border-steel-200 px-4 py-2.5 text-sm font-medium text-steel-600 hover:bg-steel-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+          <p className="mt-1.5 text-xs text-steel-500">
+            La búsqueda no distingue mayúsculas, minúsculas ni tildes.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-t border-steel-100 pt-3">
+          <p className="text-xs text-steel-500">
+            Combina una o más opciones para precisar los resultados.
+          </p>
+          <button
+            type="button"
+            onClick={() => setFiltersVisible((visible) => !visible)}
+            aria-expanded={filtersVisible}
+            aria-controls="document-filter-groups"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50"
+          >
+            {filtersVisible ? 'Ocultar filtros' : 'Filtrar'}
+            {selectedFilterCount > 0 && (
+              <span className="grid h-5 min-w-5 place-items-center rounded-full bg-brand-100 px-1.5 text-xs text-brand-800">
+                {selectedFilterCount}
+              </span>
+            )}
+            <svg
+              viewBox="0 0 24 24"
+              className={`h-4 w-4 transition-transform ${filtersVisible ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              aria-hidden="true"
+            >
+              <path d="m7 10 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+
+        {filtersVisible && (
+          <div id="document-filter-groups" className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <FilterChoices
+                legend="Fuente"
+                options={filterOptions.sources}
+                selected={draftFilters.sources}
+                onToggle={(value, checked) => toggleFilter('sources', value, checked)}
+                emptyLabel="No hay fuentes disponibles."
+              />
+              <FilterChoices
+                legend="Cargado por"
+                options={filterOptions.uploaders}
+                selected={draftFilters.uploaders}
+                onToggle={(value, checked) => toggleFilter('uploaders', value, checked)}
+                emptyLabel="No hay cargadores disponibles."
+              />
+              <FilterChoices
+                legend="Subcriterio"
+                options={filterOptions.subcriteria}
+                selected={draftFilters.subcriteria}
+                onToggle={(value, checked) => toggleFilter('subcriteria', value, checked)}
+                emptyLabel="No hay subcriterios asociados."
+              />
+              <FilterChoices
+                legend="Estado de asociación"
+                options={filterOptions.associationStatuses}
+                selected={draftFilters.associationStatuses}
+                onToggle={(value, checked) => toggleFilter('associationStatuses', value, checked)}
+                emptyLabel="No hay estados disponibles."
+              />
+            </div>
+            {filterOptionsError && (
+              <p role="alert" className="text-xs text-rose-700">
+                No se pudieron cargar las opciones de filtrado. Recarga la página para volver a intentarlo.
+              </p>
+            )}
+          </div>
+        )}
+      </form>
 
       {selectedIds.size > 0 && (
         <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 flex flex-wrap gap-3 items-center justify-between">
@@ -218,6 +418,28 @@ export default function Documents() {
               ))}
             </tbody>
           </table>
+        ) : visibleDocs.length === 0 && filtersAreApplied ? (
+          <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-steel-100 ring-1 ring-steel-200">
+              <svg viewBox="0 0 24 24" className="h-7 w-7 text-steel-500" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m16 16 4 4" strokeLinecap="round" />
+              </svg>
+            </span>
+            <h2 className="mt-4 font-display text-lg font-semibold text-ink-900">
+              No se encontraron coincidencias
+            </h2>
+            <p className="mt-1 max-w-md text-sm text-steel-500">
+              Modifica el texto o los filtros seleccionados y vuelve a buscar.
+            </p>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="mt-5 rounded-lg border border-steel-200 px-4 py-2.5 text-sm font-medium text-steel-700 hover:bg-steel-50"
+            >
+              Limpiar filtros
+            </button>
+          </div>
         ) : visibleDocs.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-50 ring-1 ring-brand-100">

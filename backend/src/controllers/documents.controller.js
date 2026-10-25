@@ -11,6 +11,12 @@ import { ANALYSIS_STATUS_LABELS, normalizeAnalysisStatus, toDisplayAnalysisStatu
 import { normalizeVectorizationStatus } from '../services/analysisStatus.service.js';
 import { analysisEvents } from '../services/analysisEvents.service.js';
 import { config } from '../config/env.js';
+import {
+  DocumentFilterValidationError,
+  buildDocumentWhere,
+  matchesDocumentName,
+  parseDocumentFilters,
+} from '../services/documentFilters.service.js';
 
 const MIME = {
   pdf:  'application/pdf',
@@ -177,10 +183,20 @@ if (existing && onDuplicate === 'replace') {
 }
 
 export async function listDocuments(req, res) {
+  let filters;
+  try {
+    filters = parseDocumentFilters(req.query);
+  } catch (error) {
+    if (error instanceof DocumentFilterValidationError) {
+      return res.status(400).json({ error: error.message });
+    }
+    throw error;
+  }
+
   // El User ve todo el repositorio (solo lectura); ownerFilter sigue acotando
   // las acciones de escritura (clasificar, validar, papelera, etc.).
   const docs = await prisma.document.findMany({
-    where: { deletedAt: null, ...viewFilter(req.user) },
+    where: buildDocumentWhere(filters, viewFilter(req.user)),
     orderBy: { uploadedAt: 'desc' },
     include: {
       associations: { include: { subcriterion: true } },
@@ -188,7 +204,7 @@ export async function listDocuments(req, res) {
     },
   });
 
-  const result = docs.map((d) => {
+  const result = docs.filter((d) => matchesDocumentName(d, filters.text)).map((d) => {
     const validated = d.associations.find((a) => a.status === 'VALIDATED');
     const proposed = d.associations.find((a) => a.status === 'PROPOSED');
     let associationStatus = 'Sin clasificar';
@@ -214,6 +230,70 @@ export async function listDocuments(req, res) {
   });
 
   return res.json(result);
+}
+
+/** Opciones disponibles para los filtros del repositorio visible. */
+export async function listDocumentFilterOptions(req, res) {
+  const docs = await prisma.document.findMany({
+    where: { deletedAt: null, ...viewFilter(req.user) },
+    select: {
+      source: true,
+      uploadedById: true,
+      externalUploaderEmail: true,
+      uploadedBy: { select: { name: true } },
+      associations: {
+        select: {
+          subcriterion: { select: { id: true, code: true, name: true } },
+        },
+      },
+    },
+  });
+
+  const sourceLabels = {
+    UPLOAD: 'Carga directa',
+    GOOGLE_DRIVE: 'Google Drive',
+    DROPBOX: 'Dropbox',
+  };
+  const sources = [...new Set(docs.map((document) => document.source))]
+    .sort((a, b) => sourceLabels[a].localeCompare(sourceLabels[b], 'es'))
+    .map((value) => ({ value, label: sourceLabels[value] }));
+
+  const uploadersByValue = new Map();
+  for (const document of docs) {
+    if (document.externalUploaderEmail) {
+      const value = `external:${document.externalUploaderEmail}`;
+      uploadersByValue.set(value, { value, label: document.externalUploaderEmail });
+    } else {
+      const value = `user:${document.uploadedById}`;
+      uploadersByValue.set(value, {
+        value,
+        label: document.uploadedBy?.name || `Usuario ${document.uploadedById}`,
+      });
+    }
+  }
+
+  const subcriteriaById = new Map();
+  for (const document of docs) {
+    for (const association of document.associations) {
+      const subcriterion = association.subcriterion;
+      subcriteriaById.set(subcriterion.id, {
+        value: String(subcriterion.id),
+        label: `${subcriterion.code} · ${subcriterion.name}`,
+      });
+    }
+  }
+
+  return res.json({
+    sources,
+    uploaders: [...uploadersByValue.values()]
+      .sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' })),
+    subcriteria: [...subcriteriaById.values()]
+      .sort((a, b) => a.label.localeCompare(b.label, 'es', { numeric: true })),
+    associationStatuses: [
+      { value: 'VALIDATED', label: 'Validada' },
+      { value: 'UNVALIDATED', label: 'No validada' },
+    ],
+  });
 }
 
 export async function getDocument(req, res) {
