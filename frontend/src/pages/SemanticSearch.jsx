@@ -81,7 +81,7 @@ export default function SemanticSearch() {
   }, [search.data]);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <header>
         <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">
           Búsqueda temática
@@ -204,13 +204,13 @@ export default function SemanticSearch() {
             {topics.data.topics.map((topic) => (
               <div
                 key={topic.id}
-                className="flex items-center rounded-full bg-brand-50 text-sm font-medium text-brand-700 ring-1 ring-brand-100"
+                className="flex min-w-0 max-w-full items-center rounded-full bg-brand-50 text-sm font-medium text-brand-700 ring-1 ring-brand-100"
               >
                 <button
                   type="button"
                   onClick={() => handleTopicSearch(topic.name)}
                   disabled={search.isPending}
-                  className="rounded-l-full px-3 py-2 transition hover:bg-brand-100 disabled:cursor-wait disabled:opacity-60"
+                  className="min-w-0 break-words rounded-l-full px-3 py-2 text-left transition hover:bg-brand-100 disabled:cursor-wait disabled:opacity-60"
                 >
                   {topic.name}
                 </button>

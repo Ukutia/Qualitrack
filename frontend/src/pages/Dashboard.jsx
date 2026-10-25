@@ -75,7 +75,7 @@ function HealthRing({ pct }) {
   const stroke = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#e11d48';
   return (
     <svg viewBox="0 0 120 120" className="h-32 w-32 -rotate-90">
-      <circle cx="60" cy="60" r={r} fill="none" stroke="#e7e2d6" strokeWidth="10" />
+      <circle className="health-ring-track" cx="60" cy="60" r={r} fill="none" stroke="#e7e2d6" strokeWidth="10" />
       <circle
         className="ring-progress"
         cx="60" cy="60" r={r}
@@ -302,7 +302,7 @@ export default function Dashboard() {
   const level1Pending = level1.filter((it) => it.color !== 'green');
 
   return (
-    <div className="space-y-7">
+    <div className="dashboard space-y-7">
       <header>
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-500">
           Criterio {data.criterion?.code} · CNA

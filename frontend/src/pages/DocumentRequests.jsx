@@ -176,32 +176,41 @@ export function NewDocumentRequest() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="w-full space-y-6">
       <header>
         <Link to="/requests" className="text-sm font-medium text-brand-600 hover:text-brand-700">← Volver a solicitudes</Link>
         <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink-900">Crear solicitud</h1>
-        <p className="mt-2 text-sm text-steel-500">La creación genera inmediatamente el primer token vigente.</p>
+        <p className="mt-2 text-sm text-steel-500">Solicita la evidencia que necesitas y define cuándo recordar su entrega.</p>
       </header>
 
-      <form onSubmit={submit} className="space-y-6 rounded-xl2 bg-white p-6 shadow-soft ring-1 ring-steel-200/70">
+      <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">
+      <form onSubmit={submit} className="space-y-5 rounded-xl2 bg-white p-6 shadow-soft ring-1 ring-steel-200/70 sm:p-7">
+        <div className="border-b border-steel-100 pb-4"><h2 className="font-display text-xl font-semibold text-ink-900">Datos de la solicitud</h2><p className="mt-1 text-xs text-steel-600">Completa los tres campos para crear la solicitud.</p></div>
         {formError && <div role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">{formError}</div>}
-        <div className="space-y-2">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_13rem]">
+        <div className="min-w-0 space-y-2">
           <label htmlFor="request-recipient" className="block text-sm font-medium text-ink-900">Correo del destinatario</label>
           <input id="request-recipient" type="email" required maxLength={254} autoComplete="email" value={recipientEmail} onChange={(event) => setRecipientEmail(event.target.value)} placeholder="nombre@institucion.cl" className="w-full rounded-lg border border-steel-300 bg-white px-3 py-2.5 text-sm text-ink-900 placeholder:text-steel-400 focus:border-brand-500" />
+          <p className="text-xs leading-5 text-steel-600">Correo de la persona a quien solicitas el documento.</p>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="request-frequency" className="block text-sm font-medium text-ink-900">Recordatorio (días)</label>
+          <input id="request-frequency" type="number" required min="1" max="30" step="1" value={days} onChange={(event) => setDays(event.target.value)} className="w-full rounded-lg border border-steel-300 bg-white px-3 py-2.5 text-sm text-ink-900" />
+          <p className="text-xs leading-5 text-steel-600">Entre 1 y 30 días.</p>
+        </div>
         </div>
         <div className="space-y-2">
           <label htmlFor="request-description" className="block text-sm font-medium text-ink-900">Descripción del documento</label>
-          <textarea id="request-description" rows={4} required minLength={3} maxLength={2000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe la evidencia que necesitas recibir" className="w-full rounded-lg border border-steel-300 bg-white px-3 py-2.5 text-sm text-ink-900 placeholder:text-steel-400 focus:border-brand-500" />
+          <textarea id="request-description" rows={5} required minLength={3} maxLength={2000} aria-describedby="request-description-help" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Por ejemplo: Política de aseguramiento de la calidad vigente, con su resolución de aprobación." className="w-full rounded-lg border border-steel-300 bg-white px-3 py-2.5 text-sm text-ink-900 placeholder:text-steel-400 focus:border-brand-500" />
+          <div className="flex justify-between gap-3 text-xs text-steel-600"><p id="request-description-help">Indica qué documento necesitas y sus características.</p><span className="shrink-0 tabular-nums">{description.length}/2000</span></div>
         </div>
-        <div className="space-y-2 border-t border-steel-200 pt-5">
-          <label htmlFor="request-frequency" className="block text-sm font-medium text-ink-900">Frecuencia del recordatorio (días)</label>
-          <input id="request-frequency" type="number" required min="1" max="30" step="1" value={days} onChange={(event) => setDays(event.target.value)} className="w-44 rounded-lg border border-steel-300 bg-white px-3 py-2.5 text-sm text-ink-900" />
-          <p className="text-xs text-steel-500">Entre 1 y 30 días.</p>
-        </div>
-        <div className="border-t border-steel-200 pt-5">
-          <button type="submit" disabled={createRequest.isPending || !validDays} className="btn rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">{createRequest.isPending ? 'Creando…' : 'Crear solicitud y token'}</button>
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-steel-200 pt-5">
+          <Link to="/requests" className="rounded-lg px-4 py-2.5 text-sm font-medium text-steel-700 hover:bg-steel-50">Volver</Link>
+          <button type="submit" disabled={createRequest.isPending || !validDays} className="btn rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">{createRequest.isPending ? 'Creando…' : 'Crear solicitud'}</button>
         </div>
       </form>
+      <aside className="rounded-xl2 bg-white p-5 shadow-soft ring-1 ring-steel-200/60"><p className="text-xs font-medium uppercase tracking-wider text-brand-700">Después de crearla</p><h2 className="mt-3 font-display text-xl font-semibold text-ink-900">Una entrega más ordenada</h2><ul className="mt-4 space-y-4 text-sm leading-6 text-steel-600"><li>Se genera un enlace para recibir el documento solicitado.</li><li>Podrás copiar el enlace desde la lista de solicitudes.</li><li>Desde esa lista también podrás consultar el estado, pausar o cancelar la solicitud.</li></ul><div className="mt-5 rounded-xl bg-brand-50 p-3 text-xs leading-5 text-brand-800">Recordatorio: cada <strong>{validDays ? daysValue : '—'} días</strong>. Puedes elegir un intervalo entre 1 y 30 días.</div></aside>
+      </div>
     </div>
   );
 }

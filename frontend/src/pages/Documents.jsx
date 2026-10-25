@@ -38,7 +38,7 @@ const hasFilters = (filters) => Boolean(
 
 function FilterChoices({ legend, options = [], selected, onToggle, emptyLabel }) {
   return (
-    <fieldset className="min-w-0 rounded-lg border border-steel-200 bg-steel-50/50 p-3">
+    <fieldset className="repository-filter min-w-0 rounded-lg border border-steel-200 bg-steel-50/50 p-3">
       <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-steel-600">
         {legend}
       </legend>
@@ -52,7 +52,7 @@ function FilterChoices({ legend, options = [], selected, onToggle, emptyLabel })
               type="checkbox"
               checked={selected.includes(option.value)}
               onChange={(event) => onToggle(option.value, event.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-steel-300 text-brand-600"
+              className="repository-checkbox mt-0.5 shrink-0"
             />
             <span className="min-w-0 break-words">{option.label}</span>
           </label>
@@ -66,14 +66,12 @@ function FilterChoices({ legend, options = [], selected, onToggle, emptyLabel })
 
 function ViewToggle({ value, onChange }) {
   return (
-    <div className="inline-flex rounded-lg bg-white p-1 shadow-soft ring-1 ring-steel-200" role="group" aria-label="Forma de visualizar documentos">
+    <div className="repository-view-switch inline-flex items-center gap-5" role="group" aria-label="Forma de visualizar documentos">
       <button
         type="button"
         onClick={() => onChange('list')}
         aria-pressed={value === 'list'}
-        className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-          value === 'list' ? 'bg-brand-50 text-brand-700' : 'text-steel-600 hover:bg-steel-50'
-        }`}
+        className="repository-view-option inline-flex min-h-11 items-center gap-2 border-b-2 border-transparent px-1 py-2 text-sm font-medium text-steel-600 transition-colors"
       >
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
           <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" strokeLinecap="round" />
@@ -84,9 +82,7 @@ function ViewToggle({ value, onChange }) {
         type="button"
         onClick={() => onChange('grid')}
         aria-pressed={value === 'grid'}
-        className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-          value === 'grid' ? 'bg-brand-50 text-brand-700' : 'text-steel-600 hover:bg-steel-50'
-        }`}
+        className="repository-view-option inline-flex min-h-11 items-center gap-2 border-b-2 border-transparent px-1 py-2 text-sm font-medium text-steel-600 transition-colors"
       >
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
           <path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z" strokeLinejoin="round" />
@@ -483,7 +479,7 @@ export default function Documents() {
                       checked={selectedIds.has(document.id)}
                       onChange={() => toggleSelect(document.id)}
                       disabled={document.vectorizationStatus === 'PROCESSING'}
-                      className="h-4 w-4 rounded border-steel-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                      className="repository-checkbox"
                     />
                   </label>
                   <span className="absolute right-3 top-3 rounded-md bg-white/95 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-steel-700 shadow-sm ring-1 ring-steel-200">

@@ -118,15 +118,20 @@ export default function Upload() {
   const allDone = items.length > 0 && items.every((it) => it.status === 'success' || it.status === 'error');
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="w-full space-y-6">
       <header>
         <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">Cargar evidencia</h1>
         <p className="text-steel-500 mt-1">
-          Formatos aceptados: PDF, DOCX, XLSX · Tamaño máximo: <span className="tnum">{MAX_MB}</span>MB. Puedes seleccionar varios archivos a la vez.
+          Incorpora los documentos que respaldan tu proceso de acreditación.
         </p>
       </header>
 
+      <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">
       <div
+        role="button"
+        tabIndex={0}
+        aria-label="Seleccionar archivos de evidencia: PDF, DOCX o XLSX"
+        onKeyDown={(event) => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); inputRef.current?.click(); } }}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
@@ -135,7 +140,7 @@ export default function Upload() {
           addFiles(e.dataTransfer.files);
         }}
         onClick={() => inputRef.current?.click()}
-        className={`group flex flex-col items-center justify-center gap-3 rounded-xl2 border-2 border-dashed p-12 text-center cursor-pointer transition-all duration-200 ${
+        className={`group flex min-h-80 lg:min-h-[42vh] flex-col items-center justify-center gap-4 rounded-xl2 border-2 border-dashed px-6 py-10 text-center cursor-pointer transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-500 ${
           dragOver
             ? 'bg-brand-50 border-brand-500 scale-[1.01]'
             : 'bg-white border-steel-300 hover:border-brand-400 hover:bg-brand-50/40'
@@ -158,20 +163,26 @@ export default function Upload() {
             <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </span>
-        <p className="text-steel-500">
-          Arrastra uno o más archivos aquí o{' '}
-          <span className="font-medium text-brand-600">haz clic</span> para seleccionar.
-        </p>
+        <div><h2 className="font-display text-xl font-semibold text-ink-900">Tus evidencias empiezan aquí</h2><p className="mt-2 text-sm text-steel-600">Arrastra tus archivos o selecciónalos desde tu equipo.</p></div>
+        <span className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white">Seleccionar archivos</span>
+        <span className="text-xs text-steel-500">PDF, DOCX y XLSX · Hasta {MAX_MB} MB por archivo</span>
+      </div>
+      <aside className="rounded-xl2 bg-white p-5 shadow-soft ring-1 ring-steel-200/60">
+        <p className="mb-4 text-xs font-medium uppercase tracking-wider text-brand-700">Antes de cargar</p>
+        <ol className="space-y-5">{[['Reúne tus documentos', 'Puedes seleccionar varios archivos a la vez.'], ['Revisa la selección', 'Comprueba los nombres y quita los archivos que no necesites.'], ['Confirma la carga', 'Si un documento ya existe, podrás decidir cómo continuar.']].map(([title, description], index) => <li key={title} className="flex gap-3"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700">{index + 1}</span><div><p className="text-sm font-medium text-ink-900">{title}</p><p className="mt-1 text-xs leading-5 text-steel-600">{description}</p></div></li>)}</ol>
+      </aside>
       </div>
 
-      {items.length > 0 && (
-        <div className="space-y-2">
+        <section aria-label="Archivos seleccionados" className="rounded-xl2 bg-white p-4 shadow-soft ring-1 ring-steel-200/60">
+          <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-sm font-semibold text-ink-900">Archivos seleccionados</h2><span className="text-xs tabular-nums text-steel-600">{items.length} archivo{items.length === 1 ? '' : 's'}</span></div>
+          {items.length === 0 && <div className="flex min-h-32 flex-wrap items-center gap-4 rounded-xl bg-steel-50 px-5 py-6"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-9 w-9 shrink-0 text-steel-400"><path d="M14 3H6v18h12V7l-4-4Zm0 0v5h4M9 12h6m-6 4h6" strokeLinejoin="round" /></svg><div><p className="text-sm font-medium text-ink-900">Tu selección aparecerá aquí</p><p className="mt-1 text-sm text-steel-600">Podrás revisar los archivos y confirmar la carga cuando estén listos.</p></div></div>}
+          <div className="max-h-96 space-y-2 overflow-y-auto overscroll-contain p-1">
           {items.map((it) => (
             <div key={it.id} className="rounded-lg border border-steel-200 bg-white px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 flex items-center gap-2">
                   <StatusIcon status={it.status} />
-                  <span className="truncate font-medium text-ink-900">{it.file.name}</span>
+                  <div className="min-w-0"><p className="truncate text-sm font-medium text-ink-900" title={it.file.name}>{it.file.name}</p><p className="mt-1 text-xs tabular-nums text-steel-500">{(it.file.size / 1024).toLocaleString('es-CL', { maximumFractionDigits: 0 })} KB · {({ pending: 'Listo para cargar', uploading: 'Cargando…', success: 'Cargado', error: 'Requiere revisión', duplicate: 'Documento existente' })[it.status]}</p></div>
                 </div>
                 {it.status === 'pending' && (
                   <button
@@ -235,9 +246,8 @@ export default function Upload() {
               )}
             </div>
           ))}
-        </div>
-      )}
-
+          </div>
+        </section>
       {items.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
           <button

@@ -6,6 +6,7 @@ import { LEVEL_ORDER, levelMeta } from '../lib/levels.js';
 import fullLogo from '../assets/fulllogo.svg';
 import fullLogoDark from '../assets/fulllogo_darkmode.svg';
 import useDocumentMeta from '../lib/useDocumentMeta.js';
+import AppearanceSettings from '../components/AppearanceSettings.jsx';
 
 export default function Login() {
   useDocumentMeta({
@@ -18,6 +19,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -84,10 +86,12 @@ export default function Login() {
       </aside>
 
       {/* Formulario */}
-      <div className="flex items-center justify-center p-6 sm:p-10">
+      <div className="relative flex items-center justify-center px-6 pb-10 pt-24 sm:px-10">
+        <div className="absolute right-6 top-6 flex items-center gap-2"><span className="text-xs text-steel-600">Apariencia</span><AppearanceSettings surface /></div>
         <form onSubmit={handleSubmit} className="card-drop-in w-full max-w-sm">
           <div className="lg:hidden mb-6 flex items-center">
-            <img src={fullLogo} alt="Qualitrack" className="h-10 w-auto" />
+            <img src={fullLogo} alt="Qualitrack" className="login-logo-light h-10 w-auto" />
+            <img src={fullLogoDark} alt="Qualitrack" className="login-logo-dark hidden h-10 w-auto" />
           </div>
 
           <h1 className="font-display text-3xl font-semibold text-ink-900">Bienvenido de vuelta</h1>
@@ -101,22 +105,37 @@ export default function Login() {
 
           <div className="mt-6 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-steel-700 mb-1.5">Email</label>
+              <label htmlFor="login-email" className="block text-sm font-medium text-steel-700 mb-1.5">Correo electrónico</label>
+              <div className="relative">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-steel-500"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="m3 6 9 7 9-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
               <input
                 type="email"
+                id="login-email"
+                autoComplete="username"
+                placeholder="nombre@institucion.cl"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-steel-300 bg-white/70 px-3.5 py-2.5 text-steel-800 placeholder:text-steel-400 transition-shadow focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 outline-none"
+                className="w-full rounded-lg border border-steel-300 bg-white/70 pl-11 pr-3.5 py-3 text-steel-800 placeholder:text-steel-500 transition-shadow focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 outline-none"
               />
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-steel-700 mb-1.5">Contraseña</label>
+              <label htmlFor="login-password" className="block text-sm font-medium text-steel-700 mb-1.5">Contraseña</label>
+              <div className="relative">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-steel-500"><rect x="4" y="10" width="16" height="11" rx="3" /><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2" strokeLinecap="round" /></svg>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
+                id="login-password"
+                autoComplete="current-password"
+                placeholder="Ingresa tu contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-steel-300 bg-white/70 px-3.5 py-2.5 text-steel-800 transition-shadow focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 outline-none"
+                className="w-full rounded-lg border border-steel-300 bg-white/70 pl-11 pr-12 py-3 text-steel-800 placeholder:text-steel-500 transition-shadow focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 outline-none"
               />
+              <button type="button" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-controls="login-password" title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} onClick={() => setShowPassword((value) => !value)} className="absolute right-1 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-md text-steel-600 hover:bg-steel-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-500">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />{showPassword && <path d="m3 3 18 18" />}</svg>
+              </button>
+              </div>
             </div>
           </div>
 

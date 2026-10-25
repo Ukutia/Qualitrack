@@ -1,0 +1,191 @@
+.appearance-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(29rem, calc(100vw - 2rem));
+  max-width: none;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.5rem;
+  border: 1px solid #dcdcdc;
+  border-radius: 1.15rem;
+  background: white;
+  color: #181b21;
+  font: inherit;
+  box-shadow: 0 24px 80px #181b2133;
+}
+.appearance-dialog::backdrop { background: #10172280; }
+.appearance-theme-option { display: grid; gap: .65rem; padding: .65rem; border: 1px solid #dcdcdc; border-radius: .75rem; color: #5c5c5c; cursor: pointer; }
+.appearance-theme-option.is-selected { border-color: #3778bd; box-shadow: 0 0 0 1px #3778bd; color: #2c5f97; }
+.appearance-theme-option:focus-within { outline: 2px solid #3778bd; outline-offset: 3px; }
+.appearance-theme-preview { height: 3rem; display: flex; flex-direction: column; gap: .25rem; padding: .5rem .5rem .5rem 1.15rem; border-radius: .4rem; background: linear-gradient(to right, #20242c 0 18%, #fff7eb 18%); border: 1px solid #dcdcdc; }
+.appearance-theme-preview i { height: .35rem; width: 85%; background: #c4c4c4; border-radius: .15rem; }
+.appearance-theme-preview i:last-child { width: 55%; }
+.preview-dark { background: linear-gradient(to right, #181b21 0 18%, #2a2f38 18%); border-color: #363c47; }
+.preview-dark i { background: #d8ebfb; }
+.preview-system { background: linear-gradient(to right, #20242c 0 18%, #fff7eb 18% 60%, #2a2f38 60%); }
+.appearance-size-button { min-width: 3rem; min-height: 2.75rem; border: 1px solid #dcdcdc; border-radius: .6rem; padding: .5rem .75rem; color: #234a74; font-weight: 600; }
+.appearance-size-button:hover { background: #e8f2fc; }
+.appearance-size-button:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Apply a real dark palette to surfaces and text; never invert images or PDFs. */
+:root[data-app-theme='dark'] {
+  color-scheme: dark;
+  --dark-canvas: #181b21;
+  --dark-panel: #22262d;
+  --dark-inset: #1d2027;
+  --dark-hover: #30353e;
+  --dark-border: #3c424c;
+  --dark-text: #fff7eb;
+  --dark-muted: #b4b0aa;
+  --dark-accent: #d3a04e;
+  --dark-link: #d8ebfb;
+}
+:root[data-app-theme='dark'] body { background: #181b21; color: var(--dark-text); }
+:root[data-app-theme='dark'] body::after { opacity: .012; }
+:root[data-app-theme='dark'] :where(.bg-white, [class~='bg-white/70'], [class~='bg-white/80'], [class~='bg-white/90'], [class~='bg-white/60']) { background-color: #20242c; }
+:root[data-app-theme='dark'] :where(.bg-steel-50, [class~='bg-steel-50/80'], .bg-steel-100, [class~='bg-steel-100/70'], .bg-stone-50, [class~='bg-stone-50/70'], .bg-stone-100, .bg-paper) { background-color: #2a2f38; }
+:root[data-app-theme='dark'] :where(.bg-steel-200, .bg-stone-200) { background-color: #363c47; }
+:root[data-app-theme='dark'] :where(.text-ink-900, .text-ink-800, .text-steel-800, .text-steel-900, .text-stone-800, .text-stone-900) { color: var(--dark-text); }
+:root[data-app-theme='dark'] .fill-ink-900 { fill: var(--dark-text); }
+:root[data-app-theme='dark'] :where(.text-steel-400, .text-steel-500, .text-steel-600, .text-stone-400, .text-stone-500, .text-stone-600) { color: var(--dark-muted); }
+:root[data-app-theme='dark'] :where(.text-steel-700, .text-stone-700) { color: var(--dark-text); }
+:root[data-app-theme='dark'] :where(.text-brand-500, .text-brand-600, .text-brand-700, .text-brand-800) { color: #d8ebfb; }
+:root[data-app-theme='dark'] :where(.bg-brand-50, [class~='bg-brand-50/40'], [class~='bg-brand-50/70'], .bg-brand-100) { background-color: #2a2f38; }
+:root[data-app-theme='dark'] :where(.bg-rose-50, [class~='bg-rose-50/60'], .bg-rose-100) { background-color: #422531; }
+:root[data-app-theme='dark'] :where(.text-rose-500, .text-rose-600, .text-rose-700, .text-rose-800) { color: #ffb0bd; }
+:root[data-app-theme='dark'] :where(.bg-amber-50, .bg-amber-100) { background-color: #403323; }
+:root[data-app-theme='dark'] :where(.text-amber-600, .text-amber-700, .text-amber-800) { color: #f3d18e; }
+:root[data-app-theme='dark'] :where(.bg-emerald-50, .bg-emerald-100) { background-color: #183c34; }
+:root[data-app-theme='dark'] :where(.text-emerald-600, .text-emerald-700, .text-emerald-800) { color: #87ddba; }
+:root[data-app-theme='dark'] :where(.border-steel-100, .border-steel-200, .border-steel-300, .border-stone-100, .border-stone-200, .border-stone-300) { border-color: #454b55; }
+:root[data-app-theme='dark'] :where(.divide-steel-100, .divide-stone-100) > :not([hidden]) ~ :not([hidden]) { border-color: #363c47; }
+:root[data-app-theme='dark'] :where([class~='ring-steel-200/60'], [class~='ring-steel-200/70'], [class~='ring-steel-200/50'], .ring-steel-200, [class~='ring-stone-200/60']) { --tw-ring-color: #454b55; }
+:root[data-app-theme='dark'] :where(.from-brand-100) { --tw-gradient-from: #2a2f38 var(--tw-gradient-from-position); --tw-gradient-to: #2a2f3800 var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+:root[data-app-theme='dark'] :where(.via-brand-50) { --tw-gradient-stops: var(--tw-gradient-from), #242830 var(--tw-gradient-via-position), var(--tw-gradient-to); }
+:root[data-app-theme='dark'] :where(.to-paper) { --tw-gradient-to: #20242c var(--tw-gradient-to-position); }
+:root[data-app-theme='dark'] :where([class*='hover:bg-steel-50'], [class*='hover:bg-brand-50'], [class*='hover:bg-brand-100']):hover { background-color: #363c47; }
+:root[data-app-theme='dark'] :where([class*='hover:bg-rose-50'], [class*='hover:bg-rose-100']):hover { background-color: #593342; }
+:root[data-app-theme='dark'] :where([class*='hover:text-brand-700']):hover { color: #d8ebfb; }
+:root[data-app-theme='dark'] :where(input, select, textarea) { color: var(--dark-text); }
+:root[data-app-theme='dark'] :where(input, textarea)::placeholder { color: var(--dark-muted); }
+:root[data-app-theme='dark'] :where(.milestone-drawer, .thematic-topic-modal, .appearance-dialog) { background: #20242c; color: var(--dark-text); border-color: #454b55; }
+:root[data-app-theme='dark'] :where(.appearance-theme-option, .appearance-size-button) { color: var(--dark-text); border-color: #454b55; }
+:root[data-app-theme='dark'] .appearance-theme-option.is-selected { color: #d8ebfb; border-color: #d8ebfb; box-shadow: 0 0 0 1px #d8ebfb; }
+:root[data-app-theme='dark'] .appearance-size-button:hover { background: #2a2f38; }
+:root[data-app-theme='dark'] :where(.thematic-view-toolbar) { border-color: #454b55; }
+:root[data-app-theme='dark'] :where(.thematic-view-option) { color: var(--dark-muted); }
+:root[data-app-theme='dark'] .thematic-view-option[aria-pressed='true'] { color: #d8ebfb; border-color: #d8ebfb; }
+:root[data-app-theme='dark'] :where(.thematic-add-button) { background: #2a2f38; color: #d8ebfb; border-color: #454b55; }
+:root[data-app-theme='dark'] :where(.evidence-network) { color: var(--dark-text); }
+:root[data-app-theme='dark'] :where(.network-workspace, .network-panel, .network-reader, .network-stats > span) { background: #20242c; border-color: #454b55; }
+:root[data-app-theme='dark'] :where(.network-map) { background-color: #181b21; background-image: radial-gradient(#363c47 .7px, transparent .7px); }
+:root[data-app-theme='dark'] :where(.network-button, .network-map-footer button, .evidence-network input, .evidence-network select) { background: #2a2f38; border-color: #454b55; color: var(--dark-text); }
+:root[data-app-theme='dark'] :where(.network-dominant, .network-document-content) { background: #2a2f38; border-color: #454b55; color: var(--dark-text); }
+:root[data-app-theme='dark'] :where(.network-heading p, .network-panel p, .network-eyebrow, .network-stats, .network-dominant span, .network-dominant small, .network-hint, .network-map-footer, .network-map-title span) { color: var(--dark-muted); }
+:root[data-app-theme='dark'] :where(.network-stats strong, .network-list-heading button, .network-document-list small) { color: #d8ebfb; }
+:root[data-app-theme='dark'] :where(.network-document-list button) { border-color: #363c47; }
+:root[data-app-theme='dark'] .network-document-list button:hover { background: #2a2f38; }
+:root[data-app-theme='dark'] .network-label { fill: var(--dark-text); stroke: #181b21; }
+:root[data-app-theme='dark'] :where(.network-animation-toggle) { color: var(--dark-text); }
+:root[data-app-theme='dark'] .network-animation-toggle:hover { background: #2a2f38; }
+:root[data-app-theme='dark'] .skeleton { background: linear-gradient(90deg, #2a2f38 25%, #363c47 50%, #2a2f38 75%); background-size: 200% 100%; }
+
+/* Layered charcoal surfaces, with gold reserved for navigation and selection. */
+:root[data-app-theme='dark'] body { background: var(--dark-canvas); color: var(--dark-text); }
+:root[data-app-theme='dark'] :where([class~='bg-white'], [class~='bg-white/50'], [class~='bg-white/60'], [class~='bg-white/70'], [class~='bg-white/80'], [class~='bg-white/90']) { background-color: var(--dark-panel); }
+:root[data-app-theme='dark'] :where([class~='bg-stone-50/50'], [class~='bg-stone-50/60'], [class~='bg-stone-50/70'], .bg-stone-50, .bg-stone-100, .bg-steel-50, .bg-steel-100, .bg-paper) { background-color: var(--dark-inset); }
+:root[data-app-theme='dark'] :where(.text-ink-900, .text-ink-800, .text-stone-800, .text-stone-900) { color: var(--dark-text); }
+:root[data-app-theme='dark'] :where([class*='ring-stone-900/'], [class*='ring-ink-800/']) { --tw-ring-color: var(--dark-border); }
+:root[data-app-theme='dark'] :where([class*='border-stone-900/']) { border-color: var(--dark-border); }
+:root[data-app-theme='dark'] :where([class*='divide-stone-900/']) > :not([hidden]) ~ :not([hidden]) { border-color: var(--dark-border); }
+:root[data-app-theme='dark'] :where([class*='hover:bg-white'], [class*='hover:bg-stone-50'], [class*='hover:bg-stone-100']):hover { background-color: var(--dark-hover); }
+:root[data-app-theme='dark'] :where([class*='hover:text-ink-900'], [class*='hover:text-stone-900']):hover { color: var(--dark-text); }
+:root[data-app-theme='dark'] :where(input:not([type='checkbox']):not([type='radio']):not([type='file']), textarea, select) { background-color: var(--dark-inset); color: var(--dark-text); border-color: var(--dark-border); caret-color: var(--dark-accent); }
+:root[data-app-theme='dark'] :where(input, textarea, select, button, a):focus-visible { outline: 2px solid var(--dark-accent); outline-offset: 3px; }
+:root[data-app-theme='dark'] :where(.bg-indigo-50) { background-color: #34302a; }
+:root[data-app-theme='dark'] :where(.text-indigo-600, .text-indigo-900) { color: var(--dark-accent); }
+:root[data-app-theme='dark'] :where(.bg-indigo-600) { background-color: #d3a04e; color: #181b21; }
+:root[data-app-theme='dark'] :where([class~='hover:bg-indigo-700']):hover { background-color: #d3a04e; }
+:root[data-app-theme='dark'] :where(.ring-indigo-300, .ring-indigo-500) { --tw-ring-color: #b3853d; }
+:root[data-app-theme='dark'] .border-l-indigo-500 { border-left-color: #d3a04e; }
+:root[data-app-theme='dark'] :where(.text-amber-900, .text-amber-950) { color: #fff7eb; }
+:root[data-app-theme='dark'] :where(.appearance-dialog, .thematic-topic-modal, .milestone-drawer) { background: var(--dark-panel); color: var(--dark-text); border-color: var(--dark-border); }
+:root[data-app-theme='dark'] :where(.appearance-theme-option.is-selected, .thematic-view-option[aria-pressed='true']) { color: var(--dark-accent); border-color: var(--dark-accent); }
+:root[data-app-theme='dark'] .appearance-theme-option.is-selected { box-shadow: 0 0 0 1px var(--dark-accent); }
+:root[data-app-theme='dark'] .repository-checkbox { background-color: var(--dark-inset); border-color: #787f89; }
+:root[data-app-theme='dark'] .repository-checkbox:is(:checked, :indeterminate) { background-color: #3778bd; border-color: #7fb6ea; }
+:root[data-app-theme='dark'] .repository-checkbox:hover:not(:disabled) { box-shadow: 0 0 0 3px #3778bd33; }
+
+/* Editor styles are presentation only: saved HTML and exported documents stay unchanged. */
+:root[data-app-theme='dark'] .draft-surface { background: var(--dark-inset); color: var(--dark-text); caret-color: var(--dark-accent); }
+:root[data-app-theme='dark'] .draft-surface :is(h1, h2, h3) { color: var(--dark-text); }
+:root[data-app-theme='dark'] .draft-surface blockquote { color: #d8ebfb; border-left-color: #d3a04e; }
+:root[data-app-theme='dark'] .draft-surface:empty::before,
+:root[data-app-theme='dark'] .draft-surface:has(> p:only-child:empty)::before { color: #959595; }
+:root[data-app-theme='dark'] .draft-surface ::selection { background: #d3a04e45; color: #fff7eb; }
+:root[data-app-theme='dark'] [aria-label='Formato del borrador'] button[aria-pressed='true'] { background: #d3a04e; color: #181b21; --tw-ring-color: #d3a04e; }
+:root[data-app-theme='dark'] .passage-quote summary { color: var(--dark-muted); }
+:root[data-app-theme='dark'] .passage-quote p { background: #34302a; color: #fff7eb; border-left-color: #d3a04e; }
+:root[data-app-theme='dark'] .passage-document { background: var(--dark-inset); box-shadow: inset 0 0 0 1px var(--dark-border); }
+
+/* Brand actions use dark lettering on gold; links use Alice Blue on charcoal. */
+:root[data-app-theme='dark'] :where(.bg-brand-600, .bg-brand-700) { background-color: var(--dark-accent); color: var(--dark-canvas); }
+:root[data-app-theme='dark'] :where([class~='hover:bg-brand-700'], [class~='hover:bg-brand-800']):hover { background-color: #e5b96f; color: var(--dark-canvas); }
+:root[data-app-theme='dark'] :where(.text-brand-400, .text-brand-500, .text-brand-600, .text-brand-700, .text-brand-800) { color: var(--dark-link); }
+:root[data-app-theme='dark'] :where(.bg-brand-600, .bg-brand-700).text-white { color: var(--dark-canvas); }
+:root[data-app-theme='dark'] :where(.text-gold-500, .text-gold-600, .text-gold-700) { color: var(--dark-accent); }
+:root[data-app-theme='dark'] .appearance-size-button { color: var(--dark-link); }
+:root[data-app-theme='dark'] .appearance-theme-option:focus-within { outline-color: var(--dark-accent); }
+:root[data-app-theme='dark'] .repository-checkbox:is(:checked, :indeterminate) { background-color: #234a74; border-color: var(--dark-link); }
+:root[data-app-theme='dark'] :where(.draft-surface a) { color: var(--dark-link); text-decoration: underline; }
+
+/* Subtle outlines for cards and status badges across all application pages. */
+:root[data-app-theme='dark'] :where([class*='border-steel-200/'], [class*='border-stone-200/'], .border-brand-100, .border-brand-200, [class*='border-brand-200/']) { border-color: var(--dark-border); }
+:root[data-app-theme='dark'] :where(.ring-brand-100, .ring-brand-200, .ring-brand-300, [class*='ring-steel-200/'], [class*='ring-stone-200/']) { --tw-ring-color: var(--dark-border); }
+:root[data-app-theme='dark'] :where(.ring-emerald-100, .ring-emerald-200, .ring-emerald-300) { --tw-ring-color: #315749; }
+:root[data-app-theme='dark'] :where(.ring-amber-100, .ring-amber-200, .ring-amber-300) { --tw-ring-color: #675335; }
+:root[data-app-theme='dark'] :where(.ring-rose-100, .ring-rose-200, .ring-rose-300, .ring-red-200) { --tw-ring-color: #683b45; }
+:root[data-app-theme='dark'] :where(.border-emerald-100, .border-emerald-200, .border-emerald-300) { border-color: #315749; }
+:root[data-app-theme='dark'] :where(.border-amber-100, .border-amber-200, .border-amber-300) { border-color: #675335; }
+:root[data-app-theme='dark'] :where(.border-rose-100, .border-rose-200, .border-rose-300, .border-red-200, .border-red-300) { border-color: #683b45; }
+:root[data-app-theme='dark'] :where(.bg-red-50, .bg-red-100) { background-color: #302229; }
+:root[data-app-theme='dark'] :where(.text-red-600, .text-red-700, .text-red-800) { color: #ffb0bd; }
+:root[data-app-theme='dark'] :where([class~='hover:bg-red-50'], [class~='hover:bg-red-100']):hover { background-color: #442b34; }
+:root[data-app-theme='dark'] :where(.bg-sky-50) { background-color: #25313b; }
+:root[data-app-theme='dark'] :where(.text-sky-800) { color: var(--dark-link); }
+:root[data-app-theme='dark'] :where(.ring-sky-200) { --tw-ring-color: #3c5365; }
+:root[data-app-theme='dark'] :where(.text-brand-900) { color: var(--dark-link); }
+:root[data-app-theme='dark'] :where([class~='bg-steel-50/50']) { background-color: var(--dark-inset); }
+:root[data-app-theme='dark'] :where(button.border-steel-300) { background-color: var(--dark-hover); border-color: var(--dark-border); }
+:root[data-app-theme='dark'] :where(button.border-steel-300):hover { background-color: #3c424c; }
+:root[data-app-theme='dark'] .milestone-intro { background: radial-gradient(ellipse at 100% 0%, #d3a04e12, transparent 60%), linear-gradient(115deg, #22262d, #1d2027); border-color: var(--dark-border); }
+:root[data-app-theme='dark'] .milestone-route { color: var(--dark-accent); }
+:root[data-app-theme='dark'] .cloud-provider[aria-pressed='true'] { color: var(--dark-accent); border-bottom-color: var(--dark-accent); }
+:root[data-app-theme='dark'] .login-logo-light { display: none; }
+:root[data-app-theme='dark'] .login-logo-dark { display: block; }
+
+/* Custom network labels use rem too, so the text controls affect them. */
+:root[data-app-theme='dark'] .repository-filter { background: var(--dark-inset); border-color: var(--dark-border); }
+:root[data-app-theme='dark'] .repository-filter legend { color: var(--dark-muted); }
+:root[data-app-theme='dark'] [class~='bg-white/95'] { background-color: var(--dark-panel); }
+:root[data-app-theme='dark'] .repository-view-option[aria-pressed='true'] { border-bottom-color: var(--dark-accent); color: var(--dark-accent); }
+:root[data-app-theme='dark'] .repository-view-option:hover { color: var(--dark-link); }
+:root[data-app-theme='dark'] .dashboard .health-ring-track { stroke: #3c424c; }
+:root[data-app-theme='dark'] .dashboard .fill-steel-400 { fill: var(--dark-muted); }
+:root[data-app-theme='dark'] .dashboard [role='tablist'] { border-bottom-color: var(--dark-border); }
+:root[data-app-theme='dark'] .dashboard [role='tab'][aria-selected='true'] { border-bottom-color: var(--dark-accent); color: var(--dark-accent); }
+:root[data-app-theme='dark'] .dashboard :where(.border-rose-200) { border-color: #78424c; }
+:root[data-app-theme='dark'] .dashboard :where(.ring-rose-100, .ring-rose-200) { --tw-ring-color: #78424c; }
+:root[data-app-theme='dark'] .dashboard :where(.ring-amber-200) { --tw-ring-color: #78603a; }
+:root[data-app-theme='dark'] .dashboard :where(.ring-emerald-200) { --tw-ring-color: #366754; }
+:root[data-app-theme='dark'] .dashboard :where(.bg-rose-50) { background-color: #302229; }
+
+.network-heading p:not(.network-eyebrow), .network-document-content { font-size: .875rem; }
+.network-eyebrow { font-size: .625rem; }
+.network-stats, .network-dominant, .network-document-list button, .network-map-title { font-size: .75rem; }
+.network-panel p, .evidence-network input, .evidence-network select, .network-button, .network-list-heading, .network-map-footer button { font-size: .8125rem; }
+.network-panel h2 { font-size: 1.1875rem; }
+.network-stats strong { font-size: 1.5625rem; }
+.network-hint, .network-map-footer { font-size: .6875rem; }

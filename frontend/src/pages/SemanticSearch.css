@@ -20,7 +20,7 @@
   padding: 4px 4px 12px;
   border-bottom: 2px solid transparent;
   color: #6e6e6e;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
   transition: border-color 160ms ease, color 160ms ease;
 }
@@ -39,7 +39,7 @@
   border-radius: 8px;
   background: #fff;
   color: #2c5f97;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 500;
 }
 .thematic-add-button:hover { background: #e8f2fc; border-color: #b0d4f5; }

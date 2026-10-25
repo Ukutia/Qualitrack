@@ -106,10 +106,10 @@ export default function Milestones({ panel = false }) {
   </>;
   if (!panel) return <section>{content}{tracking}</section>;
   return <><section aria-labelledby="milestones-tracking-title" className="space-y-4">
-    <header className="relative flex flex-wrap items-center justify-between gap-5 overflow-hidden rounded-xl2 border border-brand-200/70 bg-gradient-to-br from-brand-100 via-brand-50 to-paper p-6 text-ink-900">
-      <div className="pointer-events-none absolute -right-10 -top-16 h-52 w-52 rounded-full bg-gold-200/40 blur-2xl" />
+    <header className="milestone-intro relative flex flex-wrap items-center justify-between gap-5 overflow-hidden rounded-xl2 border border-steel-200/70 p-6 text-ink-900 sm:p-8">
+      <svg aria-hidden="true" viewBox="0 0 160 120" className="milestone-route pointer-events-none absolute right-8 top-0 h-full w-44 opacity-20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M15 105V75a18 18 0 0 1 18-18h42a18 18 0 0 0 18-18V15" strokeDasharray="4 6" /><circle cx="15" cy="105" r="5" /><circle cx="75" cy="57" r="5" /><path d="M93 15h32l-7 9 7 9H93" /></svg>
       <div className="relative"><p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700">Ruta de acreditación</p><h2 id="milestones-tracking-title" className="font-display text-2xl font-semibold">Los próximos pasos, a la vista</h2><p className="mt-2 max-w-md text-sm text-steel-700">Organiza fechas, coordina responsables y sigue cada avance del proceso.</p></div>
-      <button ref={trigger} onClick={create} aria-haspopup="dialog" className="relative rounded-lg border border-brand-200 bg-white/90 px-4 py-3 text-sm font-semibold text-brand-800 shadow-soft transition-colors hover:bg-brand-50">+ Registrar hito</button>
+      <button ref={trigger} onClick={create} aria-haspopup="dialog" className="relative rounded-lg bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-soft transition-colors hover:bg-brand-700">+ Registrar hito</button>
     </header>
     {save.isSuccess && <p role="status" className="text-sm text-emerald-700">Hito guardado.</p>}
     {tracking}

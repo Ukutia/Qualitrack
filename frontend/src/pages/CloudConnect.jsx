@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import {
   useCloudStatus,
@@ -19,6 +19,32 @@ const TYPE_OPTIONS = [
 ];
 
 const MAX_BATCH_IMPORT = 10;
+
+function ProviderIcon({ provider, className = 'h-5 w-5' }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" className={`shrink-0 ${className}`}>
+    {provider === 'google' ? <path d="m9 3 6 0 7 12-3 6H5l-3-6L9 3Zm0 0 10 18M15 3 5 21M2 15h20" /> : <path d="m6 3 6 4-6 4-6-4 6-4Zm12 0 6 4-6 4-6-4 6-4ZM6 11l6 4-6 4-6-4 6-4Zm12 0 6 4-6 4-6-4 6-4Zm-12 8 6 3 6-3" />}
+  </svg>;
+}
+
+function ConnectionCard({ provider, configured, onConnect }) {
+  const name = provider === 'google' ? 'Google Drive' : 'Dropbox';
+  return <section className="cloud-connection overflow-hidden rounded-xl2 bg-white shadow-soft ring-1 ring-steel-200/60">
+    <div className="flex flex-wrap items-start justify-between gap-6 p-6 sm:p-8">
+      <div className="flex min-w-0 items-start gap-4">
+        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-700"><ProviderIcon provider={provider} className="h-7 w-7" /></span>
+        <div><p className="mb-1 text-xs font-medium uppercase tracking-wider text-brand-700">Tu repositorio, conectado</p><h2 className="font-display text-2xl font-semibold text-ink-900">Importa desde {name}</h2><p className="mt-2 max-w-xl text-sm leading-6 text-steel-600">Reúne tus evidencias en Qualitrack sin descargarlas primero a tu equipo.</p></div>
+      </div>
+      <span className="rounded-full bg-steel-100 px-3 py-1.5 text-xs font-medium text-steel-600">{configured ? 'Sin conectar' : 'Configuración pendiente'}</span>
+    </div>
+    <ol className="grid gap-5 border-y border-steel-100 bg-steel-50/50 px-6 py-6 text-sm sm:grid-cols-3 sm:px-8">
+      {[['Conecta tu cuenta', `Accede a tus archivos de ${name}.`], ['Elige tus evidencias', 'Busca por nombre, carpeta o formato.'], ['Importa al repositorio', 'Selecciona hasta 10 archivos por importación.']].map(([title, description], index) => <li key={title} className="flex items-start gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-xs font-semibold text-brand-700 ring-1 ring-steel-200">{index + 1}</span><div><p className="font-semibold text-ink-900">{title}</p><p className="mt-1 text-xs leading-5 text-steel-600">{description}</p></div></li>)}
+    </ol>
+    <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5 sm:px-8">
+      <p className="max-w-xl text-sm leading-6 text-steel-600">{configured ? `Conecta tu cuenta para explorar tus archivos de ${name}.` : `La integración con ${name} todavía no está habilitada. Solicita su configuración a quien administra la plataforma. Mientras tanto, puedes cargar evidencias desde tu equipo.`}</p>
+      {configured ? <button onClick={onConnect} className="shrink-0 rounded-lg bg-brand-600 px-5 py-3 text-sm font-medium text-white hover:bg-brand-700">Conectar {name}</button> : <Link to="/upload" className="shrink-0 rounded-lg bg-brand-600 px-5 py-3 text-sm font-medium text-white hover:bg-brand-700">Cargar desde mi equipo</Link>}
+    </div>
+  </section>;
+}
 
 function matchesType(file, typeFilter) {
   if (!typeFilter) return true;
@@ -187,7 +213,7 @@ function FileBrowser({
   const selectedCount = selected.size;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-5 space-y-4">
+    <div className="bg-white rounded-xl2 shadow-soft ring-1 ring-steel-200/60 p-5 space-y-4">
       {/* Breadcrumb */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -276,7 +302,7 @@ function FileBrowser({
                     checked={selected.has(f.id)}
                     disabled={!selected.has(f.id) && selectedCount >= MAX_BATCH_IMPORT}
                     onChange={() => onToggleSelect(f)}
-                    className="h-4 w-4 rounded border-steel-300 text-brand-600 focus:ring-brand-400 disabled:opacity-50"
+                    className="repository-checkbox shrink-0"
                     title={selectedCount >= MAX_BATCH_IMPORT && !selected.has(f.id) ? `Máximo ${MAX_BATCH_IMPORT} documentos por importación.` : undefined}
                   />
                 )}
@@ -565,23 +591,7 @@ function GoogleDriveTab({ initialFeedback }) {
         </div>
       )}
 
-      {status?.configured === false && (
-        <div className="rounded-xl bg-steel-50 border border-steel-200 p-6 space-y-3">
-          <h2 className="font-semibold text-steel-800">Integración no configurada</h2>
-          <p className="text-sm text-steel-600">{status.message}</p>
-          <ol className="list-decimal list-inside text-sm text-steel-600 space-y-1">
-            <li>Cree credenciales OAuth (tipo "Aplicación web") en Google Cloud Console.</li>
-            <li>Agregue el redirect URI: <code className="bg-steel-200 px-1 rounded">http://localhost:4000/api/cloud/google/callback</code></li>
-            <li>Defina <code>GOOGLE_CLIENT_ID</code> y <code>GOOGLE_CLIENT_SECRET</code> en <code>.env</code> y reinicie los contenedores.</li>
-          </ol>
-        </div>
-      )}
-
-      {status?.configured && !connected && (
-        <button onClick={connect} className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 font-medium">
-          Conectar Google Drive
-        </button>
-      )}
+      {!connected && <ConnectionCard provider="google" configured={!!status?.configured} onConnect={connect} />}
 
       {duplicate && (
         <DuplicatePrompt
@@ -821,23 +831,7 @@ function DropboxTab({ initialFeedback }) {
         </div>
       )}
 
-      {status?.configured === false && (
-        <div className="rounded-xl bg-steel-50 border border-steel-200 p-6 space-y-3">
-          <h2 className="font-semibold text-steel-800">Integración no configurada</h2>
-          <p className="text-sm text-steel-600">{status.message}</p>
-          <ol className="list-decimal list-inside text-sm text-steel-600 space-y-1">
-            <li>Cree una app en <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noreferrer" className="text-brand-600 underline">Dropbox Developer Console</a>.</li>
-            <li>Agregue el redirect URI: <code className="bg-steel-200 px-1 rounded">http://localhost:4000/api/cloud/dropbox/callback</code></li>
-            <li>Defina <code>DROPBOX_APP_KEY</code> y <code>DROPBOX_APP_SECRET</code> en <code>.env</code> y reinicie los contenedores.</li>
-          </ol>
-        </div>
-      )}
-
-      {status?.configured && !connected && (
-        <button onClick={connect} className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 font-medium">
-          Conectar Dropbox
-        </button>
-      )}
+      {!connected && <ConnectionCard provider="dropbox" configured={!!status?.configured} onConnect={connect} />}
 
       {duplicate && (
         <DuplicatePrompt
@@ -889,8 +883,8 @@ function DropboxTab({ initialFeedback }) {
 }
 
 const TABS = [
-  { id: 'google', label: 'Google Drive', icon: '🔵' },
-  { id: 'dropbox', label: 'Dropbox', icon: '📦' },
+  { id: 'google', label: 'Google Drive' },
+  { id: 'dropbox', label: 'Dropbox' },
 ];
 
 export default function CloudConnect() {
@@ -930,18 +924,18 @@ export default function CloudConnect() {
 
       {/* Tabs */}
       <div className="border-b border-steel-200">
-        <nav className="flex gap-1">
+        <nav className="flex gap-6" aria-label="Proveedor de almacenamiento">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              aria-pressed={activeTab === tab.id} className={`cloud-provider inline-flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
                   ? 'border-brand-600 text-brand-700'
                   : 'border-transparent text-steel-500 hover:text-steel-700'
               }`}
             >
-              {tab.icon} {tab.label}
+              <ProviderIcon provider={tab.id} /> {tab.label}
             </button>
           ))}
         </nav>

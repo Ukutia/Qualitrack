@@ -152,6 +152,7 @@ export default function ReportEditor() {
   const [savedAt, setSavedAt] = useState(null);
   const [title, setTitle] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [draftFilter, setDraftFilter] = useState('');
   const [restoreNonce, setRestoreNonce] = useState(0);
   const [matchesQuery, setMatchesQuery] = useState(null);
   const [generationOpen, setGenerationOpen] = useState(false);
@@ -499,6 +500,7 @@ export default function ReportEditor() {
   }
 
   const list = drafts.data ?? [];
+  const filteredDrafts = list.filter((item) => `${item.title} ${item.preview || ''}`.toLocaleLowerCase('es').includes(draftFilter.toLocaleLowerCase('es').trim()));
 
   // Un solo indicador para ambos caminos de guardado (título/borrador y sección oficial).
   const statuses = [status, sectionStatus];
@@ -528,7 +530,7 @@ export default function ReportEditor() {
             onClick={() => setGenerationOpen((open) => !open)}
             disabled={!draft.data}
             aria-expanded={generationOpen}
-            className={`btn rounded-xl px-4 py-2.5 text-sm font-medium shadow-sm transition-colors disabled:opacity-50 ${generationOpen ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-stone-700 ring-1 ring-stone-900/10 hover:bg-stone-50'}`}
+            className={`btn rounded-xl px-4 py-2.5 text-sm font-medium shadow-sm transition-colors disabled:opacity-50 ${generationOpen ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-white text-stone-700 ring-1 ring-stone-900/10 hover:bg-stone-50'}`}
           >
             Generación de secciones (IA)
           </button>
@@ -538,26 +540,31 @@ export default function ReportEditor() {
         </div>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
-        <aside className="space-y-2">
-          <p className="px-1 text-[10px] font-medium uppercase tracking-[0.22em] text-stone-500">Borradores</p>
+      <div className="grid items-start gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
+        <aside className="draft-library rounded-2xl bg-white/60 p-3 ring-1 ring-stone-900/10" aria-label="Biblioteca de borradores">
+          <div className="mb-3 flex items-center justify-between px-1"><h3 className="text-sm font-semibold text-ink-900">Mis borradores</h3><span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs tabular-nums text-stone-600">{list.length}</span></div>
+          <label className="sr-only" htmlFor="draft-filter">Buscar borradores</label>
+          <input id="draft-filter" type="search" value={draftFilter} onChange={(event) => setDraftFilter(event.target.value)} placeholder="Buscar borrador…" className="mb-3 w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-ink-900" />
+          <div className="draft-library-list space-y-2" role="region" aria-label="Borradores guardados" tabIndex={0}>
           {drafts.isLoading && ( <><div className="skeleton h-16" /><div className="skeleton h-16" /></> )}
           {!drafts.isLoading && list.length === 0 && (
             <p className="rounded-xl bg-white/60 px-4 py-5 text-sm text-stone-500 ring-1 ring-stone-900/10">Aún no hay borradores. Cree el primero para empezar a redactar.</p>
           )}
-          {list.map((item) => (
-            <div key={item.id} className={`group relative rounded-xl ring-1 transition-colors ${item.id === selectedId ? 'bg-white ring-ink-800/25 shadow-sm' : 'bg-white/50 ring-stone-900/10 hover:bg-white'}`}>
-              <button onClick={() => handleSelect(item.id)} className="block w-full px-4 py-3 text-left">
+          {!drafts.isLoading && list.length > 0 && filteredDrafts.length === 0 && <p className="px-3 py-6 text-sm text-stone-500">No hay borradores que coincidan con tu búsqueda.</p>}
+          {filteredDrafts.map((item) => (
+            <div key={item.id} className={`draft-library-item group relative rounded-xl ring-1 transition-colors ${item.id === selectedId ? 'is-selected bg-white ring-ink-800/25 shadow-sm' : 'bg-white/50 ring-stone-900/10 hover:bg-white'}`}>
+              <button onClick={() => handleSelect(item.id)} aria-current={item.id === selectedId ? 'true' : undefined} className="block w-full py-3 pl-4 pr-9 text-left">
                 <p className="truncate text-sm font-medium text-ink-900">{item.title}</p>
                 <p className="mt-0.5 truncate text-xs text-stone-500">{item.preview || 'Sin contenido'}</p>
                 <p className="mt-1 text-[11px] text-stone-400 tnum">Creado el {listFmt.format(new Date(item.createdAt))}</p>
               </button>
-              <button onClick={() => handleDelete(item.id)} className="btn absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-xs text-stone-400 opacity-40 hover:bg-rose-50 hover:text-rose-600 hover:opacity-100">✕</button>
+              <button onClick={() => handleDelete(item.id)} aria-label={`Eliminar borrador ${item.title}`} title="Eliminar borrador" className="btn absolute right-1 top-2 grid h-8 w-8 place-items-center rounded-md text-xs text-stone-500 hover:bg-rose-50 hover:text-rose-600">✕</button>
             </div>
           ))}
+          </div>
         </aside>
 
-        <section className="space-y-3">
+        <section className="min-w-0 space-y-3">
           {!selectedId && !drafts.isLoading && (
             <div className="rounded-2xl bg-white px-8 py-16 text-center ring-1 ring-stone-900/10">
               <p className="font-display text-lg text-ink-900">Ningún borrador abierto</p>
@@ -594,14 +601,14 @@ export default function ReportEditor() {
 
               {/* BLOQUE: GENERACIÓN DE SECCIONES (IA) */}
               {generationOpen && (
-                <div className="rounded-2xl bg-white p-4 ring-1 ring-stone-900/10 shadow-sm animate-fade-in border-l-4 border-l-indigo-500">
+                <div className="rounded-2xl bg-white p-4 ring-1 ring-stone-900/10 shadow-sm animate-fade-in border-l-4 border-l-brand-500">
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <div>
-                      <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-indigo-600">Reglas personalizadas</p>
+                      <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-brand-600">Reglas personalizadas</p>
                       <p className="mt-1 text-sm text-stone-600"></p>
                     </div>
                     <div className="flex gap-2">
-                      <button type="button" onClick={handleCreateGenerationSection} className="btn rounded-lg bg-indigo-600 hover:bg-indigo-700 px-3 py-2 text-xs font-medium text-white shadow-sm">+ Añadir sección</button>
+                      <button type="button" onClick={handleCreateGenerationSection} className="btn rounded-lg bg-brand-600 hover:bg-brand-700 px-3 py-2 text-xs font-medium text-white shadow-sm">+ Añadir sección</button>
                       <button type="button" onClick={() => generationFileRef.current?.click()} className="btn rounded-lg bg-white px-3 py-2 text-xs font-medium text-stone-700 ring-1 ring-stone-900/10 hover:bg-stone-50">Importar reglas (.docx/.pdf)</button>
                       <input ref={generationFileRef} type="file" accept=".pdf,.doc,.docx" onChange={handleImportGenerationFile} className="hidden" />
                     </div>
@@ -615,18 +622,18 @@ export default function ReportEditor() {
                             key={section.id} 
                             type="button" 
                             onClick={() => { setGenerationSectionId(section.id); setGenerationDraft({ name: section.name, description: section.description || '', instructions: (section.requirements?.instructions || []).join('\n') }); }} 
-                            className={`block w-full rounded-lg px-3 py-2 text-left text-sm ring-1 transition-colors ${section.id === activeGenerationSection.id ? 'bg-indigo-50 text-indigo-900 ring-indigo-500 font-medium' : 'bg-stone-50 text-stone-700 ring-stone-900/10 hover:bg-white'}`}
+                            className={`block w-full rounded-lg px-3 py-2 text-left text-sm ring-1 transition-colors ${section.id === activeGenerationSection.id ? 'bg-brand-50 text-brand-900 ring-brand-500 font-medium' : 'bg-stone-50 text-stone-700 ring-stone-900/10 hover:bg-white'}`}
                           >
                             {section.name}
                           </button>
                         ))}
                       </div>
                       <div className="space-y-3 bg-stone-50/50 p-4 rounded-xl border border-stone-200">
-                        <input value={generationDraft.name} onChange={(e) => setGenerationDraft((draft) => ({ ...draft, name: e.target.value }))} className="w-full rounded-lg bg-white px-3 py-2 text-sm font-medium ring-1 ring-stone-900/10 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Nombre de la sección" />
-                        <textarea value={generationDraft.description} onChange={(e) => setGenerationDraft((draft) => ({ ...draft, description: e.target.value }))} className="min-h-[4rem] w-full rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-stone-900/10 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Descripción o propósito del texto a generar" />
-                        <textarea value={generationDraft.instructions} onChange={(e) => setGenerationDraft((draft) => ({ ...draft, instructions: e.target.value }))} className="min-h-[6rem] w-full rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-stone-900/10 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Instrucciones estrictas para la IA (una por línea)" />
+                        <input value={generationDraft.name} onChange={(e) => setGenerationDraft((draft) => ({ ...draft, name: e.target.value }))} className="w-full rounded-lg bg-white px-3 py-2 text-sm font-medium ring-1 ring-stone-900/10 outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500" placeholder="Nombre de la sección" />
+                        <textarea value={generationDraft.description} onChange={(e) => setGenerationDraft((draft) => ({ ...draft, description: e.target.value }))} className="min-h-[4rem] w-full rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-stone-900/10 outline-none focus:ring-2 focus:ring-brand-500" placeholder="Descripción o propósito del texto a generar" />
+                        <textarea value={generationDraft.instructions} onChange={(e) => setGenerationDraft((draft) => ({ ...draft, instructions: e.target.value }))} className="min-h-[6rem] w-full rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-stone-900/10 outline-none focus:ring-2 focus:ring-brand-500" placeholder="Instrucciones estrictas para la IA (una por línea)" />
                         <div className="flex gap-2 pt-1">
-                          <button type="button" onClick={handleSaveGenerationSection} className="btn rounded-lg bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-xs font-medium text-white">Guardar configuración</button>
+                          <button type="button" onClick={handleSaveGenerationSection} className="btn rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2 text-xs font-medium text-white">Guardar configuración</button>
                           <button type="button" onClick={() => deleteGenerationSection.mutate({ draftId: selectedId, sectionId: activeGenerationSection.id })} className="btn rounded-lg bg-white hover:bg-rose-50 px-4 py-2 text-xs font-medium text-rose-600 ring-1 ring-stone-900/10 hover:ring-rose-200">Eliminar</button>
                         </div>
                       </div>
@@ -657,8 +664,8 @@ export default function ReportEditor() {
                     const selected = selectedDocumentIds.includes(document.id);
                     const unavailable = ['PROCESSING', 'PENDING', 'FAILED', 'ERROR'].includes(document.vectorizationStatus);
                     return (
-                      <label key={document.id} className={`flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm ring-1 transition-colors ${selected ? 'bg-indigo-50 text-indigo-900 ring-indigo-300' : 'bg-stone-50 text-stone-700 ring-stone-900/10 hover:bg-white'} ${unavailable ? 'cursor-not-allowed opacity-50' : ''}`}>
-                        <input type="checkbox" checked={selected} disabled={unavailable} onChange={() => toggleDocument(document.id)} className="h-4 w-4 accent-indigo-600 rounded" />
+                      <label key={document.id} className={`flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm ring-1 transition-colors ${selected ? 'bg-brand-50 text-brand-900 ring-brand-300' : 'bg-stone-50 text-stone-700 ring-stone-900/10 hover:bg-white'} ${unavailable ? 'cursor-not-allowed opacity-50' : ''}`}>
+                        <input type="checkbox" checked={selected} disabled={unavailable} onChange={() => toggleDocument(document.id)} className="repository-checkbox shrink-0" />
                         <span className="min-w-0 truncate">{document.name}</span>
                       </label>
                     );
@@ -700,7 +707,7 @@ export default function ReportEditor() {
                   
                   {/* Título visual de la sección */}
                   {sectionMode && activeSection && (
-                    <div className="mb-[-10px] px-5 py-3 bg-white border-b border-stone-200 rounded-t-xl">
+                    <div className="px-5 py-4 bg-white ring-1 ring-stone-900/10 rounded-2xl">
                       <h2 className="font-display text-xl font-bold text-ink-900">
                         {activeSection.code ? `${activeSection.code}. ` : ''}{activeSection.name}
                       </h2>
@@ -767,7 +774,7 @@ export default function ReportEditor() {
       {preview && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-ink-900/35 px-4 backdrop-blur-sm" role="presentation">
           <div role="dialog" aria-modal="true" className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-stone-900/15 animate-fade-in-up">
-            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-indigo-600">Borrador IA generado</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-brand-600">Borrador IA generado</p>
             <h3 className="mt-2 font-display text-xl font-semibold text-ink-900">Contenido extraído</h3>
             <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950 ring-1 ring-amber-600/25">
               <p className="font-bold flex items-center gap-2">⚠️ Atención: Revisión Humana Requerida</p>
@@ -780,7 +787,7 @@ export default function ReportEditor() {
             <p className="mt-3 text-xs font-medium text-stone-500 flex justify-end">{preview.wordCount ?? countWords(preview.contentText)} / {MAX_PREVIEW_WORDS} palabras</p>
             <div className="mt-6 flex justify-end gap-3 border-t border-stone-100 pt-5">
               <button type="button" onClick={() => setPreview(null)} className="btn rounded-lg bg-white px-4 py-2 text-sm font-medium text-stone-600 ring-1 ring-stone-900/10 hover:bg-stone-50">Descartar</button>
-              <button type="button" onClick={handleInsertPreview} className="btn rounded-lg bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white shadow-sm">Insertar en el editor principal</button>
+              <button type="button" onClick={handleInsertPreview} className="btn rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2 text-sm font-medium text-white shadow-sm">Insertar en el editor principal</button>
             </div>
           </div>
         </div>
