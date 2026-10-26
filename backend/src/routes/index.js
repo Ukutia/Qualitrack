@@ -36,6 +36,7 @@ import {
   importGenerationSections,
 } from '../controllers/reportDrafts.controller.js';
 import { login, me } from '../controllers/auth.controller.js';
+import { listMembers, addMember } from '../controllers/team.controller.js';
 import {
   uploadDocument,
   listDocuments,
@@ -311,6 +312,10 @@ router.post('/document-requests/:id/pause', pauseDocumentRequest);
 router.post('/document-requests/:id/resume', resumeDocumentRequest);
 router.post('/document-requests/:id/cancel', cancelDocumentRequest);
 router.delete('/document-requests/:id', deleteDocumentRequest);
+
+// Equipo (HU18): solo el admin; user e ingestor no tienen regla y reciben 403.
+router.get('/team/members', asyncRoute(listMembers));
+router.post('/team/members', asyncRoute(addMember));
 
 // Google Drive (HU09)
 router.get('/cloud/google/status', cloud.status);

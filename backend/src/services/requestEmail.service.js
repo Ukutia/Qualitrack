@@ -99,6 +99,11 @@ export async function sendRequestEmail({ recipientEmail, description, publicUrl,
       <p style="font-size:13px;color:#667085">Este enlace reemplaza cualquier enlace anterior y dejará de funcionar cuando se reciba el documento o se genere un nuevo recordatorio.</p>
     </div>`;
 
+  return deliver({ recipientEmail, subject, text, html });
+}
+
+// Mismo canal (API de Brevo o SMTP) para todos los correos de Qualitrack.
+function deliver({ recipientEmail, subject, text, html }) {
   if (brevoApiConfigured()) {
     return sendWithBrevoApi({ recipientEmail, subject, text, html });
   }
@@ -110,6 +115,44 @@ export async function sendRequestEmail({ recipientEmail, description, publicUrl,
     text,
     html,
   });
+}
+
+/**
+ * HU18 — Aviso de incorporación al equipo. Es solo informativo: el acceso ya
+ * está concedido y no hay nada que aceptar ni rechazar. La contraseña temporal
+ * viaja únicamente en este correo; nunca se registra en los logs.
+ */
+export async function sendTeamWelcomeEmail({ recipientEmail, name, cargo, roleLabel, temporaryPassword, loginUrl }) {
+  const subject = 'Se te concedió acceso a Qualitrack';
+  const text = [
+    `Hola ${name}:`,
+    '',
+    `El Encargado de Aseguramiento de la Calidad te incorporó al equipo de Qualitrack como ${cargo}.`,
+    `Tu acceso ya está activo con el rol "${roleLabel}". No necesitas aceptar ni responder este correo.`,
+    '',
+    `Ingresa en ${loginUrl} con:`,
+    `Correo: ${recipientEmail}`,
+    `Contraseña temporal: ${temporaryPassword}`,
+    '',
+    'Por seguridad, no compartas esta contraseña. Si no la recibiste completa o necesitas otra, pídesela al Encargado de Aseguramiento de la Calidad.',
+  ].join('\n');
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#20242c;max-width:620px">
+      <h1 style="font-size:22px">${escapeHtml(subject)}</h1>
+      <p>Hola ${escapeHtml(name)}:</p>
+      <p>El Encargado de Aseguramiento de la Calidad te incorporó al equipo de Qualitrack como <strong>${escapeHtml(cargo)}</strong>.
+      Tu acceso ya está activo con el rol <strong>${escapeHtml(roleLabel)}</strong>. No necesitas aceptar ni responder este correo.</p>
+      <div style="padding:16px;background:#f5f6f8;border-radius:8px">
+        <p style="margin:0">Correo: <strong>${escapeHtml(recipientEmail)}</strong></p>
+        <p style="margin:8px 0 0">Contraseña temporal: <code style="font-size:15px">${escapeHtml(temporaryPassword)}</code></p>
+      </div>
+      <p style="margin:24px 0">
+        <a href="${escapeHtml(loginUrl)}" style="background:#315fc4;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;display:inline-block">Ingresar a Qualitrack</a>
+      </p>
+      <p style="font-size:13px;color:#667085">Por seguridad, no compartas esta contraseña. Si necesitas otra, pídesela al Encargado de Aseguramiento de la Calidad.</p>
+    </div>`;
+
+  return deliver({ recipientEmail, subject, text, html });
 }
 
 export function requestEmailConfigurationStatus() {

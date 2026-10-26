@@ -14,6 +14,7 @@ import CriteriaStructure from './pages/CriteriaStructure.jsx';
 import ReportEditor from './pages/ReportEditor.jsx';
 import CloudConnect from './pages/CloudConnect.jsx';
 import Trash from './pages/Trash.jsx';
+import Team from './pages/Team.jsx';
 import SemanticSearch from './pages/SemanticSearch.jsx';
 import AccessDenied from './pages/AccessDenied.jsx';
 import NotFound from './pages/NotFound.jsx';
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="/report" element={<Guard roles={ADMIN_ONLY}><ReportEditor /></Guard>} />
         <Route path="/cloud" element={<Guard roles={ADMIN_AND_USER}><CloudConnect /></Guard>} />
         <Route path="/trash" element={<Guard roles={ADMIN_AND_USER}><Trash /></Guard>} />
+        <Route path="/team" element={<ProtectedRoute roles={ADMIN_ONLY}><Team /></ProtectedRoute>} />
       </Route>
       {/* Sin este catch-all, una URL desconocida renderiza una pantalla vacía. */}
       <Route path="*" element={<NotFound />} />

@@ -62,6 +62,8 @@ model User {
   /// Rol de acceso (EP 1.1 · EP 1.2): "admin" | "user" | "ingestor".
   /// Los permisos de cada rol se declaran en src/config/roles.js.
   role         String   @default("admin")
+  /// Cargo dentro del equipo (HU18). Solo letras y espacios.
+  cargo        String   @default("Sin cargo registrado")
   createdAt    DateTime @default(now())
 
   documents           Document[]

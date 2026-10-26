@@ -30,6 +30,7 @@ export const SECTIONS = [
   { to: '/report', label: 'Redacción informe', roles: [ROLES.ADMIN] },
   { to: '/cloud', label: 'Google Drive', roles: [ROLES.ADMIN, ROLES.USER] },
   { to: '/trash', label: 'Papelera', roles: [ROLES.ADMIN, ROLES.USER] },
+  { to: '/team', label: 'Equipo', roles: [ROLES.ADMIN] },
 ];
 
 export function navFor(role) {

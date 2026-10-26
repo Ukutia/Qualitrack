@@ -14,6 +14,22 @@ function shouldPollDocuments(data) {
   });
 }
 
+// ── Equipo (HU18) ──────────────────────────────────────────────────
+export function useTeamMembers() {
+  return useQuery({
+    queryKey: ['team-members'],
+    queryFn: async () => (await api.get('/team/members')).data,
+  });
+}
+
+export function useAddTeamMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (member) => (await api.post('/team/members', member)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['team-members'] }),
+  });
+}
+
 // ── Solicitudes de documentos ──────────────────────────────────────
 export function useDocumentRequests() {
   return useQuery({

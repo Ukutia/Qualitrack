@@ -239,18 +239,20 @@ async function main() {
   const name = process.env.ADMIN_NAME || 'Encargado de Aseguramiento de Calidad';
 
   const ACCOUNTS = [
-    { email, name, password, role: ROLES.ADMIN },
+    { email, name, password, role: ROLES.ADMIN, cargo: 'Encargado de Aseguramiento de Calidad' },
     {
       email: 'usuario@qualitrack.cl',
       name: 'Miembro del Equipo de Calidad',
       password: process.env.USER_PASSWORD || 'usuario123',
       role: ROLES.USER,
+      cargo: 'Analista de Calidad',
     },
     {
       email: 'ingestor@qualitrack.cl',
       name: 'Ingestor de Datos',
       password: process.env.INGESTOR_PASSWORD || 'ingestor123',
       role: ROLES.INGESTOR,
+      cargo: 'Ingestor de Datos',
     },
   ];
 
@@ -259,7 +261,7 @@ async function main() {
     await prisma.user.upsert({
       where: { email: acc.email },
       update: { name: acc.name, role: acc.role },
-      create: { email: acc.email, name: acc.name, passwordHash, role: acc.role },
+      create: { email: acc.email, name: acc.name, passwordHash, role: acc.role, cargo: acc.cargo },
     });
     console.log(`✓ ${ROLE_LABELS[acc.role]}: ${acc.email}`);
   }
