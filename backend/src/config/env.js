@@ -28,6 +28,10 @@ export const config = {
     10,
     parseInt(process.env.REQUEST_EMAIL_RETRY_SECONDS || '60', 10) || 60
   ),
+  // HU25 — Intentos fallidos permitidos antes del bloqueo temporal y su
+  // duración en minutos.
+  loginMaxAttempts: Math.max(1, parseInt(process.env.LOGIN_MAX_ATTEMPTS || '5', 10) || 5),
+  loginLockMinutes: Math.max(1, parseInt(process.env.LOGIN_LOCK_MINUTES || '15', 10) || 15),
   smtp: {
     host: process.env.SMTP_HOST || '',
     port: parseInt(process.env.SMTP_PORT || '587', 10) || 587,
