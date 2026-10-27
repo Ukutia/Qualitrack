@@ -425,3 +425,26 @@ model Topic {
 
   @@index([createdById])
 }
+
+/// HU25 · Contador de intentos fallidos y bloqueo temporal por correo
+/// (normalizado en minúsculas). Se usa también para correos no registrados,
+/// para no revelar qué cuentas existen.
+model LoginThrottle {
+  id          Int       @id @default(autoincrement())
+  email       String    @unique
+  failedCount Int       @default(0)
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+}
+
+/// HU25 · Registro de intentos de ingreso. Nunca guarda la contraseña.
+model LoginAttempt {
+  id        Int      @id @default(autoincrement())
+  email     String
+  ip        String?
+  success   Boolean
+  locked    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+}
