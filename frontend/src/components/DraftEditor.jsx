@@ -47,6 +47,8 @@ export default function DraftEditor({
   onOpenMatches,
   insertionRequest,
   onInsertionHandled,
+  // Solo lectura (HU19): el contenido se ve, pero no se edita.
+  readOnly = false,
 }) {
   const ref = useRef(null);
   const wrapperRef = useRef(null);
@@ -245,6 +247,7 @@ export default function DraftEditor({
             title={tool.hint}
             aria-label={tool.label}
             aria-pressed={active[tool.id]}
+            disabled={readOnly}
             // `onMouseDown` en vez de `onClick`: evita que el botón robe el
             // foco y se pierda la selección sobre la que hay que aplicar.
             onMouseDown={(e) => {
@@ -279,7 +282,7 @@ export default function DraftEditor({
 
       <div
         ref={ref}
-        contentEditable
+        contentEditable={!readOnly}
         suppressContentEditableWarning
         role="textbox"
         aria-multiline="true"

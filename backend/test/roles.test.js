@@ -8,11 +8,13 @@ vi.mock('../src/config/prisma.js', () => ({
   prisma: {
     document: { findUnique: vi.fn() },
     association: { findUnique: vi.fn() },
+    userPermission: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 
 const { prisma } = await import('../src/config/prisma.js');
-const { ROLES, canAccess, isOwnerScoped, isViewScoped } = await import('../src/config/roles.js');
+const { ROLES, isOwnerScoped, isViewScoped } = await import('../src/config/roles.js');
+const { canAccess } = await import('../src/config/permissions.js');
 const { enforceRolePolicy } = await import('../src/middleware/authorize.js');
 const { requireOwnDocument, requireOwnAssociation, requireViewableDocument, ownerFilter, viewFilter } =
   await import('../src/middleware/ownership.js');
@@ -78,26 +80,26 @@ describe('tabla de permisos', () => {
 });
 
 describe('enforceRolePolicy', () => {
-  it('deja pasar lo permitido', () => {
+  it('deja pasar lo permitido', async () => {
     const next = vi.fn();
     const res = mockRes();
-    enforceRolePolicy({ user: { role: ROLES.INGESTOR }, method: 'POST', path: '/documents' }, res, next);
+    await enforceRolePolicy({ user: { role: ROLES.INGESTOR }, method: 'POST', path: '/documents' }, res, next);
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it('responde 403 con mensaje de acceso denegado', () => {
+  it('responde 403 con mensaje de acceso denegado', async () => {
     const next = vi.fn();
     const res = mockRes();
-    enforceRolePolicy({ user: { role: ROLES.INGESTOR }, method: 'GET', path: '/compliance' }, res, next);
+    await enforceRolePolicy({ user: { role: ROLES.INGESTOR }, method: 'GET', path: '/compliance' }, res, next);
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json.mock.calls[0][0]).toMatchObject({ code: 'FORBIDDEN_ROLE' });
     expect(res.json.mock.calls[0][0].error).toMatch(/Acceso denegado/i);
   });
 
-  it('no consulta la base de datos para denegar', () => {
-    enforceRolePolicy({ user: { role: ROLES.USER }, method: 'GET', path: '/report-drafts' }, mockRes(), vi.fn());
+  it('no consulta la base de datos para denegar', async () => {
+    await enforceRolePolicy({ user: { role: ROLES.USER }, method: 'GET', path: '/report-drafts' }, mockRes(), vi.fn());
     expect(prisma.document.findUnique).not.toHaveBeenCalled();
   });
 });

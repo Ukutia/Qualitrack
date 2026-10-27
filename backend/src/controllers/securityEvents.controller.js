@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma.js';
-import { canAccess } from '../config/roles.js';
+import { allows } from '../config/permissions.js';
+import { loadPermissions } from '../middleware/authorize.js';
 import { recordSecurityEvent } from '../services/audit.service.js';
 
 // The UI prevents mounting forbidden sections. Validate the matching API
@@ -12,7 +13,7 @@ const sections = {
 export async function recordDeniedNavigation(req, res) {
   const section = req.body?.section;
   const root = typeof section === 'string' ? `/${section.split('/')[1]}` : '';
-  if (typeof section !== 'string' || section.length > 200 || !/^\/[a-z0-9/-]+$/.test(section) || !Object.hasOwn(sections, root) || canAccess(req.user.role, 'GET', sections[root])) return res.status(400).json({ error: 'Sección no denegada.' });
+  if (typeof section !== 'string' || section.length > 200 || !/^\/[a-z0-9/-]+$/.test(section) || !Object.hasOwn(sections, root) || allows(await loadPermissions(req.user), 'GET', sections[root])) return res.status(400).json({ error: 'Sección no denegada.' });
   await recordSecurityEvent({ user: req.user, action: 'ACCESS_DENIED', resourceType: 'section', resourceId: section, result: 'DENIED' });
   res.status(204).send();
 }

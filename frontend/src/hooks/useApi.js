@@ -13,6 +13,37 @@ function shouldPollDocuments(data) {
   );
 }
 
+// ── Equipo (HU18) ──────────────────────────────────────────────────
+export function useTeamMembers() {
+  return useQuery({
+    queryKey: ['team-members'],
+    queryFn: async () => (await api.get('/team/members')).data,
+  });
+}
+
+export function useAddTeamMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (member) => (await api.post('/team/members', member)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['team-members'] }),
+  });
+}
+
+// Permisos por módulo (HU19): la respuesta trae la vista actualizada del
+// integrante y se escribe directo en el listado.
+export function useUpdateMemberPermission() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ memberId, module, level }) =>
+      (await api.put(`/team/members/${memberId}/permissions`, { module, level })).data,
+    onSuccess: (data) => {
+      qc.setQueryData(['team-members'], (members) =>
+        members?.map((m) => (m.id === data.member.id ? { ...m, permissions: data.permissions } : m))
+      );
+    },
+  });
+}
+
 // ── Solicitudes de documentos ──────────────────────────────────────
 export function useDocumentRequests() {
   return useQuery({

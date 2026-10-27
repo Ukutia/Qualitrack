@@ -10,7 +10,7 @@ vi.mock('../src/services/encryption.service.js', () => ({ decryptText: (text) =>
 const { buildNetwork, getNetwork } = await import('../src/services/network.service.js');
 const { documentContent } = await import('../src/controllers/network.controller.js');
 const { prisma } = await import('../src/config/prisma.js');
-const { canAccess } = await import('../src/config/roles.js');
+const { canAccess } = await import('../src/config/permissions.js');
 const topics = [{ id: 1, name: 'Calidad' }, { id: 2, name: 'Transparencia' }, { id: 3, name: 'Vacío' }];
 const match = (topicId, documentId, similarity) => ({ topicId, documentId, similarity, originalName: `Documento ${documentId}` });
 const assoc = (id, documentId, code, status = 'VALIDATED') => ({ id, documentId, status, subcriterion: { code, name: code } });
@@ -58,12 +58,14 @@ describe('red de evidencias', () => {
     expect(sql).toContain('dc."embeddingModel" =');
     expect(sql).not.toContain('LIMIT');
   });
-  it('permite lectura solo al administrador', () => {
+  it('la red es de Búsqueda temática y el contenido también del Repositorio', () => {
     for (const path of ['/topics/network', '/documents/1/content']) {
-      expect(canAccess('user', 'GET', path)).toBe(false);
       expect(canAccess('admin', 'GET', path)).toBe(true);
       expect(canAccess('ingestor', 'GET', path)).toBe(false);
     }
+    // HU19: la plantilla del user no incluye Búsqueda, pero sí Repositorio.
+    expect(canAccess('user', 'GET', '/topics/network')).toBe(false);
+    expect(canAccess('user', 'GET', '/documents/1/content')).toBe(true);
   });
   it('devuelve contenido completo, sin el recorte de la vista previa', async () => {
     const content = 'Evidencia '.repeat(400);

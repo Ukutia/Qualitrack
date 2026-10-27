@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTrash, useRestoreDocument, useDestroyDocument } from '../hooks/useApi.js';
 import SelectionCheckbox from '../components/SelectionCheckbox.jsx';
+import { usePermission } from '../hooks/usePermission.js';
+import { MODULES } from '../lib/permissions.js';
+import ReadOnlyNotice from '../components/ReadOnlyNotice.jsx';
 
 const fmtSize = (b) => b >= 1024 * 1024 ? `${(b / (1024 * 1024)).toFixed(1)} MB` : `${Math.ceil(b / 1024)} KB`;
 
@@ -9,6 +12,8 @@ export default function Trash() {
   const { data: docs = [], isLoading, isError, refetch } = useTrash();
   const restore = useRestoreDocument();
   const destroy = useDestroyDocument();
+  // La papelera es parte del Repositorio: con solo lectura no se restaura ni elimina.
+  const { canWrite } = usePermission(MODULES.REPOSITORIO);
   const [confirmId, setConfirmId] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const allSelected = docs.length > 0 && docs.every((doc) => selectedIds.has(doc.id));
@@ -102,7 +107,9 @@ export default function Trash() {
         </Link>
       </header>
 
-      {selectedIds.size > 0 && (
+      {!canWrite && <ReadOnlyNotice />}
+
+      {canWrite && selectedIds.size > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-steel-50 px-4 py-3 ring-1 ring-steel-200">
           <span className="text-sm font-medium text-steel-600">
             {selectedIds.size} documento(s) seleccionado(s)
@@ -152,7 +159,7 @@ export default function Trash() {
                   <SelectionCheckbox
                     checked={allSelected}
                     indeterminate={someSelected}
-                    disabled={restore.isPending || destroy.isPending}
+                    disabled={!canWrite || restore.isPending || destroy.isPending}
                     onChange={toggleSelectAll}
                     aria-label="Seleccionar todos"
                   />
@@ -175,14 +182,14 @@ export default function Trash() {
                     <SelectionCheckbox
                       checked={selectedIds.has(d.id)}
                       onChange={() => toggleSelect(d.id)}
-                      disabled={restore.isPending || destroy.isPending}
+                      disabled={!canWrite || restore.isPending || destroy.isPending}
                       aria-label={`Seleccionar ${d.name}`}
                     />
                   </td>
                   <td className="px-4 py-4 align-top"><p className="font-medium leading-5 text-ink-900 [overflow-wrap:anywhere]">{d.name}</p><div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-steel-600"><span className="rounded border border-steel-200 bg-steel-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase">{d.format}</span><span className="tabular-nums">{fmtSize(d.sizeBytes)}</span></div></td>
                   <td className="px-4 py-4 align-top text-xs tnum text-steel-700"><time dateTime={d.deletedAt}>{new Date(d.deletedAt).toLocaleDateString('es-CL')}<span className="mt-1 block text-steel-600">{new Date(d.deletedAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</span></time></td>
                   <td className="px-4 py-4 align-top">
-                    {confirmId === d.id ? (
+                    {!canWrite ? null : confirmId === d.id ? (
                       <div className="flex flex-wrap items-center justify-center gap-2 text-center">
                         <span className="w-full text-xs text-rose-600 font-medium">¿Eliminar definitivamente?</span>
                         <button

@@ -4,6 +4,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDocumentFilterOptions, useDocuments, useTrashDocument } from '../hooks/useApi.js';
 import { ANALYSIS_LABELS, normalizeAnalysisStatus } from '../lib/analysisStatus.js';
 import { DocumentThumbnail } from '../components/DocumentPreview.jsx';
+import { usePermission } from '../hooks/usePermission.js';
+import { MODULES } from '../lib/permissions.js';
+import ReadOnlyNotice from '../components/ReadOnlyNotice.jsx';
 
 const fmtSize = (b) => b >= 1024 * 1024 ? `${(b / (1024 * 1024)).toFixed(1)} MB` : `${Math.ceil(b / 1024)} KB`;
 const fmtDate = (d) => new Date(d).toLocaleString('es-CL');
@@ -105,6 +108,9 @@ export default function Documents() {
   const { data: docs = [], isLoading, isError, refetch } = useDocuments(appliedFilters);
   const { data: filterOptions = {}, isError: filterOptionsError } = useDocumentFilterOptions();
   const trash = useTrashDocument();
+  // Solo lectura en Repositorio: se ve todo, pero no se mueve a la papelera (HU19).
+  const { canWrite } = usePermission(MODULES.REPOSITORIO);
+  const canUpload = usePermission(MODULES.CARGA).canWrite;
   // El contrato visual es un elemento por registro: incluso si una respuesta
   // accidentalmente repite una fila, su id aparece una sola vez.
   const visibleDocs = useMemo(
@@ -230,12 +236,14 @@ export default function Documents() {
             </svg>
             Papelera
           </Link>
-          <Link
-            to="/upload"
-            className="btn rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 text-sm font-medium shadow-soft hover:shadow-lift"
-          >
-            Cargar evidencia
-          </Link>
+          {canUpload && (
+            <Link
+              to="/upload"
+              className="btn rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 text-sm font-medium shadow-soft hover:shadow-lift"
+            >
+              Cargar evidencia
+            </Link>
+          )}
         </div>
       </header>
 
@@ -361,7 +369,9 @@ export default function Documents() {
         )}
       </form>
 
-      {selectedIds.size > 0 && (
+      {!canWrite && <ReadOnlyNotice />}
+
+      {canWrite && selectedIds.size > 0 && (
         <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 flex flex-wrap gap-3 items-center justify-between">
           <span className="text-sm font-medium text-brand-900">
             {selectedIds.size} documento(s) seleccionado(s)
@@ -448,12 +458,14 @@ export default function Documents() {
             <p className="mt-1 max-w-sm text-sm text-steel-500">
               Carga tu primer documento para empezar a construir el respaldo del Criterio 9.
             </p>
-            <Link
-              to="/upload"
-              className="btn mt-5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 text-sm font-medium shadow-soft hover:shadow-lift"
-            >
-              Cargar evidencia
-            </Link>
+            {canUpload && (
+              <Link
+                to="/upload"
+                className="btn mt-5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 text-sm font-medium shadow-soft hover:shadow-lift"
+              >
+                Cargar evidencia
+              </Link>
+            )}
           </div>
         ) : viewMode === 'grid' ? (
           <div className="grid gap-5 p-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 card-stagger">
@@ -478,7 +490,7 @@ export default function Documents() {
                       type="checkbox"
                       checked={selectedIds.has(document.id)}
                       onChange={() => toggleSelect(document.id)}
-                      disabled={document.vectorizationStatus === 'PROCESSING'}
+                      disabled={!canWrite || document.vectorizationStatus === 'PROCESSING'}
                       className="repository-checkbox"
                     />
                   </label>
@@ -517,7 +529,7 @@ export default function Documents() {
                     <button
                       type="button"
                       onClick={() => handleTrash(document.id, document.name)}
-                      disabled={trash.isPending || document.vectorizationStatus === 'PROCESSING'}
+                      disabled={!canWrite || trash.isPending || document.vectorizationStatus === 'PROCESSING'}
                       aria-label={`Mover ${document.name} a papelera`}
                       className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-steel-500 ring-1 ring-steel-200 hover:bg-rose-50 hover:text-rose-600 hover:ring-rose-200 disabled:cursor-not-allowed disabled:opacity-40"
                     >
@@ -542,7 +554,7 @@ export default function Documents() {
                     aria-label="Seleccionar todas las evidencias disponibles"
                     checked={allSelected}
                     indeterminate={partiallySelected}
-                    disabled={trash.isPending || !selectableIds.length}
+                    disabled={!canWrite || trash.isPending || !selectableIds.length}
                     onChange={toggleSelectAll}
                   />
                 </th>
@@ -566,7 +578,7 @@ export default function Documents() {
                       aria-label={`Seleccionar ${d.name}`}
                       checked={selectedIds.has(d.id)}
                       onChange={() => toggleSelect(d.id)}
-                      disabled={d.vectorizationStatus === 'PROCESSING'}
+                      disabled={!canWrite || d.vectorizationStatus === 'PROCESSING'}
                       title={d.vectorizationStatus === 'PROCESSING' ? 'No se puede eliminar mientras se prepara para la búsqueda semántica.' : undefined}
                     />
                   </td>
@@ -601,7 +613,7 @@ export default function Documents() {
                       <span className="group relative z-10 inline-flex hover:z-30">
                       <button
                           onClick={() => handleTrash(d.id, d.name)}
-                          disabled={trash.isPending || d.vectorizationStatus === 'PROCESSING'}
+                          disabled={!canWrite || trash.isPending || d.vectorizationStatus === 'PROCESSING'}
                           aria-label={`Mover ${d.name} a la papelera`}
                           title={d.vectorizationStatus === 'PROCESSING' ? 'No se puede eliminar mientras se prepara para las búsquedas.' : 'Mover a papelera'}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs text-steel-600 hover:text-rose-700 hover:bg-rose-50 ring-1 ring-steel-200 hover:ring-rose-200 transition-colors disabled:cursor-not-allowed disabled:opacity-40"

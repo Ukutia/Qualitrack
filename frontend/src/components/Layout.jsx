@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import fullLogoDark from '../assets/fulllogo_darkmode.svg';
-import { navFor, roleLabel } from '../lib/roles.js';
+import { roleLabel } from '../lib/roles.js';
+import { navFor } from '../lib/permissions.js';
 import AnalysisWatcher from './AnalysisWatcher.jsx';
 import NavigationIcon from './NavigationIcon.jsx';
 import AppearanceSettings from './AppearanceSettings.jsx';
@@ -16,8 +17,8 @@ export default function Layout() {
   useEffect(() => {
     try { localStorage.setItem('qualitrack_sidebar_collapsed', String(collapsed)); } catch { /* Navigation also works without storage. */ }
   }, [collapsed]);
-  // Cada rol ve solo sus secciones (EP 1.1 · EP 1.2).
-  const nav = navFor(user?.role);
+  // Los módulos denegados no aparecen en el menú (HU19).
+  const nav = navFor(user);
 
   function handleLogout() {
     logout();
