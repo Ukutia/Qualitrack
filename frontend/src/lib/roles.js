@@ -16,31 +16,8 @@ export const ROLE_LABELS = {
   [ROLES.INGESTOR]: 'Ingestor de datos',
 };
 
-const ALL = [ROLES.ADMIN, ROLES.USER, ROLES.INGESTOR];
-
-// Secciones de la aplicación con los roles que pueden verlas. El orden es el de
-// la barra lateral.
-export const SECTIONS = [
-  { to: '/app', label: 'Tablero', end: true, roles: [ROLES.ADMIN] },
-  { to: '/documents', label: 'Repositorio', roles: [ROLES.ADMIN, ROLES.USER] },
-  { to: '/requests', label: 'Solicitudes de documentos', roles: [ROLES.ADMIN, ROLES.USER] },
-  { to: '/search', label: 'Búsqueda temática', roles: [ROLES.ADMIN, ROLES.USER] },
-  { to: '/upload', label: 'Cargar evidencia', roles: ALL },
-  { to: '/structure', label: 'Estructura informe', roles: [ROLES.ADMIN] },
-  { to: '/report', label: 'Redacción informe', roles: [ROLES.ADMIN] },
-  { to: '/cloud', label: 'Google Drive', roles: [ROLES.ADMIN, ROLES.USER] },
-  { to: '/trash', label: 'Papelera', roles: [ROLES.ADMIN, ROLES.USER] },
-  { to: '/team', label: 'Equipo', roles: [ROLES.ADMIN] },
-];
-
-export function navFor(role) {
-  return SECTIONS.filter((s) => s.roles.includes(role));
-}
-
-/** Primera pantalla del rol tras iniciar sesión. */
-export function homeFor(role) {
-  return navFor(role)[0]?.to || '/upload';
-}
+// Las secciones visibles dependen de los permisos por módulo: ver
+// lib/permissions.js (HU19).
 
 export function roleLabel(role) {
   return ROLE_LABELS[role] || 'Sin rol asignado';

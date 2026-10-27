@@ -75,6 +75,22 @@ model User {
   reportDraftVersions ReportDraftVersion[]
   topics              Topic[]
   documentRequests    DocumentRequest[]
+  permissions         UserPermission[]
+}
+
+/// Permiso personalizado de un integrante sobre un módulo (HU19). Sin fila para
+/// un módulo rige la plantilla de su rol (src/config/permissions.js).
+model UserPermission {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  /// Clave de MODULES en src/config/permissions.js.
+  module    String
+  /// "lectura" | "escritura" | "denegado".
+  level     String
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, module])
 }
 
 /// Solicitud de una evidencia a una persona externa. El token en claro se

@@ -2,13 +2,15 @@
 // al equipo. El acceso se concede de inmediato con el rol elegido y se avisa por
 // correo; la persona no acepta ni rechaza nada.
 //
-// La ruta no figura en las reglas de user/ingestor (config/roles.js), así que
-// enforceRolePolicy la deniega con 403 a cualquier rol que no sea admin.
+// La ruta no está mapeada en config/permissions.js, así que enforceRolePolicy
+// la deniega con 403 a cualquier rol que no sea admin.
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/prisma.js';
 import { config } from '../config/env.js';
-import { ROLE_LABELS, isKnownRole } from '../config/roles.js';
+import { ROLES, ROLE_LABELS, isKnownRole } from '../config/roles.js';
+import { MODULES, MODULE_LABELS, LEVELS, effectivePermissions, isKnownLevel, isKnownModule } from '../config/permissions.js';
+import { invalidatePermissions } from '../middleware/authorize.js';
 import { sendTeamWelcomeEmail } from '../services/requestEmail.service.js';
 
 const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
@@ -69,10 +71,73 @@ const DUPLICATE_EMAIL = { email: 'Este correo ya pertenece a un integrante del e
 
 export async function listMembers(req, res) {
   const members = await prisma.user.findMany({
-    select: MEMBER_FIELDS,
+    select: { ...MEMBER_FIELDS, permissions: { select: { module: true, level: true } } },
     orderBy: { createdAt: 'desc' },
   });
-  return res.json(members);
+  return res.json(
+    members.map(({ permissions = [], ...member }) => ({
+      ...member,
+      permissions: permissionView(member, permissions),
+    }))
+  );
+}
+
+// ── Permisos por módulo (HU19) ─────────────────────────────────────
+
+/** Vista de permisos actuales: cada módulo con su nivel y de dónde sale. */
+function permissionView(member, rows) {
+  const effective = effectivePermissions(member.role, rows);
+  const custom = new Set(rows.map((r) => r.module));
+  return Object.values(MODULES).map((module) => ({
+    module,
+    label: MODULE_LABELS[module],
+    level: effective[module],
+    source: custom.has(module) ? 'personalizado' : 'rol',
+  }));
+}
+
+async function findTarget(id) {
+  return prisma.user.findUnique({
+    where: { id: Number(id) },
+    select: { id: true, name: true, email: true, role: true, permissions: { select: { module: true, level: true } } },
+  });
+}
+
+export async function getMemberPermissions(req, res) {
+  const target = await findTarget(req.params.id);
+  if (!target) return res.status(404).json({ error: 'Integrante no encontrado.' });
+  const { permissions, ...member } = target;
+  return res.json({ member, permissions: permissionView(member, permissions) });
+}
+
+export async function updateMemberPermission(req, res) {
+  const { module, level } = req.body || {};
+  const errors = {};
+  if (!isKnownModule(module)) errors.module = 'Seleccione un módulo válido.';
+  if (!isKnownLevel(level)) {
+    errors.level = `El nivel debe ser ${Object.values(LEVELS).join(', ')}.`;
+  }
+  if (Object.keys(errors).length) {
+    return res.status(400).json({ error: 'No se guardó el permiso: revise los datos.', errors });
+  }
+
+  const target = await findTarget(req.params.id);
+  if (!target) return res.status(404).json({ error: 'Integrante no encontrado.' });
+  // El admin accede a todo por definición; personalizarlo no tendría efecto.
+  if (target.role === ROLES.ADMIN) {
+    return res.status(400).json({ error: 'Los permisos de un administrador no se pueden personalizar.' });
+  }
+
+  await prisma.userPermission.upsert({
+    where: { userId_module: { userId: target.id, module } },
+    create: { userId: target.id, module, level },
+    update: { level },
+  });
+  invalidatePermissions(target.id);
+
+  const rows = [...target.permissions.filter((r) => r.module !== module), { module, level }];
+  const { permissions, ...member } = target;
+  return res.json({ member, permissions: permissionView(member, rows) });
 }
 
 export async function addMember(req, res) {

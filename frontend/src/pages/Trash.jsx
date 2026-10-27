@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTrash, useRestoreDocument, useDestroyDocument } from '../hooks/useApi.js';
+import { usePermission } from '../hooks/usePermission.js';
+import { MODULES } from '../lib/permissions.js';
+import ReadOnlyNotice from '../components/ReadOnlyNotice.jsx';
 
 const fmtDate = (d) => new Date(d).toLocaleString('es-CL');
 const fmtSize = (b) => `${(b / 1024).toFixed(0)} KB`;
@@ -9,6 +12,8 @@ export default function Trash() {
   const { data: docs, isLoading } = useTrash();
   const restore = useRestoreDocument();
   const destroy = useDestroyDocument();
+  // La papelera es parte del Repositorio: con solo lectura no se restaura ni elimina.
+  const { canWrite } = usePermission(MODULES.REPOSITORIO);
   const [confirmId, setConfirmId] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
 
@@ -94,7 +99,9 @@ export default function Trash() {
         </Link>
       </header>
 
-      {selectedIds.size > 0 && (
+      {!canWrite && <ReadOnlyNotice />}
+
+      {canWrite && selectedIds.size > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-steel-50 px-4 py-3 ring-1 ring-steel-200">
           <span className="text-sm font-medium text-steel-600">
             {selectedIds.size} documento(s) seleccionado(s)
@@ -142,6 +149,7 @@ export default function Trash() {
                     type="checkbox"
                     checked={docs.length > 0 && selectedIds.size === docs.length}
                     onChange={toggleSelectAll}
+                    disabled={!canWrite}
                     className="h-4 w-4 rounded border-steel-300"
                     aria-label="Seleccionar todos"
                   />
@@ -164,6 +172,7 @@ export default function Trash() {
                       type="checkbox"
                       checked={selectedIds.has(d.id)}
                       onChange={() => toggleSelect(d.id)}
+                      disabled={!canWrite}
                       className="h-4 w-4 rounded border-steel-300"
                       aria-label={`Seleccionar ${d.name}`}
                     />
@@ -173,7 +182,7 @@ export default function Trash() {
                   <td className="px-5 py-3.5 tnum text-steel-500">{fmtSize(d.sizeBytes)}</td>
                   <td className="px-5 py-3.5 tnum text-steel-500">{fmtDate(d.deletedAt)}</td>
                   <td className="px-5 py-3.5">
-                    {confirmId === d.id ? (
+                    {!canWrite ? null : confirmId === d.id ? (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-rose-600 font-medium">¿Eliminar definitivamente?</span>
                         <button

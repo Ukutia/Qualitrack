@@ -1,14 +1,15 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import fullLogoDark from '../assets/fulllogo_darkmode.svg';
-import { navFor, roleLabel } from '../lib/roles.js';
+import { roleLabel } from '../lib/roles.js';
+import { navFor } from '../lib/permissions.js';
 import AnalysisWatcher from './AnalysisWatcher.jsx';
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  // Cada rol ve solo sus secciones (EP 1.1 · EP 1.2).
-  const nav = navFor(user?.role);
+  // Los módulos denegados no aparecen en el menú (HU19).
+  const nav = navFor(user);
 
   function handleLogout() {
     logout();

@@ -36,7 +36,12 @@ import {
   importGenerationSections,
 } from '../controllers/reportDrafts.controller.js';
 import { login, me } from '../controllers/auth.controller.js';
-import { listMembers, addMember } from '../controllers/team.controller.js';
+import {
+  listMembers,
+  addMember,
+  getMemberPermissions,
+  updateMemberPermission,
+} from '../controllers/team.controller.js';
 import {
   uploadDocument,
   listDocuments,
@@ -87,7 +92,7 @@ router.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // Auth
 router.post('/auth/login', login);
-router.get('/auth/me', requireAuth, me);
+router.get('/auth/me', requireAuth, asyncRoute(me));
 
 // Google OAuth callback es público (Google redirige sin token; usa "state").
 router.get('/cloud/google/callback', cloud.callback);
@@ -233,9 +238,9 @@ router.post(
   asyncRoute(uploadPublicDocumentRequest)
 );
 
-// A partir de aquí, todo requiere autenticación y un rol con permiso sobre la
-// ruta (EP 1.1 · EP 1.2). La política es de denegación por defecto y se resuelve
-// antes de consultar la base de datos.
+// A partir de aquí, todo requiere autenticación y permiso sobre el módulo de la
+// ruta (EP 1.1 · EP 1.2 · HU19). La política es de denegación por defecto: cada
+// ruta nueva debe mapearse en config/permissions.js o solo la verá el admin.
 router.use(requireAuth);
 router.use(enforceRolePolicy);
 
@@ -316,6 +321,9 @@ router.delete('/document-requests/:id', deleteDocumentRequest);
 // Equipo (HU18): solo el admin; user e ingestor no tienen regla y reciben 403.
 router.get('/team/members', asyncRoute(listMembers));
 router.post('/team/members', asyncRoute(addMember));
+// Permisos por módulo (HU19): tampoco figuran en config/permissions.js.
+router.get('/team/members/:id/permissions', asyncRoute(getMemberPermissions));
+router.put('/team/members/:id/permissions', asyncRoute(updateMemberPermission));
 
 // Google Drive (HU09)
 router.get('/cloud/google/status', cloud.status);

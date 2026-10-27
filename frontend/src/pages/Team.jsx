@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useAddTeamMember, useTeamMembers } from '../hooks/useApi.js';
+import { useAddTeamMember, useTeamMembers, useUpdateMemberPermission } from '../hooks/useApi.js';
 import { ROLES, roleLabel } from '../lib/roles.js';
+import { LEVELS, LEVEL_LABELS, MODULES, MODULE_LABELS } from '../lib/permissions.js';
 
 // HU18 — El Encargado de Aseguramiento de la Calidad incorpora personas al
 // equipo. El backend valida cada campo y devuelve { errors: { campo: mensaje } };
@@ -25,6 +26,96 @@ function Field({ id, label, error, children }) {
       {children}
       {error && <p id={`${id}-error`} className="text-xs font-medium text-red-700">{error}</p>}
     </div>
+  );
+}
+
+const LEVEL_OPTIONS = [LEVELS.LECTURA, LEVELS.ESCRITURA, LEVELS.DENEGADO];
+const LEVEL_STYLES = {
+  [LEVELS.ESCRITURA]: 'border-emerald-300 bg-emerald-50 text-emerald-800',
+  [LEVELS.LECTURA]: 'border-sky-300 bg-sky-50 text-sky-800',
+  [LEVELS.DENEGADO]: 'border-rose-300 bg-rose-50 text-rose-800',
+};
+
+// HU19 — Matriz integrante × módulo. Cada selector guarda al cambiar y la celda
+// muestra lo que respondió el backend, así la vista siempre es la vigente.
+function PermissionMatrix({ members }) {
+  const update = useUpdateMemberPermission();
+  const [status, setStatus] = useState(null);
+  const editable = members.filter((m) => m.role !== ROLES.ADMIN);
+  const pendingKey = update.isPending ? `${update.variables.memberId}:${update.variables.module}` : null;
+
+  async function change(member, module, level) {
+    setStatus(null);
+    try {
+      await update.mutateAsync({ memberId: member.id, module, level });
+      const text = level === LEVELS.DENEGADO
+        ? `Guardado: ${member.name} ya no tiene acceso a ${MODULE_LABELS[module]}.`
+        : `Guardado: ${member.name} tiene ${LEVEL_LABELS[level].toLowerCase()} en ${MODULE_LABELS[module]}.`;
+      setStatus({ ok: true, text });
+    } catch (error) {
+      setStatus({ ok: false, text: error?.response?.data?.error || 'No fue posible guardar el permiso.' });
+    }
+  }
+
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="font-display text-xl font-semibold text-ink-900">Permisos por módulo</h2>
+        <p className="mt-1 text-sm text-steel-500">
+          Personaliza qué puede hacer cada integrante. Lo marcado «según rol» aún no se ha personalizado y sigue la plantilla de su rol. Los administradores acceden a todo.
+        </p>
+      </div>
+      {status && (
+        <div role={status.ok ? 'status' : 'alert'} className={`rounded-lg px-4 py-3 text-sm ring-1 ${status.ok ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-red-50 text-red-700 ring-red-200'}`}>
+          {status.text}
+        </div>
+      )}
+      {editable.length === 0 ? (
+        <div className="rounded-xl2 bg-white p-8 text-center text-sm text-steel-500 shadow-soft">Aún no hay integrantes con permisos personalizables.</div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl2 bg-white shadow-soft ring-1 ring-steel-200/70">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-steel-200 text-xs uppercase tracking-wide text-steel-500">
+              <tr>
+                <th className="px-4 py-3 font-medium">Integrante</th>
+                {Object.values(MODULES).map((module) => (
+                  <th key={module} className="px-2 py-3 font-medium">{MODULE_LABELS[module]}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-steel-100">
+              {editable.map((member) => (
+                <tr key={member.id}>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-ink-900">{member.name}</p>
+                    <p className="text-xs text-steel-500">{roleLabel(member.role)}</p>
+                  </td>
+                  {member.permissions.map((permission) => {
+                    const key = `${member.id}:${permission.module}`;
+                    return (
+                      <td key={permission.module} className="px-2 py-3 align-top">
+                        <select
+                          aria-label={`${MODULE_LABELS[permission.module]} para ${member.name}`}
+                          value={permission.level}
+                          disabled={pendingKey === key}
+                          onChange={(event) => change(member, permission.module, event.target.value)}
+                          className={`w-full min-w-[7.5rem] rounded-lg border px-2 py-1.5 text-xs font-medium disabled:opacity-50 ${LEVEL_STYLES[permission.level]}`}
+                        >
+                          {LEVEL_OPTIONS.map((level) => <option key={level} value={level}>{LEVEL_LABELS[level]}</option>)}
+                        </select>
+                        <p className="mt-1 text-[11px] text-steel-500">
+                          {pendingKey === key ? 'Guardando…' : permission.source === 'personalizado' ? 'Personalizado' : 'Según rol'}
+                        </p>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -154,6 +245,8 @@ export default function Team() {
           </div>
         )}
       </section>
+
+      {members.data && <PermissionMatrix members={members.data} />}
     </div>
   );
 }

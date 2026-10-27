@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useSemanticSearch, useTopics, useCreateTopic, useDeleteTopic } from '../hooks/useApi.js';
 import EvidenceNetwork from './EvidenceNetwork.jsx';
+import { usePermission } from '../hooks/usePermission.js';
+import { MODULES } from '../lib/permissions.js';
+import ReadOnlyNotice from '../components/ReadOnlyNotice.jsx';
 import useDocumentMeta from '../lib/useDocumentMeta.js';
 import './SemanticSearch.css';
 
@@ -14,6 +17,8 @@ export default function SemanticSearch() {
   const createTopic = useCreateTopic();
   const deleteTopic = useDeleteTopic();
   const [topicName, setTopicName] = useState('');
+  // Con solo lectura se busca y se ve la red, pero no se crean ni borran temáticas (HU19).
+  const { canWrite } = usePermission(MODULES.BUSQUEDA);
 
   async function handleTopicSearch(topicName) {
     const value = topicName.trim();
@@ -88,7 +93,9 @@ export default function SemanticSearch() {
       </div>
       </div>
 
-      <form
+      {!canWrite && <ReadOnlyNotice />}
+
+      {canWrite && <form
         onSubmit={async (event) => {
           event.preventDefault();
 
@@ -141,7 +148,7 @@ export default function SemanticSearch() {
               'No fue posible guardar la temática.'}
           </p>
         )}
-      </form>
+      </form>}
 
       <p className="text-sm text-stone-500">Puedes guardar temáticas mientras se procesan los documentos. Sus conexiones aparecerán cuando finalice la vectorización; si no aparecen, revisa el estado del documento en el repositorio y actualiza la red.</p>
       {view === 'network' && <EvidenceNetwork />}
@@ -185,7 +192,7 @@ export default function SemanticSearch() {
                   {topic.name}
                 </button>
 
-                <button
+                {canWrite && <button
                   type="button"
                   onClick={async (event) => {
                     event.stopPropagation();
@@ -204,7 +211,7 @@ export default function SemanticSearch() {
                   className="rounded-r-full px-2.5 py-2 text-brand-500 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-wait disabled:opacity-50"
                 >
                   ×
-                </button>
+                </button>}
               </div>
             ))}
           </div>

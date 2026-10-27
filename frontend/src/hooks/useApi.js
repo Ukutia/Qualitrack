@@ -30,6 +30,21 @@ export function useAddTeamMember() {
   });
 }
 
+// Permisos por módulo (HU19): la respuesta trae la vista actualizada del
+// integrante y se escribe directo en el listado.
+export function useUpdateMemberPermission() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ memberId, module, level }) =>
+      (await api.put(`/team/members/${memberId}/permissions`, { module, level })).data,
+    onSuccess: (data) => {
+      qc.setQueryData(['team-members'], (members) =>
+        members?.map((m) => (m.id === data.member.id ? { ...m, permissions: data.permissions } : m))
+      );
+    },
+  });
+}
+
 // ── Solicitudes de documentos ──────────────────────────────────────
 export function useDocumentRequests() {
   return useQuery({

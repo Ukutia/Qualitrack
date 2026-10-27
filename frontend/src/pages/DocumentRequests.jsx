@@ -6,6 +6,9 @@ import {
   useDocumentRequests,
   useDeleteDocumentRequest,
 } from '../hooks/useApi.js';
+import { usePermission } from '../hooks/usePermission.js';
+import { MODULES } from '../lib/permissions.js';
+import ReadOnlyNotice from '../components/ReadOnlyNotice.jsx';
 
 const STATUS = {
   PENDING: { label: 'Pendiente', classes: 'bg-amber-50 text-amber-800 ring-amber-200' },
@@ -60,6 +63,8 @@ export default function DocumentRequests() {
   const action = useDocumentRequestAction();
   const deleteRequest = useDeleteDocumentRequest();
   const [actionError, setActionError] = useState('');
+  // Con solo lectura se ven las solicitudes, pero no se crean ni cambian (HU19).
+  const { canWrite } = usePermission(MODULES.SOLICITUDES);
 
   async function runAction(request, nextAction) {
     const warning = {
@@ -94,8 +99,10 @@ export default function DocumentRequests() {
           <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">Solicitudes de documentos</h1>
           <p className="mt-2 text-sm text-steel-500">Etapa de prueba del ciclo de vida y la rotación segura de tokens.</p>
         </div>
-        <Link to="/requests/new" className="btn inline-flex items-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700">Crear solicitud</Link>
+        {canWrite && <Link to="/requests/new" className="btn inline-flex items-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700">Crear solicitud</Link>}
       </header>
+
+      {!canWrite && <ReadOnlyNotice />}
 
       {actionError && <div role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">{actionError}</div>}
 
@@ -139,12 +146,12 @@ export default function DocumentRequests() {
                   <CurrentToken token={request.token} createdAt={request.tokenCreatedAt} />
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                {canWrite && <div className="mt-4 flex flex-wrap gap-2">
                   {request.status === 'PENDING' && <button type="button" disabled={action.isPending} onClick={() => runAction(request, 'pause')} className="btn rounded-lg border border-steel-300 px-3 py-2 text-sm font-medium text-ink-900 hover:bg-steel-50 disabled:opacity-50">Pausar</button>}
                   {request.status === 'PAUSED' && <button type="button" disabled={action.isPending} onClick={() => runAction(request, 'resume')} className="btn rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">Reanudar</button>}
                   {['PENDING', 'PAUSED'].includes(request.status) && <button type="button" disabled={action.isPending} onClick={() => runAction(request, 'cancel')} className="btn rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50">Cancelar</button>}
                   {['PAUSED', 'CANCELLED'].includes(request.status) && <button type="button" disabled={deleteRequest.isPending} onClick={() => removeRequest(request)} className="btn rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100 disabled:opacity-50">Eliminar</button>}
-                </div>
+                </div>}
               </article>
             );
           })}

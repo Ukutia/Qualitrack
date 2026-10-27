@@ -20,18 +20,15 @@ import AccessDenied from './pages/AccessDenied.jsx';
 import NotFound from './pages/NotFound.jsx';
 import PublicDocumentRequest from './pages/PublicDocumentRequest.jsx';
 import { ROLES } from './lib/roles.js';
+import { LEVELS, MODULES } from './lib/permissions.js';
 
-// Roles con acceso a cada ruta (EP 1.1 · EP 1.2). El backend revalida cada
-// petición: esto solo evita que la pantalla llegue a montarse.
+// Módulo que exige cada ruta (HU19). El backend revalida cada petición: esto
+// solo evita que la pantalla llegue a montarse.
+const { TABLERO, REPOSITORIO, SOLICITUDES, BUSQUEDA, CARGA, INFORME, NUBE } = MODULES;
 const ADMIN_ONLY = [ROLES.ADMIN];
-const ADMIN_AND_USER = [ROLES.ADMIN, ROLES.USER];
 
-// Dentro del Layout la sesión ya está garantizada; acá solo se filtra por rol.
-function Guard({ roles, children }) {
-  const { user } = useAuth();
-  if (!roles.includes(user?.role)) return <Navigate to="/acceso-denegado" replace />;
-  return children;
-}
+// Dentro del Layout la sesión ya está garantizada; acá solo se filtra el acceso.
+const guard = (module, element) => <ProtectedRoute module={module}>{element}</ProtectedRoute>;
 
 export default function App() {
   return (
@@ -47,19 +44,19 @@ export default function App() {
         }
       >
         <Route path="/acceso-denegado" element={<AccessDenied />} />
-        <Route path="/app" element={<Guard roles={ADMIN_ONLY}><Dashboard /></Guard>} />
-        <Route path="/documents" element={<Guard roles={ADMIN_AND_USER}><Documents /></Guard>} />
-        <Route path="/requests" element={<Guard roles={ADMIN_AND_USER}><DocumentRequests /></Guard>} />
-        <Route path="/requests/new" element={<Guard roles={ADMIN_AND_USER}><NewDocumentRequest /></Guard>} />
-        <Route path="/search" element={<Guard roles={ADMIN_ONLY}><SemanticSearch /></Guard>} />
+        <Route path="/app" element={guard(TABLERO, <Dashboard />)} />
+        <Route path="/documents" element={guard(REPOSITORIO, <Documents />)} />
+        <Route path="/requests" element={guard(SOLICITUDES, <DocumentRequests />)} />
+        <Route path="/requests/new" element={<ProtectedRoute module={SOLICITUDES} level={LEVELS.ESCRITURA}><NewDocumentRequest /></ProtectedRoute>} />
+        <Route path="/search" element={guard(BUSQUEDA, <SemanticSearch />)} />
         <Route path="/network" element={<Navigate to="/search?view=network" replace />} />
-        <Route path="/documents/:id" element={<Guard roles={ADMIN_AND_USER}><DocumentDetail /></Guard>} />
-        <Route path="/documents/:id/pasajes/:chunkIndex" element={<Guard roles={ADMIN_AND_USER}><PassageViewer /></Guard>} />
-        <Route path="/upload" element={<Upload />} />
-        <Route path="/structure" element={<Guard roles={ADMIN_ONLY}><CriteriaStructure /></Guard>} />
-        <Route path="/report" element={<Guard roles={ADMIN_ONLY}><ReportEditor /></Guard>} />
-        <Route path="/cloud" element={<Guard roles={ADMIN_AND_USER}><CloudConnect /></Guard>} />
-        <Route path="/trash" element={<Guard roles={ADMIN_AND_USER}><Trash /></Guard>} />
+        <Route path="/documents/:id" element={guard([REPOSITORIO, BUSQUEDA], <DocumentDetail />)} />
+        <Route path="/documents/:id/pasajes/:chunkIndex" element={guard([REPOSITORIO, BUSQUEDA], <PassageViewer />)} />
+        <Route path="/upload" element={<ProtectedRoute module={CARGA} level={LEVELS.ESCRITURA}><Upload /></ProtectedRoute>} />
+        <Route path="/structure" element={guard(INFORME, <CriteriaStructure />)} />
+        <Route path="/report" element={guard(INFORME, <ReportEditor />)} />
+        <Route path="/cloud" element={guard(NUBE, <CloudConnect />)} />
+        <Route path="/trash" element={guard(REPOSITORIO, <Trash />)} />
         <Route path="/team" element={<ProtectedRoute roles={ADMIN_ONLY}><Team /></ProtectedRoute>} />
       </Route>
       {/* Sin este catch-all, una URL desconocida renderiza una pantalla vacía. */}

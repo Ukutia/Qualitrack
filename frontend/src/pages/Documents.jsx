@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDocuments, useTrashDocument } from '../hooks/useApi.js';
+import { usePermission } from '../hooks/usePermission.js';
+import { MODULES } from '../lib/permissions.js';
+import ReadOnlyNotice from '../components/ReadOnlyNotice.jsx';
 
 async function openFile(docId) {
   const token = localStorage.getItem('qualitrack_token');
@@ -55,6 +58,9 @@ function OpenFileButton({ docId }) {
 export default function Documents() {
   const { data: docs, isLoading, refetch } = useDocuments();
   const trash = useTrashDocument();
+  // Solo lectura en Repositorio: se ve todo, pero no se mueve a la papelera (HU19).
+  const { canWrite } = usePermission(MODULES.REPOSITORIO);
+  const canUpload = usePermission(MODULES.CARGA).canWrite;
   const location = useLocation();
   const navigate = useNavigate();
   const [highlightedIds] = useState(() => new Set(location.state?.importedIds || []));
@@ -137,16 +143,20 @@ function toggleSelectAll() {
           >
             🗑 Papelera
           </Link>
-          <Link
-            to="/upload"
-            className="btn rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 text-sm font-medium shadow-soft hover:shadow-lift"
-          >
-            Cargar evidencia
-          </Link>
+          {canUpload && (
+            <Link
+              to="/upload"
+              className="btn rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 text-sm font-medium shadow-soft hover:shadow-lift"
+            >
+              Cargar evidencia
+            </Link>
+          )}
         </div>
       </header>
 
-      {selectedIds.size > 0 && (
+      {!canWrite && <ReadOnlyNotice />}
+
+      {canWrite && selectedIds.size > 0 && (
         <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 flex items-center justify-between">
           <span className="text-sm font-medium text-brand-900">
             {selectedIds.size} documento(s) seleccionado(s)
@@ -226,6 +236,7 @@ function toggleSelectAll() {
                     type="checkbox"
                     checked={docs.some((doc) => doc.vectorizationStatus !== 'PROCESSING') && selectedIds.size === docs.filter((doc) => doc.vectorizationStatus !== 'PROCESSING').length}
                     onChange={toggleSelectAll}
+                    disabled={!canWrite}
                     className="h-4 w-4 rounded border-steel-300 cursor-pointer"
                   />
                 </th>
@@ -249,7 +260,7 @@ function toggleSelectAll() {
                       type="checkbox"
                       checked={selectedIds.has(d.id)}
                       onChange={() => toggleSelect(d.id)}
-                      disabled={d.vectorizationStatus === 'PROCESSING'}
+                      disabled={!canWrite || d.vectorizationStatus === 'PROCESSING'}
                       title={d.vectorizationStatus === 'PROCESSING' ? 'No se puede eliminar mientras se prepara para la búsqueda semántica.' : undefined}
                       className="h-4 w-4 rounded border-steel-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                     />
@@ -286,7 +297,7 @@ function toggleSelectAll() {
                       <span className="group relative z-10 inline-flex hover:z-30">
                       <button
                           onClick={() => handleTrash(d.id, d.name)}
-                          disabled={trash.isPending || d.vectorizationStatus === 'PROCESSING'}
+                          disabled={!canWrite || trash.isPending || d.vectorizationStatus === 'PROCESSING'}
                           aria-label="Mover a papelera"
                           className="inline-flex items-center rounded-md px-2 py-1 text-xs text-steel-400 hover:text-rose-500 hover:bg-rose-50 ring-1 ring-steel-200 hover:ring-rose-200 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                         >

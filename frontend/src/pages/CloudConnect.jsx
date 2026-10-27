@@ -9,6 +9,9 @@ import {
   useDropboxFiles,
   useImportDropboxFile,
 } from '../hooks/useApi.js';
+import { usePermission } from '../hooks/usePermission.js';
+import { MODULES } from '../lib/permissions.js';
+import ReadOnlyNotice from '../components/ReadOnlyNotice.jsx';
 
 const TYPE_OPTIONS = [
   { label: 'Todos', value: '' },
@@ -173,6 +176,8 @@ function FileBrowser({
   onToggleSelect,
   onImportSelected,
   importingSelected,
+  // Solo lectura en Nube (HU19): se navega, pero no se importa.
+  readOnly = false,
 }) {
   const filteredFiles = useMemo(() => {
     const all = filesQuery.data?.files || [];
@@ -200,7 +205,7 @@ function FileBrowser({
             {stack.length === 0 ? 'Raíz' : stack.map((s) => s.name).join(' / ')}
           </span>
         </div>
-        {hasFiles && (
+        {hasFiles && !readOnly && (
           <button
             onClick={onToggleSelectMode}
             className={`text-xs font-medium px-3 py-1.5 rounded-lg ${
@@ -293,7 +298,7 @@ function FileBrowser({
                   )}
                 </button>
               </div>
-              {!f.isFolder && !selectMode && (
+              {!f.isFolder && !selectMode && !readOnly && (
                 <button
                   onClick={() => onImport(f)}
                   disabled={importing}
@@ -378,6 +383,7 @@ function DuplicatePrompt({ duplicate, onResolve, onCancel, busy }) {
 
 function GoogleDriveTab({ initialFeedback }) {
   const navigate = useNavigate();
+  const { canWrite } = usePermission(MODULES.NUBE);
   const { data: status, isLoading } = useCloudStatus();
   const connected = status?.connected;
   const [folderId, setFolderId] = useState('root');
@@ -577,7 +583,7 @@ function GoogleDriveTab({ initialFeedback }) {
         </div>
       )}
 
-      {status?.configured && !connected && (
+      {canWrite && status?.configured && !connected && (
         <button onClick={connect} className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 font-medium">
           Conectar Google Drive
         </button>
@@ -604,9 +610,9 @@ function GoogleDriveTab({ initialFeedback }) {
       {connected && (
         <>
           <div className="flex justify-end">
-            <button onClick={disconnect} className="text-xs text-steel-400 hover:text-rose-600">
+            {canWrite && <button onClick={disconnect} className="text-xs text-steel-400 hover:text-rose-600">
               Desconectar cuenta
-            </button>
+            </button>}
           </div>
           <FileBrowser
             filesQuery={filesQuery}
@@ -625,6 +631,7 @@ function GoogleDriveTab({ initialFeedback }) {
             onImportSelected={importSelected}
             importingSelected={importingSelected}
             setTypeFilter={setTypeFilter}
+            readOnly={!canWrite}
           />
         </>
       )}
@@ -634,6 +641,7 @@ function GoogleDriveTab({ initialFeedback }) {
 
 function DropboxTab({ initialFeedback }) {
   const navigate = useNavigate();
+  const { canWrite } = usePermission(MODULES.NUBE);
   const { data: status, isLoading } = useDropboxStatus();
   const connected = status?.connected;
   const [folderPath, setFolderPath] = useState('');
@@ -833,7 +841,7 @@ function DropboxTab({ initialFeedback }) {
         </div>
       )}
 
-      {status?.configured && !connected && (
+      {canWrite && status?.configured && !connected && (
         <button onClick={connect} className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 font-medium">
           Conectar Dropbox
         </button>
@@ -860,9 +868,9 @@ function DropboxTab({ initialFeedback }) {
       {connected && (
         <>
           <div className="flex justify-end">
-            <button onClick={disconnect} className="text-xs text-steel-400 hover:text-rose-600">
+            {canWrite && <button onClick={disconnect} className="text-xs text-steel-400 hover:text-rose-600">
               Desconectar cuenta
-            </button>
+            </button>}
           </div>
           <FileBrowser
             filesQuery={filesQuery}
@@ -881,6 +889,7 @@ function DropboxTab({ initialFeedback }) {
             onImportSelected={importSelected}
             importingSelected={importingSelected}
             setTypeFilter={setTypeFilter}
+            readOnly={!canWrite}
           />
         </>
       )}
@@ -895,6 +904,7 @@ const TABS = [
 
 export default function CloudConnect() {
   const [params] = useSearchParams();
+  const { canWrite } = usePermission(MODULES.NUBE);
 
   const initialProvider = params.get('provider') === 'dropbox' ? 'dropbox' : 'google';
   const [activeTab, setActiveTab] = useState(initialProvider);
@@ -927,6 +937,8 @@ export default function CloudConnect() {
           Importe evidencias directamente desde su almacenamiento en la nube.
         </p>
       </header>
+
+      {!canWrite && <ReadOnlyNotice />}
 
       {/* Tabs */}
       <div className="border-b border-steel-200">
