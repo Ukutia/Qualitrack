@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUploadDocument } from '../hooks/useApi.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { ROLES } from '../lib/roles.js';
+import { MODULES, can } from '../lib/permissions.js';
 
 const ACCEPT = '.pdf,.docx,.xlsx';
 const MAX_MB = 10;
@@ -15,8 +15,8 @@ export default function Upload() {
   const upload = useUploadDocument();
   const navigate = useNavigate();
   const { user } = useAuth();
-  // El Ingestor no tiene repositorio: se queda en la carga (EP 1.1).
-  const canSeeRepository = user?.role !== ROLES.INGESTOR;
+  // Sin acceso al Repositorio (p. ej. el Ingestor) se queda en la carga (EP 1.1 · HU19).
+  const canSeeRepository = can(user, MODULES.REPOSITORIO);
   const inputRef = useRef();
   const itemsRef = useRef([]);
   const [items, setItems] = useState([]); // {id, file, status, message, duplicateInfo}

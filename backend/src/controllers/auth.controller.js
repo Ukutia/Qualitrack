@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../config/prisma.js';
 import { config } from '../config/env.js';
 import { signToken } from '../middleware/auth.js';
+import { loadPermissions } from '../middleware/authorize.js';
 
 // HU25 — Un único mensaje para credenciales inválidas y cuenta bloqueada, para
 // no revelar si el correo está registrado ni si hay un bloqueo vigente.
@@ -85,10 +86,17 @@ export async function login(req, res) {
   const token = signToken(user);
   return res.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      permissions: await loadPermissions(user),
+    },
   });
 }
 
+/** Sesión actual con sus permisos efectivos por módulo (HU19). */
 export async function me(req, res) {
-  return res.json({ user: req.user });
+  return res.json({ user: { ...req.user, permissions: await loadPermissions(req.user) } });
 }

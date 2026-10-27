@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useSemanticSearch, useTopics, useCreateTopic, useDeleteTopic } from '../hooks/useApi.js';
 import EvidenceNetwork from './EvidenceNetwork.jsx';
+import { usePermission } from '../hooks/usePermission.js';
+import { MODULES } from '../lib/permissions.js';
+import ReadOnlyNotice from '../components/ReadOnlyNotice.jsx';
 import useDocumentMeta from '../lib/useDocumentMeta.js';
 import './SemanticSearch.css';
 
@@ -14,6 +17,8 @@ export default function SemanticSearch() {
   const topics = useTopics();
   const createTopic = useCreateTopic();
   const deleteTopic = useDeleteTopic();
+  // Con solo lectura se busca y se ve la red, pero no se crean ni borran temáticas (HU19).
+  const { canWrite } = usePermission(MODULES.BUSQUEDA);
   const [topicName, setTopicName] = useState('');
   const [topicModalOpen, setTopicModalOpen] = useState(false);
   const topicDialog = useRef(null);
@@ -106,7 +111,7 @@ export default function SemanticSearch() {
           </button>
         ))}
       </div>
-      <button ref={addTopicButton} type="button" aria-haspopup="dialog" className="thematic-add-button" onClick={() => { createTopic.reset(); setTopicName(''); setTopicModalOpen(true); }}>+ Agregar temática</button>
+      {canWrite && <button ref={addTopicButton} type="button" aria-haspopup="dialog" className="thematic-add-button" onClick={() => { createTopic.reset(); setTopicName(''); setTopicModalOpen(true); }}>+ Agregar temática</button>}
       </div>
 
       {topicModalOpen && createPortal(<dialog ref={topicDialog} className="thematic-topic-modal" aria-labelledby="new-topic-title" aria-describedby="new-topic-description" onCancel={(event) => { event.preventDefault(); if (!createTopic.isPending) setTopicModalOpen(false); }}>
@@ -215,7 +220,7 @@ export default function SemanticSearch() {
                   {topic.name}
                 </button>
 
-                <button
+                {canWrite && <button
                   type="button"
                   onClick={async (event) => {
                     event.stopPropagation();
@@ -234,7 +239,7 @@ export default function SemanticSearch() {
                   className="rounded-r-full px-2.5 py-2 text-brand-500 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-wait disabled:opacity-50"
                 >
                   ×
-                </button>
+                </button>}
               </div>
             ))}
           </div>

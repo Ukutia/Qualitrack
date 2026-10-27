@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { homeFor } from '../lib/roles.js';
+import { homeFor } from '../lib/permissions.js';
 import { LEVEL_ORDER, levelMeta } from '../lib/levels.js';
 import fullLogo from '../assets/fulllogo.svg';
 import fullLogoDark from '../assets/fulllogo_darkmode.svg';
@@ -25,7 +25,7 @@ export default function Login() {
 
   // Si ya hay sesión, redirige (en efecto, no durante el render).
   useEffect(() => {
-    if (user) navigate(homeFor(user.role), { replace: true });
+    if (user) navigate(homeFor(user), { replace: true });
   }, [user, navigate]);
 
   async function handleSubmit(e) {
@@ -33,6 +33,7 @@ export default function Login() {
     setError('');
     setSubmitting(true);
     try {
+      // El efecto de arriba lleva a la primera sección que tenga habilitada.
       await login(email, password);
     } catch (err) {
       setError(err.response?.data?.error || 'No fue posible iniciar sesión.');

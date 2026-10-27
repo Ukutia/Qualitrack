@@ -24,6 +24,17 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // El Encargado puede cambiar los permisos en cualquier momento (HU19): al
+  // volver a la pestaña se releen para que el menú no quede desactualizado.
+  useEffect(() => {
+    function refresh() {
+      if (!localStorage.getItem('qualitrack_token')) return;
+      api.get('/auth/me').then((res) => setUser(res.data.user)).catch(() => {});
+    }
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, []);
+
   async function login(email, password) {
     queryClient.clear();
     const res = await api.post('/auth/login', { email, password });

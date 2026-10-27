@@ -6,6 +6,9 @@ import {
   useStructureHistory,
   useRestoreStructure,
 } from '../hooks/useApi.js';
+import { usePermission } from '../hooks/usePermission.js';
+import { MODULES } from '../lib/permissions.js';
+import ReadOnlyNotice from '../components/ReadOnlyNotice.jsx';
 
 const CHANGE_BADGE = {
   ADDED: { text: 'Agregada', cls: 'bg-emerald-100 text-emerald-700' },
@@ -36,6 +39,8 @@ export default function CriteriaStructure() {
   const restoreStructure = useRestoreStructure();
   const parseDoc = useParseStructureDoc();
   const fileInputRef = useRef(null);
+  // Con solo lectura en Informe se ve la estructura y su historial, pero no se edita (HU19).
+  const { canWrite } = usePermission(MODULES.INFORME);
 
   const [draft, setDraft] = useState(null);
   const [parseResult, setParseResult] = useState(null);
@@ -283,7 +288,7 @@ export default function CriteriaStructure() {
                         )}
                       </div>
 
-                      {!v.active && (
+                      {canWrite && !v.active && (
                         <button
                           onClick={() => openRestoreDialog(v.version)}
                           className="shrink-0 rounded-md border border-steel-300 hover:bg-steel-50 text-steel-600 text-xs px-3 py-1.5 font-medium transition-colors"
@@ -390,6 +395,7 @@ export default function CriteriaStructure() {
               </svg>
               Historial
             </button>
+            {canWrite && <>
             <button
               onClick={triggerFilePicker}
               disabled={parseDoc.isPending}
@@ -415,9 +421,12 @@ export default function CriteriaStructure() {
             >
               Editar / nueva versión
             </button>
+            </>}
           </div>
         )}
       </header>
+
+      {!canWrite && <ReadOnlyNotice />}
 
       {feedback && (
         <div

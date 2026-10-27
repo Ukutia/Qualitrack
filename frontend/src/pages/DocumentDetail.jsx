@@ -10,6 +10,8 @@ import {
   useCriterion,
 } from '../hooks/useApi.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { usePermission } from '../hooks/usePermission.js';
+import { MODULES } from '../lib/permissions.js';
 import { ROLES } from '../lib/roles.js';
 import { isAnalysisInProgress, normalizeAnalysisStatus, ANALYSIS_PROGRESS_TEXT, describeEngine } from '../lib/analysisStatus.js';
 import { requestNotificationPermission } from '../lib/analysisWatch.js';
@@ -48,6 +50,7 @@ export default function DocumentDetail() {
 
   // La papelera es exclusiva del administrador (EP 1.2).
   const canTrash = user?.role === ROLES.ADMIN;
+  const canWriteRepository = usePermission(MODULES.REPOSITORIO).canWrite;
 
   if (isLoading) return <p className="text-steel-500">Cargando documento…</p>;
 
@@ -74,7 +77,9 @@ export default function DocumentDetail() {
 
   const classifyResult = classify.data;
   const hasValidated = doc.associations.some((a) => a.status === 'VALIDATED');
-  const canManage = user?.role === ROLES.ADMIN || doc.uploadedById === user?.id;
+  // Con solo lectura en Repositorio (o llegando desde Búsqueda) no se
+  // clasifica, valida ni reasigna (HU19).
+  const canManage = canWriteRepository && (user?.role === ROLES.ADMIN || doc.uploadedById === user?.id);
   const showFallback =
     canManage && (analysisFailed || analysisTimedOut);
   const isVectorizing = doc.vectorizationStatus === 'PROCESSING';

@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import { once } from 'node:events';
-vi.mock('../src/config/prisma.js', () => ({ prisma: { securityEvent: { create: vi.fn() } } }));
+vi.mock('../src/config/prisma.js', () => ({ prisma: { securityEvent: { create: vi.fn() }, userPermission: { findMany: vi.fn(async () => []) } } }));
 const { prisma } = await import('../src/config/prisma.js');
 const { recordSecurityEvent } = await import('../src/services/audit.service.js');
 const { auditRequests } = await import('../src/middleware/audit.js');
 const { enforceRolePolicy } = await import('../src/middleware/authorize.js');
-const { canAccess } = await import('../src/config/roles.js');
+const { canAccess } = await import('../src/config/permissions.js');
 beforeEach(() => { vi.clearAllMocks(); prisma.securityEvent.create.mockResolvedValue({ id: 1 }); });
 
 async function request({ method = 'GET', path = '/security-events', role = 'user', status = 200, body = { id: 5 } } = {}) {

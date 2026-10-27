@@ -6,7 +6,7 @@ vi.mock('../src/config/prisma.js', () => ({ prisma: {
 } }));
 const { prisma } = await import('../src/config/prisma.js');
 const { createTopic } = await import('../src/controllers/topics.controller.js');
-const { canAccess } = await import('../src/config/roles.js');
+const { canAccess } = await import('../src/config/permissions.js');
 
 beforeEach(() => vi.clearAllMocks());
 function response() {
