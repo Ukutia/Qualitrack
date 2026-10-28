@@ -67,6 +67,7 @@ model User {
   createdAt    DateTime @default(now())
 
   documents           Document[]
+  folders             Folder[]
   validatedAssocs     Association[]            @relation("ValidatedBy")
   history             AssociationHistory[]
   cloudConns          CloudConnection[]
@@ -360,6 +361,9 @@ model Document {
 
   deletedAt DateTime? // null = activo, fecha = en papelera
 
+  folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  folderId Int?
+
   associations Association[]
   chunks       DocumentChunk[]
   request      DocumentRequest?
@@ -367,6 +371,29 @@ model Document {
   /// El worker consulta la cola cada pocos segundos; sin este indice cada
   /// sondeo recorre la tabla entera.
   @@index([analysisStatus, deletedAt])
+  @@index([folderId, deletedAt])
+}
+
+/// Agrupación virtual de evidencias. Los bytes permanecen siempre en su
+/// almacenamiento original; mover una evidencia solo modifica `folderId`.
+model Folder {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  color     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy   User @relation(fields: [createdById], references: [id])
+  createdById Int
+
+  parent   Folder?  @relation("FolderChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId Int?
+  children Folder[] @relation("FolderChildren")
+
+  documents Document[]
+
+  @@index([parentId, createdAt])
+  @@index([createdById])
 }
 
 model Association {

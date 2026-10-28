@@ -113,12 +113,19 @@ const ROUTES = [
   route('GET', /^\/documents\/\d+\/passages\/\d+(\/focus)?$/, [REPOSITORIO, BUSQUEDA]),
   // Aviso de fin de análisis tras cargar un archivo.
   route('GET', /^\/documents\/\d+\/stream$/, [REPOSITORIO, CARGA]),
-  route('PATCH', /^\/documents\/\d+\/(analysis-status|date)$/, REPOSITORIO),
+  route('PATCH', /^\/documents\/\d+\/(analysis-status|date|name)$/, REPOSITORIO),
   route('POST', /^\/documents\/\d+\/(trash|restore)$/, REPOSITORIO),
   route('DELETE', /^\/documents\/\d+$/, REPOSITORIO),
   route('POST', /^\/documents\/\d+\/classify(\/fallback)?$/, REPOSITORIO),
   route('PUT', /^\/documents\/\d+\/association$/, REPOSITORIO),
   route('POST', /^\/associations\/\d+\/(validate|reject)$/, REPOSITORIO),
+  // Organización virtual compartida del repositorio (HU26).
+  route('GET', /^\/folders\/explore$/, REPOSITORIO),
+  route('POST', /^\/folders$/, REPOSITORIO),
+  route('POST', /^\/folders\/(move-documents|bulk-trash)$/, REPOSITORIO),
+  route('PATCH', /^\/folders\/\d+$/, REPOSITORIO),
+  route('POST', /^\/folders\/\d+\/move$/, REPOSITORIO),
+  route('DELETE', /^\/folders\/\d+$/, REPOSITORIO),
 
   // Solicitudes de documentos
   route('GET', /^\/document-requests(\/config)?$/, SOLICITUDES),

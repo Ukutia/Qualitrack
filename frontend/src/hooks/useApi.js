@@ -140,6 +140,89 @@ export function useDocumentFilterOptions() {
   });
 }
 
+export function useFolderExplorer(parentId, filters = {}, enabled = true) {
+  return useQuery({
+    queryKey: ['folders', 'explore', parentId ?? 'root', filters],
+    enabled,
+    queryFn: async () => (await api.get('/folders/explore', {
+      params: { ...documentQueryParams(filters), parentId: parentId ?? 'root' },
+    })).data,
+    refetchInterval: (query) => (
+      shouldPollDocuments(query.state.data?.documents) ? 2000 : false
+    ),
+  });
+}
+
+function invalidateRepository(qc) {
+  qc.invalidateQueries({ queryKey: ['documents'] });
+  qc.invalidateQueries({ queryKey: ['folders'] });
+}
+
+export function useCreateFolder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => (await api.post('/folders', payload)).data,
+    onSuccess: () => invalidateRepository(qc),
+  });
+}
+
+export function useRenameFolder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, name }) => (await api.patch(`/folders/${id}`, { name })).data,
+    onSuccess: () => invalidateRepository(qc),
+  });
+}
+
+export function useRenameDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, name }) => (await api.patch(`/documents/${id}/name`, { name })).data,
+    onSuccess: (_data, variables) => {
+      invalidateRepository(qc);
+      qc.invalidateQueries({ queryKey: ['document', variables.id] });
+    },
+  });
+}
+
+export function useMoveDocuments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => (await api.post('/folders/move-documents', payload)).data,
+    onSuccess: () => invalidateRepository(qc),
+  });
+}
+
+export function useMoveFolder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...payload }) => (await api.post(`/folders/${id}/move`, payload)).data,
+    onSuccess: () => invalidateRepository(qc),
+  });
+}
+
+export function useDeleteFolder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, mode }) => (await api.delete(`/folders/${id}`, { params: { mode } })).data,
+    onSuccess: () => {
+      invalidateRepository(qc);
+      qc.invalidateQueries({ queryKey: ['trash'] });
+    },
+  });
+}
+
+export function useTrashRepositoryItems() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => (await api.post('/folders/bulk-trash', payload)).data,
+    onSuccess: () => {
+      invalidateRepository(qc);
+      qc.invalidateQueries({ queryKey: ['trash'] });
+    },
+  });
+}
+
 // ── Búsqueda semántica ──────────────────────────────────────────────
 export function useSemanticSearch() {
   return useMutation({
@@ -363,7 +446,12 @@ export function useUploadDocument() {
 export function useTrashDocument() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id) => (await api.post(`/documents/${id}/trash`)).data,
+    mutationFn: async (value) => {
+      const payload = typeof value === 'object' ? value : { id: value };
+      return (await api.post(`/documents/${payload.id}/trash`, {
+        confirmEmptyFolder: Boolean(payload.confirmEmptyFolder),
+      })).data;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['documents'] });
       qc.invalidateQueries({ queryKey: ['trash'] });

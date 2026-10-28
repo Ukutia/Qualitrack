@@ -3,7 +3,7 @@ import { recordSecurityEvent } from '../services/audit.service.js';
 export function sensitiveAction(method, path) {
   if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return null;
   const resource = path.split('/')[1];
-  if (!['documents', 'associations', 'document-requests', 'report-drafts', 'report-structure', 'cloud'].includes(resource)) return null;
+  if (!['documents', 'folders', 'associations', 'document-requests', 'report-drafts', 'report-structure', 'cloud'].includes(resource)) return null;
   const operation = path.split('/').filter(Boolean).filter((part) => !/^\d+$/.test(part)).join('_').toUpperCase().replaceAll('-', '_');
   return `${operation}_${method}`;
 }

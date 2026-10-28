@@ -54,11 +54,21 @@ import {
   streamDocumentStatus,
   updateDocumentAnalysisStatus,
   updateDocumentDate,
+  renameDocument,
   trashDocument,
   listTrash,
   restoreDocument,
   destroyDocument,
 } from '../controllers/documents.controller.js';
+import {
+  exploreFolders,
+  createFolder,
+  updateFolder,
+  moveDocuments,
+  moveFolder,
+  deleteFolder,
+  bulkTrashItems,
+} from '../controllers/folders.controller.js';
 import {
   classifyDocument,
   validateAssociation,
@@ -271,6 +281,15 @@ router.post('/documents', upload.single('file'), uploadDocument);
 router.get('/documents', listDocuments);
 router.get('/documents/filter-options', listDocumentFilterOptions);
 router.get('/documents/trash', listTrash);
+// Carpetas virtuales (HU26). Deben declararse antes de /documents/:id para
+// mantener rutas literales fuera del parámetro numérico genérico.
+router.get('/folders/explore', asyncRoute(exploreFolders));
+router.post('/folders', asyncRoute(createFolder));
+router.post('/folders/move-documents', asyncRoute(moveDocuments));
+router.post('/folders/bulk-trash', asyncRoute(bulkTrashItems));
+router.patch('/folders/:id', asyncRoute(updateFolder));
+router.post('/folders/:id/move', asyncRoute(moveFolder));
+router.delete('/folders/:id', asyncRoute(deleteFolder));
 router.get('/documents/:id/stream', requireViewableDocument, streamDocumentStatus);
 router.get('/documents/:id', requireViewableDocument, getDocument);
 router.get('/documents/:id/file', requireViewableDocument, serveFile);
@@ -280,6 +299,7 @@ router.get('/documents/:id/passages/:chunkIndex/focus', requireViewableDocument,
 router.get('/documents/:id/sheets', requireViewableDocument, getSheets);
 router.patch('/documents/:id/analysis-status', requireOwnDocument, asyncRoute(updateDocumentAnalysisStatus));
 router.patch('/documents/:id/date', requireOwnDocument, updateDocumentDate);
+router.patch('/documents/:id/name', requireOwnDocument, asyncRoute(renameDocument));
 router.post('/documents/:id/trash', requireOwnDocument, trashDocument);
 router.post('/documents/:id/restore', requireOwnDocument, restoreDocument);
 router.delete('/documents/:id', requireOwnDocument, destroyDocument);

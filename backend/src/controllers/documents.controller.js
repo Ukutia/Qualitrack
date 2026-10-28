@@ -1,4 +1,5 @@
 // HU07 — Carga y gestión de documentos de evidencia.
+import path from 'path';
 import { prisma } from '../config/prisma.js';
 import { saveFile, readFile, deleteFile } from '../services/storage.service.js';
 import { extractText } from '../services/textExtraction.service.js';
@@ -17,6 +18,8 @@ import {
   matchesDocumentName,
   parseDocumentFilters,
 } from '../services/documentFilters.service.js';
+import { folderMaps, folderPath } from '../services/folders.service.js';
+import { emptyFolderChainAfterDocumentRemoval } from './folders.controller.js';
 
 const MIME = {
   pdf:  'application/pdf',
@@ -98,17 +101,26 @@ export async function uploadDocument(req, res) {
   const originalName = req.file.originalname;
   const onDuplicate = (req.query.onDuplicate || '').toLowerCase(); // '', 'replace', 'keep', 'restore'
 
-  // Manejo de duplicados por nombre (HU07). Para los roles acotados al dueño
-  // el duplicado se busca solo entre sus propias cargas: avisar de un archivo
-  // homónimo de otro usuario filtraría su repositorio.
+  // La raíz también es una ubicación compartida: un nombre debe ser único
+  // entre todos sus documentos, aunque dos carpetas distintas sí puedan tener
+  // archivos homónimos.
   const existing = await prisma.document.findFirst({
     where: {
-      originalName,
+      originalName: { equals: originalName, mode: 'insensitive' },
       deletedAt: null,
-      ...ownerFilter(req.user),
+      folderId: null,
     },
     orderBy: { uploadedAt: 'desc' },
   });
+
+  if (existing && req.user.role !== 'admin' && existing.uploadedById !== req.user.id && onDuplicate !== 'keep') {
+    return res.status(409).json({
+      code: 'DUPLICATE_NAME_LOCKED',
+      error: 'Ya existe un documento con ese nombre en el repositorio y pertenece a otra persona.',
+      message: 'Puede conservar ambos; Qualitrack asignará un nombre distinto a la nueva carga.',
+      existing: { id: existing.id, name: existing.originalName, inTrash: false },
+    });
+  }
 
   if (existing && !onDuplicate) {
     const inTrash = !!existing.deletedAt;
@@ -195,14 +207,18 @@ export async function listDocuments(req, res) {
 
   // El User ve todo el repositorio (solo lectura); ownerFilter sigue acotando
   // las acciones de escritura (clasificar, validar, papelera, etc.).
-  const docs = await prisma.document.findMany({
-    where: buildDocumentWhere(filters, viewFilter(req.user)),
-    orderBy: { uploadedAt: 'desc' },
-    include: {
-      associations: { include: { subcriterion: true } },
-      uploadedBy: { select: { name: true } },
-    },
-  });
+  const [docs, folders] = await Promise.all([
+    prisma.document.findMany({
+      where: buildDocumentWhere(filters, viewFilter(req.user)),
+      orderBy: { uploadedAt: 'desc' },
+      include: {
+        associations: { include: { subcriterion: true } },
+        uploadedBy: { select: { name: true } },
+      },
+    }),
+    prisma.folder.findMany(),
+  ]);
+  const { byId: foldersById } = folderMaps(folders);
 
   const result = docs.filter((d) => matchesDocumentName(d, filters.text)).map((d) => {
     const validated = d.associations.find((a) => a.status === 'VALIDATED');
@@ -221,6 +237,9 @@ export async function listDocuments(req, res) {
       documentDate: d.documentDate,
       uploadedAt: d.uploadedAt,
       uploadedBy: d.externalUploaderEmail || d.uploadedBy?.name,
+      uploadedById: d.uploadedById,
+      folderId: d.folderId,
+      folderPath: folderPath(d.folderId, foldersById),
       associationStatus,
       subcriterion: validated?.subcriterion?.code || proposed?.subcriterion?.code || null,
       vectorizationStatus: effectiveVectorizationStatus(d.vectorizationStatus),
@@ -532,6 +551,48 @@ export async function updateDocumentDate(req, res) {
   return res.json({ id: doc.id, documentDate: doc.documentDate });
 }
 
+/** Renombra solo la denominación lógica y conserva la extensión original. */
+export async function renameDocument(req, res) {
+  const id = Number(req.params.id);
+  const doc = await prisma.document.findUnique({ where: { id } });
+  if (!doc || doc.deletedAt) return res.status(404).json({ error: 'Documento activo no encontrado.' });
+
+  const requested = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  if (!requested) return res.status(400).json({ error: 'El nombre del documento es obligatorio.' });
+  const extension = path.extname(doc.originalName);
+  const base = extension && requested.toLocaleLowerCase('es-CL').endsWith(extension.toLocaleLowerCase('es-CL'))
+    ? requested.slice(0, -extension.length).trim()
+    : requested;
+  if (!base) return res.status(400).json({ error: 'El nombre del documento es obligatorio.' });
+  const originalName = `${base}${extension}`;
+  if (originalName.length > 255) {
+    return res.status(400).json({ error: 'El nombre del documento no puede superar los 255 caracteres.' });
+  }
+
+  const conflict = await prisma.document.findFirst({
+    where: {
+      id: { not: id },
+      deletedAt: null,
+      folderId: doc.folderId,
+      originalName: { equals: originalName, mode: 'insensitive' },
+    },
+    select: { id: true },
+  });
+  if (conflict) {
+    return res.status(409).json({ code: 'DUPLICATE_DOCUMENT_NAME', error: 'Ya existe un documento con ese nombre en esta ubicación.' });
+  }
+
+  try {
+    const updated = await prisma.document.update({ where: { id }, data: { originalName } });
+    return res.json({ id: updated.id, name: updated.originalName });
+  } catch (error) {
+    if (error?.code === 'P2002') {
+      return res.status(409).json({ code: 'DUPLICATE_DOCUMENT_NAME', error: 'Ya existe un documento con ese nombre en esta ubicación.' });
+    }
+    throw error;
+  }
+}
+
 /** Mueve un documento a la papelera (soft delete). */
 export async function trashDocument(req, res) {
   const id = Number(req.params.id);
@@ -545,8 +606,21 @@ export async function trashDocument(req, res) {
     });
   }
 
-  await prisma.document.update({ where: { id }, data: { deletedAt: new Date() } });
-  return res.json({ id, message: 'Documento movido a la papelera.' });
+  const emptyFolders = await emptyFolderChainAfterDocumentRemoval(doc.folderId, id);
+  if (emptyFolders.length && !req.body?.confirmEmptyFolder) {
+    return res.status(409).json({
+      code: 'FOLDER_WILL_BE_DELETED',
+      error: `Al quitar el documento se eliminará ${emptyFolders.length === 1 ? 'la carpeta vacía' : 'la cadena de carpetas vacías'}.`,
+      folders: emptyFolders,
+    });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.document.update({ where: { id }, data: { deletedAt: new Date(), folderId: null } });
+    const highestEmptyFolder = emptyFolders.at(-1);
+    if (highestEmptyFolder) await tx.folder.delete({ where: { id: highestEmptyFolder.id } });
+  });
+  return res.json({ id, deletedEmptyFolders: emptyFolders, message: 'Documento movido a la papelera.' });
 }
 
 /** Lista los documentos en la papelera. */
@@ -598,10 +672,10 @@ export async function restoreDocument(req, res) {
   // Verificar si ya existe un documento activo con el mismo nombre.
   const conflict = await prisma.document.findFirst({
     where: {
-      originalName: restoredName,
+      originalName: { equals: restoredName, mode: 'insensitive' },
       deletedAt: null,
       id: { not: id },
-      ...ownerFilter(req.user),
+      folderId: null,
     },
   });
 
@@ -627,9 +701,9 @@ export async function restoreDocument(req, res) {
     } while (
       await prisma.document.findFirst({
         where: {
-          originalName: restoredName,
+          originalName: { equals: restoredName, mode: 'insensitive' },
           deletedAt: null,
-          ...ownerFilter(req.user),
+          folderId: null,
         },
       })
     );
@@ -640,6 +714,7 @@ export async function restoreDocument(req, res) {
     data: {
       deletedAt: null,
       originalName: restoredName,
+      folderId: null,
     },
   });
 
