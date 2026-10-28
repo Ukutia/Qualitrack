@@ -3,19 +3,6 @@ import { prisma } from '../config/prisma.js';
 import { config } from '../config/env.js';
 import { signToken } from '../middleware/auth.js';
 import { loadPermissions } from '../middleware/authorize.js';
-import { recordSecurityEvent } from '../services/audit.service.js';
-
-// HU20: observe the outcomes of HU25 without changing its counters, thresholds,
-// response messages or lock duration. Never issue a session without its audit.
-async function recordLoginEvent(user, email, action, result = 'SUCCESS') {
-  try {
-    await recordSecurityEvent({ user: user || { email }, action, resourceType: 'account', resourceId: user?.id ?? email, result });
-  } catch (cause) {
-    const error = new Error('No fue posible registrar el evento de seguridad. Intenta nuevamente.', { cause });
-    error.status = 503;
-    throw error;
-  }
-}
 
 // HU25 — Un único mensaje para credenciales inválidas y cuenta bloqueada, para
 // no revelar si el correo está registrado ni si hay un bloqueo vigente.
@@ -74,7 +61,6 @@ export async function login(req, res) {
   const throttle = await prisma.loginThrottle.findUnique({ where: { email } });
   if (throttle?.lockedUntil && throttle.lockedUntil > now) {
     await recordAttempt(email, req.ip, { success: false, locked: true });
-    await recordLoginEvent(null, email, 'LOGIN_FAILED', 'FAILURE');
     return res.status(401).json({ error: LOGIN_FAILED_MESSAGE });
   }
 
@@ -86,10 +72,6 @@ export async function login(req, res) {
   if (!user || !valid) {
     const locked = await registerFailure(email, throttle, now);
     await recordAttempt(email, req.ip, { success: false, locked });
-    await recordLoginEvent(user, email, 'LOGIN_FAILED', 'FAILURE');
-    // Only the transition into a lock creates ACCOUNT_LOCKED. Attempts during
-    // an existing lock keep producing LOGIN_FAILED without extending it.
-    if (locked) await recordLoginEvent(user, email, 'ACCOUNT_LOCKED', 'FAILURE');
     return res.status(401).json({ error: LOGIN_FAILED_MESSAGE });
   }
 
@@ -100,7 +82,6 @@ export async function login(req, res) {
     });
   }
   await recordAttempt(email, req.ip, { success: true });
-  await recordLoginEvent(user, email, 'LOGIN');
 
   const token = signToken(user);
   return res.json({

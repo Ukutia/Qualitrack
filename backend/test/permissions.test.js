@@ -11,7 +11,6 @@ vi.mock('../src/config/prisma.js', () => ({
     userPermission: { findMany: vi.fn(), upsert: vi.fn() },
     // Auditoría HU20: registra cada 403.
     securityEvent: { create: vi.fn(async () => ({})) },
-    $transaction: vi.fn(),
     // Lo que leen los controladores de las rutas permitidas en estas pruebas.
     reportDraft: { findMany: vi.fn() },
     topic: { findMany: vi.fn() },
@@ -42,7 +41,6 @@ let rows = [];
 
 beforeEach(() => {
   vi.clearAllMocks();
-  prisma.$transaction.mockImplementation((callback) => callback(prisma));
   rows = [];
   prisma.userPermission.findMany.mockImplementation(async () => rows);
   prisma.reportDraft.findMany.mockResolvedValue([]);
@@ -254,9 +252,6 @@ describe('API de permisos de integrantes', () => {
       update: { level },
     });
     expect(res.body.permissions.find((p) => p.module === 'busqueda')).toMatchObject({ level, source: 'personalizado' });
-    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(prisma.securityEvent.create).toHaveBeenCalledTimes(1);
-    expect(prisma.securityEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: 'PERMISSIONS_UPDATED', resourceType: 'permission', resourceId: `7/busqueda/${level}`, result: 'SUCCESS' }) });
   });
 
   it('guardar denegado bloquea de inmediato al integrante (invalida el caché)', async () => {

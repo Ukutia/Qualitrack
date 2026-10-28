@@ -37,7 +37,6 @@ export async function saveMilestone(req, res) {
     return { item };
   });
   if (outcome.error) return res.status(outcome.status).json(outcome);
-  req.auditRecorded = true;
   res.status(id ? 200 : 201).json(serialize(outcome.item));
 }
 
@@ -55,6 +54,5 @@ export async function completeMilestone(req, res) {
     return { item: await tx.milestone.findUnique({ where: { id }, include }) };
   });
   if (outcome.error) return res.status(outcome.status).json(outcome);
-  req.auditRecorded = true;
   res.json(serialize(outcome.item));
 }

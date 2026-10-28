@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Navigate, Routes, Route, useLocation } from 'react-router-dom';
 import { api } from './lib/api.js';
 import { useAuth } from './context/AuthContext.jsx';
@@ -29,21 +29,17 @@ import { LEVELS, MODULES, can } from './lib/permissions.js';
 // Módulo que exige cada ruta (HU19). El backend revalida cada petición: esto
 // solo evita que la pantalla llegue a montarse.
 const { TABLERO, REPOSITORIO, SOLICITUDES, BUSQUEDA, CARGA, INFORME, NUBE } = MODULES;
+const ADMIN_ONLY = [ROLES.ADMIN];
 
 // Dentro del Layout la sesión ya está garantizada; acá solo se filtra el acceso
 // por módulo (HU19) y se registra la navegación bloqueada (HU20).
-function Guard({ module, level, adminOnly = false, children }) {
+function Guard({ module, level, children }) {
   const { user } = useAuth();
   const { pathname } = useLocation();
-  const denied = adminOnly ? user?.role !== ROLES.ADMIN : !can(user, module, level);
-  const lastDenied = useRef(null);
+  const denied = !can(user, module, level);
   useEffect(() => {
-    if (!denied) { lastDenied.current = null; return; }
-    const key = `${user?.id}:${pathname}`;
-    if (lastDenied.current === key) return;
-    lastDenied.current = key;
-    api.post('/auth/access-denied', { section: pathname }).catch((error) => console.error('No se pudo registrar el acceso denegado.', error.response?.status));
-  }, [denied, pathname, user?.id]);
+    if (denied) api.post('/auth/access-denied', { section: pathname }).catch((error) => console.error('No se pudo registrar el acceso denegado.', error.response?.status));
+  }, [denied, pathname]);
   if (denied) return <Navigate to="/acceso-denegado" replace />;
   return children;
 }
@@ -65,7 +61,7 @@ export default function App() {
         <Route path="/acceso-denegado" element={<AccessDenied />} />
         <Route path="/app" element={guard(TABLERO, <Dashboard />)} />
         <Route path="/milestones" element={guard(TABLERO, <Milestones />)} />
-        <Route path="/security-events" element={<Guard adminOnly><SecurityEvents /></Guard>} />
+        <Route path="/security-events" element={<SecurityEvents />} />
         <Route path="/documents" element={guard(REPOSITORIO, <Documents />)} />
         <Route path="/requests" element={guard(SOLICITUDES, <DocumentRequests />)} />
         <Route path="/requests/new" element={guard(SOLICITUDES, <NewDocumentRequest />, LEVELS.ESCRITURA)} />
@@ -78,7 +74,7 @@ export default function App() {
         <Route path="/report" element={guard(INFORME, <ReportEditor />)} />
         <Route path="/cloud" element={guard(NUBE, <CloudConnect />)} />
         <Route path="/trash" element={guard(REPOSITORIO, <Trash />)} />
-        <Route path="/team" element={<Guard adminOnly><Team /></Guard>} />
+        <Route path="/team" element={<ProtectedRoute roles={ADMIN_ONLY}><Team /></ProtectedRoute>} />
       </Route>
       {/* Sin este catch-all, una URL desconocida renderiza una pantalla vacía. */}
       <Route path="*" element={<NotFound />} />

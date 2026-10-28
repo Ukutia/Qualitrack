@@ -5,18 +5,16 @@ import { api } from '../lib/api.js';
 const ACTION_LABELS = {
   LOGIN: 'Inicio de sesión', LOGIN_FAILED: 'Inicio de sesión fallido', ACCOUNT_LOCKED: 'Bloqueo temporal de cuenta', ACCESS_DENIED: 'Acceso denegado',
   TEAM_MEMBER_DELETED: 'Eliminación de integrante',
-  PERMISSIONS_UPDATED: 'Modificación de permisos',
   MILESTONE_CREATED: 'Hito registrado', MILESTONE_UPDATED: 'Hito modificado', MILESTONE_COMPLETED: 'Hito completado',
   DOCUMENTS_POST: 'Carga de evidencia', DOCUMENTS_DELETE: 'Eliminación de evidencia', DOCUMENTS_TRASH_POST: 'Envío a papelera', DOCUMENTS_RESTORE_POST: 'Restauración de evidencia',
-  DOCUMENTS_CLASSIFY_POST: 'Solicitud de clasificación', CLASSIFICATION_COMPLETED: 'Clasificación completada', CLASSIFICATION_FAILED: 'Clasificación fallida', DOCUMENTS_CLASSIFY_FALLBACK_POST: 'Clasificación de respaldo', DOCUMENTS_ASSOCIATION_PUT: 'Reasignación de evidencia',
+  DOCUMENTS_CLASSIFY_POST: 'Clasificación de evidencia', DOCUMENTS_CLASSIFY_FALLBACK_POST: 'Clasificación de respaldo', DOCUMENTS_ASSOCIATION_PUT: 'Reasignación de evidencia',
   ASSOCIATIONS_VALIDATE_POST: 'Validación de clasificación', ASSOCIATIONS_REJECT_POST: 'Rechazo de clasificación',
   DOCUMENT_REQUESTS_POST: 'Creación de solicitud', DOCUMENT_REQUESTS_PAUSE_POST: 'Pausa de solicitud', DOCUMENT_REQUESTS_RESUME_POST: 'Reanudación de solicitud', DOCUMENT_REQUESTS_CANCEL_POST: 'Cancelación de solicitud', DOCUMENT_REQUESTS_DELETE: 'Eliminación de solicitud',
   REPORT_DRAFTS_POST: 'Creación de borrador', REPORT_DRAFTS_PUT: 'Modificación del informe', REPORT_DRAFTS_DELETE: 'Eliminación de borrador', REPORT_DRAFTS_SECTIONS_PUT: 'Modificación de sección', REPORT_STRUCTURE_POST: 'Actualización de estructura',
   CLOUD_GOOGLE_IMPORT_POST: 'Importación desde Google Drive', CLOUD_DROPBOX_IMPORT_POST: 'Importación desde Dropbox',
 };
-const RESOURCES = { account: 'Cuenta', permission: 'Permiso de usuario', milestone: 'Hito', milestones: 'Hito', documents: 'Evidencia', folders: 'Carpeta', associations: 'Clasificación', 'document-requests': 'Solicitud', 'report-drafts': 'Informe', 'report-structure': 'Estructura del informe', cloud: 'Conexión de nube', section: 'Sección', 'team-member': 'Integrante' };
+const RESOURCES = { account: 'Cuenta', milestone: 'Hito', documents: 'Evidencia', associations: 'Clasificación', 'document-requests': 'Solicitud', 'report-drafts': 'Informe', 'report-structure': 'Estructura del informe', cloud: 'Conexión de nube', section: 'Sección', 'team-member': 'Integrante' };
 const RESULTS = {
-  ACCEPTED: { label: 'Aceptado para procesar', classes: 'bg-brand-50 text-brand-800 ring-brand-200', dot: 'bg-brand-500' },
   SUCCESS: { label: 'Correcto', classes: 'bg-emerald-50 text-emerald-800 ring-emerald-200', dot: 'bg-emerald-500' },
   FAILURE: { label: 'Fallido', classes: 'bg-amber-50 text-amber-800 ring-amber-200', dot: 'bg-amber-500' },
   DENIED: { label: 'Denegado', classes: 'bg-rose-50 text-rose-800 ring-rose-200', dot: 'bg-rose-500' },

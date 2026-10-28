@@ -1,5 +1,4 @@
 import { prisma } from '../config/prisma.js';
-import { recordSecurityEvent } from '../services/audit.service.js';
 import { config } from '../config/env.js';
 import { viewFilter } from '../middleware/ownership.js';
 import { toDisplayAnalysisStatus } from '../services/analysisStatus.service.js';
@@ -501,12 +500,7 @@ export async function deleteFolder(req, res) {
         data: { deletedAt: new Date(), folderId: null },
       });
       await tx.folder.delete({ where: { id } });
-      for (const document of documents) {
-        await recordSecurityEvent({ user: req.user, action: 'DOCUMENTS_TRASH_POST', resourceType: 'documents', resourceId: document.id }, tx);
-      }
-      await recordSecurityEvent({ user: req.user, action: 'FOLDERS_DELETE', resourceType: 'folders', resourceId: id }, tx);
     });
-    req.auditRecorded = true;
     return res.json({ deletedFolderId: id, trashedDocuments: documents.length });
   }
 
@@ -609,14 +603,7 @@ export async function bulkTrashItems(req, res) {
     if (rootFolderIds.length) {
       await tx.folder.deleteMany({ where: { id: { in: rootFolderIds } } });
     }
-    for (const documentId of idsToTrash) {
-      await recordSecurityEvent({ user: req.user, action: 'DOCUMENTS_TRASH_POST', resourceType: 'documents', resourceId: documentId }, tx);
-    }
-    for (const folderId of treeFolderIds) {
-      await recordSecurityEvent({ user: req.user, action: 'FOLDERS_DELETE', resourceType: 'folders', resourceId: folderId }, tx);
-    }
   });
-  req.auditRecorded = true;
 
   return res.json({
     trashedDocuments: idsToTrash.length,

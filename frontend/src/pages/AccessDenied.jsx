@@ -20,7 +20,7 @@ export default function AccessDenied() {
         </span>
 
         <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight text-ink-900">
-          Acceso Denegado
+          Acceso denegado
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-steel-600">
           No tiene permisos sobre esta sección. Si necesita acceder, solicítelo al Encargado de
