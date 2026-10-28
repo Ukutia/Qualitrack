@@ -137,11 +137,15 @@ export async function updateMemberPermission(req, res) {
     return res.status(400).json({ error: 'Los permisos de un administrador no se pueden personalizar.' });
   }
 
-  await prisma.userPermission.upsert({
-    where: { userId_module: { userId: target.id, module } },
-    create: { userId: target.id, module, level },
-    update: { level },
+  await prisma.$transaction(async (tx) => {
+    await tx.userPermission.upsert({
+      where: { userId_module: { userId: target.id, module } },
+      create: { userId: target.id, module, level },
+      update: { level },
+    });
+    await recordSecurityEvent({ user: req.user, action: 'PERMISSIONS_UPDATED', resourceType: 'permission', resourceId: `${target.id}/${module}/${level}` }, tx);
   });
+  req.auditRecorded = true;
   invalidatePermissions(target.id);
 
   const rows = [...target.permissions.filter((r) => r.module !== module), { module, level }];
