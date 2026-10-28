@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 
 const ACTION_LABELS = {
   LOGIN: 'Inicio de sesión', LOGIN_FAILED: 'Inicio de sesión fallido', ACCOUNT_LOCKED: 'Bloqueo temporal de cuenta', ACCESS_DENIED: 'Acceso denegado',
+  TEAM_MEMBER_DELETED: 'Eliminación de integrante',
   MILESTONE_CREATED: 'Hito registrado', MILESTONE_UPDATED: 'Hito modificado', MILESTONE_COMPLETED: 'Hito completado',
   DOCUMENTS_POST: 'Carga de evidencia', DOCUMENTS_DELETE: 'Eliminación de evidencia', DOCUMENTS_TRASH_POST: 'Envío a papelera', DOCUMENTS_RESTORE_POST: 'Restauración de evidencia',
   DOCUMENTS_CLASSIFY_POST: 'Clasificación de evidencia', DOCUMENTS_CLASSIFY_FALLBACK_POST: 'Clasificación de respaldo', DOCUMENTS_ASSOCIATION_PUT: 'Reasignación de evidencia',
@@ -12,7 +13,7 @@ const ACTION_LABELS = {
   REPORT_DRAFTS_POST: 'Creación de borrador', REPORT_DRAFTS_PUT: 'Modificación del informe', REPORT_DRAFTS_DELETE: 'Eliminación de borrador', REPORT_DRAFTS_SECTIONS_PUT: 'Modificación de sección', REPORT_STRUCTURE_POST: 'Actualización de estructura',
   CLOUD_GOOGLE_IMPORT_POST: 'Importación desde Google Drive', CLOUD_DROPBOX_IMPORT_POST: 'Importación desde Dropbox',
 };
-const RESOURCES = { account: 'Cuenta', milestone: 'Hito', documents: 'Evidencia', associations: 'Clasificación', 'document-requests': 'Solicitud', 'report-drafts': 'Informe', 'report-structure': 'Estructura del informe', cloud: 'Conexión de nube', section: 'Sección' };
+const RESOURCES = { account: 'Cuenta', milestone: 'Hito', documents: 'Evidencia', associations: 'Clasificación', 'document-requests': 'Solicitud', 'report-drafts': 'Informe', 'report-structure': 'Estructura del informe', cloud: 'Conexión de nube', section: 'Sección', 'team-member': 'Integrante' };
 const RESULTS = {
   SUCCESS: { label: 'Correcto', classes: 'bg-emerald-50 text-emerald-800 ring-emerald-200', dot: 'bg-emerald-500' },
   FAILURE: { label: 'Fallido', classes: 'bg-amber-50 text-amber-800 ring-amber-200', dot: 'bg-amber-500' },

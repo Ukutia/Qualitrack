@@ -5,7 +5,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 vi.mock('../src/config/prisma.js', () => ({
   prisma: {
-    user: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
+    user: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
+    userPermission: { upsert: vi.fn() },
+    cloudConnection: { deleteMany: vi.fn() },
+    loginThrottle: { deleteMany: vi.fn() },
+    $transaction: vi.fn(),
     // Auditoría HU20: registra cada 403.
     securityEvent: { create: vi.fn(async () => ({})) },
   },
@@ -34,6 +38,7 @@ afterAll(() => new Promise((resolve) => server.close(resolve)));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  prisma.$transaction.mockImplementation(async (callback) => callback(prisma));
   prisma.user.findUnique.mockResolvedValue(null);
   prisma.user.create.mockImplementation(async ({ data }) => ({
     id: 40,
@@ -48,8 +53,8 @@ beforeEach(() => {
 
 const tokenFor = (role) => signToken({ id: 1, email: `${role}@qualitrack.cl`, name: role, role });
 
-async function call(method, role, body) {
-  const response = await fetch(`${baseUrl}/team/members`, {
+async function call(method, role, body, path = '/team/members') {
+  const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: { 'content-type': 'application/json', authorization: `Bearer ${tokenFor(role)}` },
     body: body ? JSON.stringify(body) : undefined,
@@ -179,7 +184,78 @@ describe('acceso a la sección de equipo', () => {
 
     expect(status).toBe(200);
     expect(body).toHaveLength(1);
+    expect(prisma.user.findMany.mock.calls[0][0].where).toEqual({ deletedAt: null });
     expect(prisma.user.findMany.mock.calls[0][0].select).not.toHaveProperty('passwordHash');
+  });
+});
+
+describe('DELETE /team/members/:id', () => {
+  const target = {
+    id: 23,
+    name: 'Ana Soto',
+    email: 'ana@institucion.cl',
+    role: 'user',
+    deletedAt: null,
+    permissions: [],
+  };
+
+  it('exige escribir exactamente “entiendo”', async () => {
+    const { status, body } = await call('DELETE', 'admin', { confirmation: 'Entiendo' }, '/team/members/23');
+
+    expect(status).toBe(400);
+    expect(body.code).toBe('CONFIRMATION_REQUIRED');
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('impide eliminar administradores', async () => {
+    prisma.user.findUnique.mockResolvedValue({ ...target, role: 'admin' });
+
+    const { status, body } = await call('DELETE', 'admin', { confirmation: 'entiendo' }, '/team/members/23');
+
+    expect(status).toBe(400);
+    expect(body.error).toMatch(/administradores no se pueden eliminar/i);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('elimina lógicamente, libera el correo, revoca permisos y registra a quién se eliminó', async () => {
+    prisma.user.findUnique.mockResolvedValue(target);
+    prisma.user.update.mockResolvedValue({});
+    prisma.userPermission.upsert.mockResolvedValue({});
+    prisma.cloudConnection.deleteMany.mockResolvedValue({ count: 1 });
+    prisma.loginThrottle.deleteMany.mockResolvedValue({ count: 1 });
+
+    const { status, body } = await call('DELETE', 'admin', { confirmation: 'entiendo' }, '/team/members/23');
+
+    expect(status).toBe(200);
+    expect(body.deleted).toMatchObject({ id: 23, name: 'Ana Soto', email: 'ana@institucion.cl' });
+    expect(prisma.userPermission.upsert).toHaveBeenCalledTimes(7);
+    expect(prisma.userPermission.upsert.mock.calls.every(([args]) => args.create.level === 'denegado' && args.update.level === 'denegado')).toBe(true);
+    expect(prisma.cloudConnection.deleteMany).toHaveBeenCalledWith({ where: { userId: 23 } });
+    expect(prisma.loginThrottle.deleteMany).toHaveBeenCalledWith({ where: { email: 'ana@institucion.cl' } });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 23 },
+      data: expect.objectContaining({
+        email: expect.stringMatching(/^deleted-23-[a-f0-9]+@deleted\.qualitrack\.local$/),
+        deletedEmail: 'ana@institucion.cl',
+        deletedAt: expect.any(Date),
+        passwordHash: expect.stringMatching(/^\$2[aby]\$10\$/),
+      }),
+    });
+    expect(prisma.securityEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        actorEmail: 'admin@qualitrack.cl',
+        action: 'TEAM_MEMBER_DELETED',
+        resourceType: 'team-member',
+        resourceId: '23 · Ana Soto · ana@institucion.cl',
+        result: 'SUCCESS',
+      }),
+    });
+  });
+
+  it.each(['user', 'ingestor'])('el rol %s no puede eliminar integrantes', async (role) => {
+    const { status } = await call('DELETE', role, { confirmation: 'entiendo' }, '/team/members/23');
+    expect(status).toBe(403);
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });
 

@@ -58,6 +58,11 @@ model User {
   id           Int      @id @default(autoincrement())
   name         String
   email        String   @unique
+  /// Correo original conservado únicamente para trazabilidad después de que
+  /// un administrador elimina lógicamente la cuenta. `email` se libera para
+  /// permitir una incorporación posterior con la misma dirección.
+  deletedEmail String?
+  deletedAt    DateTime?
   passwordHash String
   /// Rol de acceso (EP 1.1 · EP 1.2): "admin" | "user" | "ingestor".
   /// Los permisos de cada rol se declaran en src/config/roles.js.
@@ -80,6 +85,8 @@ model User {
   assignedMilestones Milestone[] @relation("Responsible")
   createdMilestones Milestone[] @relation("MilestoneCreator")
   completedMilestones Milestone[] @relation("MilestoneCompleter")
+
+  @@index([deletedAt, createdAt])
 }
 
 /// Immutable through the API. Actor snapshot survives account/resource changes.

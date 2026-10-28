@@ -42,6 +42,7 @@ import { login, me } from '../controllers/auth.controller.js';
 import {
   listMembers,
   addMember,
+  deleteMember,
   getMemberPermissions,
   updateMemberPermission,
 } from '../controllers/team.controller.js';
@@ -355,6 +356,7 @@ router.delete('/document-requests/:id', deleteDocumentRequest);
 // Equipo (HU18): solo el admin; user e ingestor no tienen regla y reciben 403.
 router.get('/team/members', asyncRoute(listMembers));
 router.post('/team/members', asyncRoute(addMember));
+router.delete('/team/members/:id', asyncRoute(deleteMember));
 // Permisos por módulo (HU19): tampoco figuran en config/permissions.js.
 router.get('/team/members/:id/permissions', asyncRoute(getMemberPermissions));
 router.put('/team/members/:id/permissions', asyncRoute(updateMemberPermission));

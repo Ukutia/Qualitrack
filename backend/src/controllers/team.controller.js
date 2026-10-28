@@ -11,6 +11,7 @@ import { config } from '../config/env.js';
 import { ROLES, ROLE_LABELS, isKnownRole } from '../config/roles.js';
 import { MODULES, MODULE_LABELS, LEVELS, effectivePermissions, isKnownLevel, isKnownModule } from '../config/permissions.js';
 import { invalidatePermissions } from '../middleware/authorize.js';
+import { recordSecurityEvent } from '../services/audit.service.js';
 import { sendTeamWelcomeEmail } from '../services/requestEmail.service.js';
 
 const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
@@ -71,6 +72,7 @@ const DUPLICATE_EMAIL = { email: 'Este correo ya pertenece a un integrante del e
 
 export async function listMembers(req, res) {
   const members = await prisma.user.findMany({
+    where: { deletedAt: null },
     select: { ...MEMBER_FIELDS, permissions: { select: { module: true, level: true } } },
     orderBy: { createdAt: 'desc' },
   });
@@ -99,13 +101,20 @@ function permissionView(member, rows) {
 async function findTarget(id) {
   return prisma.user.findUnique({
     where: { id: Number(id) },
-    select: { id: true, name: true, email: true, role: true, permissions: { select: { module: true, level: true } } },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      deletedAt: true,
+      permissions: { select: { module: true, level: true } },
+    },
   });
 }
 
 export async function getMemberPermissions(req, res) {
   const target = await findTarget(req.params.id);
-  if (!target) return res.status(404).json({ error: 'Integrante no encontrado.' });
+  if (!target || target.deletedAt) return res.status(404).json({ error: 'Integrante no encontrado.' });
   const { permissions, ...member } = target;
   return res.json({ member, permissions: permissionView(member, permissions) });
 }
@@ -122,7 +131,7 @@ export async function updateMemberPermission(req, res) {
   }
 
   const target = await findTarget(req.params.id);
-  if (!target) return res.status(404).json({ error: 'Integrante no encontrado.' });
+  if (!target || target.deletedAt) return res.status(404).json({ error: 'Integrante no encontrado.' });
   // El admin accede a todo por definición; personalizarlo no tendría efecto.
   if (target.role === ROLES.ADMIN) {
     return res.status(400).json({ error: 'Los permisos de un administrador no se pueden personalizar.' });
@@ -189,4 +198,68 @@ export async function addMember(req, res) {
   }
 
   return res.status(201).json({ member, notification });
+}
+
+// El borrado es lógico: se conserva la misma fila para que documentos,
+// carpetas, solicitudes, borradores e hitos mantengan su autoría histórica.
+// El correo se mueve a deletedEmail y se reemplaza por uno interno único, de
+// modo que la dirección original puede reincorporarse después.
+export async function deleteMember(req, res) {
+  if (req.body?.confirmation !== 'entiendo') {
+    return res.status(400).json({
+      error: 'Para eliminar al integrante debe escribir exactamente “entiendo”.',
+      code: 'CONFIRMATION_REQUIRED',
+    });
+  }
+
+  const target = await findTarget(req.params.id);
+  if (!target || target.deletedAt) return res.status(404).json({ error: 'Integrante no encontrado.' });
+  if (target.role === ROLES.ADMIN) {
+    return res.status(400).json({ error: 'Los administradores no se pueden eliminar.' });
+  }
+
+  const deletedAt = new Date();
+  const tombstoneEmail = `deleted-${target.id}-${crypto.randomBytes(8).toString('hex')}@deleted.qualitrack.local`;
+  const disabledPasswordHash = await bcrypt.hash(crypto.randomBytes(24).toString('base64url'), 10);
+
+  await prisma.$transaction(async (tx) => {
+    // Una sesión ya emitida conserva su JWT, por eso se deniegan todos los
+    // módulos antes de responder y se invalida el caché tras confirmar.
+    for (const module of Object.values(MODULES)) {
+      await tx.userPermission.upsert({
+        where: { userId_module: { userId: target.id, module } },
+        create: { userId: target.id, module, level: LEVELS.DENEGADO },
+        update: { level: LEVELS.DENEGADO },
+      });
+    }
+
+    // Las credenciales de servicios externos dejan de pertenecer a una cuenta
+    // eliminada. El contenido importado permanece intacto en el repositorio.
+    await tx.cloudConnection.deleteMany({ where: { userId: target.id } });
+    // Evita que un bloqueo anterior afecte a una reincorporación con el mismo
+    // correo. Los LoginAttempt históricos se conservan porque son auditoría.
+    await tx.loginThrottle.deleteMany({ where: { email: target.email.toLowerCase() } });
+
+    await tx.user.update({
+      where: { id: target.id },
+      data: {
+        email: tombstoneEmail,
+        deletedEmail: target.email,
+        deletedAt,
+        passwordHash: disabledPasswordHash,
+      },
+    });
+
+    await recordSecurityEvent({
+      user: req.user,
+      action: 'TEAM_MEMBER_DELETED',
+      resourceType: 'team-member',
+      resourceId: `${target.id} · ${target.name} · ${target.email}`,
+    }, tx);
+  });
+
+  invalidatePermissions(target.id);
+  return res.json({
+    deleted: { id: target.id, name: target.name, email: target.email, deletedAt },
+  });
 }

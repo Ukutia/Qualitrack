@@ -29,6 +29,15 @@ export function useAddTeamMember() {
   });
 }
 
+export function useDeleteTeamMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ memberId, confirmation }) =>
+      (await api.delete(`/team/members/${memberId}`, { data: { confirmation } })).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['team-members'] }),
+  });
+}
+
 // Permisos por módulo (HU19): la respuesta trae la vista actualizada del
 // integrante y se escribe directo en el listado.
 export function useUpdateMemberPermission() {

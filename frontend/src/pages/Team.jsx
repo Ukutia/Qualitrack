@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useAddTeamMember, useTeamMembers, useUpdateMemberPermission } from '../hooks/useApi.js';
+import { useRef, useState } from 'react';
+import { useAddTeamMember, useDeleteTeamMember, useTeamMembers, useUpdateMemberPermission } from '../hooks/useApi.js';
 import { ROLES, roleLabel } from '../lib/roles.js';
 import { LEVELS, LEVEL_LABELS, MODULES, MODULE_LABELS } from '../lib/permissions.js';
 
@@ -26,6 +26,14 @@ function Field({ id, label, error, children }) {
       {children}
       {error && <p id={`${id}-error`} className="text-xs font-medium text-red-700">{error}</p>}
     </div>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+      <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" />
+    </svg>
   );
 }
 
@@ -122,10 +130,16 @@ function PermissionMatrix({ members }) {
 export default function Team() {
   const members = useTeamMembers();
   const addMember = useAddTeamMember();
+  const deleteMember = useDeleteTeamMember();
+  const deleteDialog = useRef(null);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [result, setResult] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteStatus, setDeleteStatus] = useState('');
 
   function update(field) {
     return (event) => {
@@ -147,6 +161,40 @@ export default function Team() {
       const body = error?.response?.data;
       if (body?.errors) setErrors(body.errors);
       setFormError(body?.error || 'No fue posible incorporar a la persona.');
+    }
+  }
+
+  function openDelete(member) {
+    setDeleteTarget(member);
+    setDeleteConfirmation('');
+    setDeleteError('');
+    setDeleteStatus('');
+    queueMicrotask(() => deleteDialog.current?.showModal());
+  }
+
+  function closeDelete() {
+    if (deleteMember.isPending) return;
+    deleteDialog.current?.close();
+    setDeleteTarget(null);
+    setDeleteConfirmation('');
+    setDeleteError('');
+  }
+
+  async function confirmDelete(event) {
+    event.preventDefault();
+    if (!deleteTarget || deleteConfirmation !== 'entiendo') return;
+    setDeleteError('');
+    try {
+      const data = await deleteMember.mutateAsync({
+        memberId: deleteTarget.id,
+        confirmation: deleteConfirmation,
+      });
+      setDeleteStatus(`${data.deleted.name} fue eliminado del equipo. Su acceso quedó revocado y sus registros se conservaron.`);
+      deleteDialog.current?.close();
+      setDeleteTarget(null);
+      setDeleteConfirmation('');
+    } catch (error) {
+      setDeleteError(error?.response?.data?.error || 'No fue posible eliminar al integrante.');
     }
   }
 
@@ -214,6 +262,11 @@ export default function Team() {
 
       <section className="space-y-3">
         <h2 className="font-display text-xl font-semibold text-ink-900">Integrantes</h2>
+        {deleteStatus && (
+          <div role="status" className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-200">
+            {deleteStatus}
+          </div>
+        )}
         {members.isLoading ? (
           <div className="rounded-xl2 bg-white p-8 text-center text-sm text-steel-500 shadow-soft">Cargando integrantes…</div>
         ) : members.isError ? (
@@ -228,6 +281,7 @@ export default function Team() {
                   <th className="px-5 py-3 font-medium">Cargo</th>
                   <th className="px-5 py-3 font-medium">Rol</th>
                   <th className="px-5 py-3 font-medium">Incorporación</th>
+                  <th className="px-5 py-3 text-center font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-steel-100">
@@ -238,6 +292,21 @@ export default function Team() {
                     <td className="px-5 py-3 text-steel-700">{member.cargo}</td>
                     <td className="px-5 py-3 text-steel-700">{roleLabel(member.role)}</td>
                     <td className="px-5 py-3 text-steel-500">{formatDate(member.createdAt)}</td>
+                    <td className="px-5 py-3 text-center">
+                      {member.role === ROLES.ADMIN ? (
+                        <span className="text-xs text-steel-400">No disponible</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openDelete(member)}
+                          aria-label={`Eliminar a ${member.name}`}
+                          title={`Eliminar a ${member.name}`}
+                          className="inline-grid h-9 w-9 place-items-center rounded-lg text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                        >
+                          <TrashIcon />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -247,6 +316,52 @@ export default function Team() {
       </section>
 
       {members.data && <PermissionMatrix members={members.data} />}
+
+      <dialog
+        ref={deleteDialog}
+        aria-labelledby="delete-member-title"
+        onCancel={(event) => {
+          if (deleteMember.isPending) event.preventDefault();
+          else closeDelete();
+        }}
+        className="w-[min(92vw,32rem)] rounded-xl2 bg-white p-0 text-ink-900 shadow-2xl backdrop:bg-ink-950/45"
+      >
+        {deleteTarget && (
+          <form onSubmit={confirmDelete} className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-rose-100 text-rose-700"><TrashIcon /></div>
+              <div>
+                <h2 id="delete-member-title" className="font-display text-xl font-semibold">Eliminar integrante</h2>
+                <p className="mt-2 text-sm leading-6 text-steel-600">
+                  Se revocará inmediatamente el acceso de <strong className="text-ink-900">{deleteTarget.name}</strong> ({deleteTarget.email}) y desaparecerá del equipo. Sus documentos, carpetas y registros históricos se conservarán.
+                </p>
+              </div>
+            </div>
+
+            <label htmlFor="delete-member-confirmation" className="mt-5 block text-sm font-medium text-ink-900">
+              Para confirmar, escriba <span className="font-mono font-semibold">entiendo</span>
+            </label>
+            <input
+              id="delete-member-confirmation"
+              autoFocus
+              autoComplete="off"
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              className="mt-2 w-full rounded-lg border border-steel-300 px-3 py-2.5 text-sm focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200"
+            />
+            {deleteError && <p role="alert" className="mt-3 text-sm text-rose-700">{deleteError}</p>}
+
+            <div className="mt-6 flex justify-end gap-3 border-t border-steel-200 pt-5">
+              <button type="button" onClick={closeDelete} disabled={deleteMember.isPending} className="rounded-lg border border-steel-300 px-4 py-2.5 text-sm font-medium text-steel-700 hover:bg-steel-50 disabled:opacity-50">
+                Cancelar
+              </button>
+              <button type="submit" disabled={deleteConfirmation !== 'entiendo' || deleteMember.isPending} className="rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40">
+                {deleteMember.isPending ? 'Eliminando…' : 'Eliminar integrante'}
+              </button>
+            </div>
+          </form>
+        )}
+      </dialog>
     </div>
   );
 }
