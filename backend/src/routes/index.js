@@ -87,6 +87,11 @@ import {
   cancelDocumentRequest,
   deleteDocumentRequest,
 } from '../controllers/documentRequests.controller.js';
+import {
+  getOnboarding,
+  completeStep,
+  skip,
+} from '../controllers/onboarding.controller.js';
 
 const router = Router();
 const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
@@ -251,6 +256,13 @@ router.use(enforceRolePolicy);
 
 router.get('/security-events', asyncRoute(listSecurityEvents));
 router.post('/auth/access-denied', asyncRoute(recordDeniedNavigation));
+// Onboarding (HU23)
+router.get('/onboarding', asyncRoute(getOnboarding));
+router.post('/onboarding/skip', asyncRoute(skip));
+router.post(
+  '/onboarding/steps/:stepId/complete',
+  asyncRoute(completeStep),
+);
 router.get('/milestones', asyncRoute(listMilestones));
 router.get('/milestones/responsibles', asyncRoute(milestoneResponsibles));
 router.post('/milestones', asyncRoute(saveMilestone));

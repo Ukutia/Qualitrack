@@ -15,6 +15,11 @@ vi.mock('../src/config/prisma.js', () => ({
     reportDraft: { findMany: vi.fn() },
     topic: { findMany: vi.fn() },
     documentRequest: { findMany: vi.fn() },
+    onboardingProgress: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
   },
 }));
 
@@ -42,10 +47,24 @@ let rows = [];
 beforeEach(() => {
   vi.clearAllMocks();
   rows = [];
+
   prisma.userPermission.findMany.mockImplementation(async () => rows);
   prisma.reportDraft.findMany.mockResolvedValue([]);
   prisma.topic.findMany.mockResolvedValue([]);
   prisma.documentRequest.findMany.mockResolvedValue([]);
+
+  prisma.onboardingProgress.findUnique.mockResolvedValue(null);
+
+  prisma.onboardingProgress.create.mockImplementation(async ({ data }) => ({
+    id: 1,
+    ...data,
+  }));
+
+  prisma.onboardingProgress.update.mockImplementation(async ({ where, data }) => ({
+    id: 1,
+    userId: where.userId,
+    ...data,
+  }));
 });
 
 /** Usuario nuevo por prueba: el caché de permisos queda limpio. */

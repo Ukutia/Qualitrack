@@ -54,6 +54,13 @@ enum RequestEmailStatus {
   CANCELLED
 }
 
+enum OnboardingStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
 model User {
   id           Int      @id @default(autoincrement())
   name         String
@@ -76,47 +83,50 @@ model User {
   topics              Topic[]
   documentRequests    DocumentRequest[]
   permissions         UserPermission[]
-  assignedMilestones Milestone[] @relation("Responsible")
-  createdMilestones Milestone[] @relation("MilestoneCreator")
-  completedMilestones Milestone[] @relation("MilestoneCompleter")
+  assignedMilestones  Milestone[]              @relation("Responsible")
+  createdMilestones   Milestone[]              @relation("MilestoneCreator")
+  completedMilestones Milestone[]              @relation("MilestoneCompleter")
+  onboarding          OnboardingProgress?
 }
 
 /// Immutable through the API. Actor snapshot survives account/resource changes.
 model SecurityEvent {
-  id Int @id @default(autoincrement())
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-  actorId Int?
-  actorEmail String?
-  action String
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  actorId      Int?
+  actorEmail   String?
+  action       String
   resourceType String
-  resourceId String?
-  result String
+  resourceId   String?
+  result       String
+
   @@index([createdAt, id])
 }
 
 model Milestone {
-  id Int @id @default(autoincrement())
-  title String @db.VarChar(100)
-  dueDate String @db.VarChar(10)
+  id            Int             @id @default(autoincrement())
+  title         String          @db.VarChar(100)
+  dueDate       String          @db.VarChar(10)
   responsibleId Int
-  responsible User @relation("Responsible", fields: [responsibleId], references: [id])
-  createdById Int
-  createdBy User @relation("MilestoneCreator", fields: [createdById], references: [id])
-  completedAt DateTime? @db.Timestamptz(3)
+  responsible   User            @relation("Responsible", fields: [responsibleId], references: [id])
+  createdById   Int
+  createdBy     User            @relation("MilestoneCreator", fields: [createdById], references: [id])
+  completedAt   DateTime?       @db.Timestamptz(3)
   completedById Int?
-  completedBy User? @relation("MilestoneCompleter", fields: [completedById], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tasks MilestoneTask[]
+  completedBy   User?           @relation("MilestoneCompleter", fields: [completedById], references: [id])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  tasks         MilestoneTask[]
+
   @@index([dueDate])
 }
 
 model MilestoneTask {
-  id Int @id @default(autoincrement())
-  title String @db.VarChar(200)
-  completed Boolean @default(false)
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(200)
+  completed   Boolean   @default(false)
   milestoneId Int
-  milestone Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
 }
 
 /// Permiso personalizado de un integrante sobre un módulo (HU19). Sin fila para
@@ -132,6 +142,27 @@ model UserPermission {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, module])
+}
+
+/// Progreso de la guía inicial de un integrante (HU23).
+/// Las tareas autorizadas se recalculan a partir de los permisos efectivos.
+model OnboardingProgress {
+  id Int @id @default(autoincrement())
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status OnboardingStatus @default(PENDING)
+
+  /// Pasos que el usuario ya recorrió correctamente.
+  completedStepIds String[] @default([])
+
+  /// Pasos que estaban autorizados en la última sincronización.
+  /// Permite detectar tareas agregadas o eliminadas al cambiar permisos.
+  authorizedStepIds String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 /// Solicitud de una evidencia a una persona externa. El token en claro se

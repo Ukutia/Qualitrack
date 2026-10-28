@@ -90,6 +90,12 @@ const route = (method, pattern, modules, level = levelFor(method)) => ({
 const AUTHENTICATED = [
   route('GET', /^\/auth\/me$/, []),
   route('POST', /^\/auth\/access-denied$/, []),
+
+  // HU23 — cualquier usuario autenticado puede consultar y actualizar
+  // exclusivamente su propio onboarding.
+  route('GET', /^\/onboarding$/, []),
+  route('POST', /^\/onboarding\/skip$/, []),
+  route('POST', /^\/onboarding\/steps\/[^/]+\/complete$/, []),
 ];
 
 // Las rutas de /team (incluidos los permisos) y /security-events no figuran:

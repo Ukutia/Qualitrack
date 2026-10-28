@@ -7,8 +7,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../src/config/prisma.js', () => ({
   prisma: {
     user: { findFirst: vi.fn() },
-    loginThrottle: { findUnique: vi.fn(), upsert: vi.fn(), update: vi.fn() },
+    loginThrottle: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+      update: vi.fn(),
+    },
     loginAttempt: { create: vi.fn() },
+
+    onboardingProgress: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
   },
 }));
 
@@ -37,8 +47,26 @@ async function attempt(email, password) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  prisma.loginThrottle.update.mockImplementation(async ({ where, data }) => ({ email: where.email, ...data }));
+
+  prisma.loginThrottle.update.mockImplementation(async ({ where, data }) => ({
+    email: where.email,
+    ...data,
+  }));
+
   prisma.loginAttempt.create.mockResolvedValue({});
+
+  prisma.onboardingProgress.findUnique.mockResolvedValue(null);
+
+  prisma.onboardingProgress.create.mockImplementation(async ({ data }) => ({
+    id: 1,
+    ...data,
+  }));
+
+  prisma.onboardingProgress.update.mockImplementation(async ({ where, data }) => ({
+    id: 1,
+    userId: where.userId,
+    ...data,
+  }));
 });
 
 describe('HU25 · escenario 1: sin bloqueo y bajo el límite', () => {
