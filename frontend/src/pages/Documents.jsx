@@ -219,7 +219,8 @@ export default function Documents() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-4"
+      data-onboarding="repositorio-ver">
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">
             Repositorio de evidencias
@@ -372,7 +373,7 @@ export default function Documents() {
       {!canWrite && <ReadOnlyNotice />}
 
       {canWrite && selectedIds.size > 0 && (
-        <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 flex flex-wrap gap-3 items-center justify-between">
+        <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 flex flex-wrap gap-3 items-center justify-between" data-onboarding="repositorio-gestionar">
           <span className="text-sm font-medium text-brand-900">
             {selectedIds.size} documento(s) seleccionado(s)
           </span>

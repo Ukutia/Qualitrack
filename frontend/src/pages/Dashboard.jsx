@@ -303,7 +303,7 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard space-y-7">
-      <header>
+      <header data-onboarding="tablero-ver">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-500">
           Criterio {data.criterion?.code} · CNA
         </p>
@@ -315,7 +315,7 @@ export default function Dashboard() {
 
       <div role="tablist" aria-label="Vistas del tablero" className="flex gap-6 border-b border-steel-200/70 sm:gap-8">
         {[['subcriteria', 'Subcriterios'], ['milestones', 'Hitos de acreditación']].map(([id, label], index) => <button
-          key={id} id={`tab-${id}`} type="button" role="tab" aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
+          key={id} id={`tab-${id}`} type="button" data-onboarding={id === 'milestones' ? 'hitos-gestionar' : undefined} role="tab" aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
           onClick={() => setTab(id)}
           onKeyDown={(event) => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;

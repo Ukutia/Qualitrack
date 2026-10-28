@@ -93,13 +93,14 @@ export default function DocumentRequests() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6"
+    data-onboarding="solicitudes-ver">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">Solicitudes de documentos</h1>
           <p className="mt-2 text-sm text-steel-500">Etapa de prueba del ciclo de vida y la rotación segura de tokens.</p>
         </div>
-        {canWrite && <Link to="/requests/new" className="btn inline-flex items-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700">Crear solicitud</Link>}
+        {canWrite && <Link to="/requests/new" data-onboarding="solicitudes-crear" className="btn inline-flex items-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700">Crear solicitud</Link>}
       </header>
 
       {!canWrite && <ReadOnlyNotice />}
@@ -146,7 +147,7 @@ export default function DocumentRequests() {
                   <CurrentToken token={request.token} createdAt={request.tokenCreatedAt} />
                 </div>
 
-                {canWrite && <div className="mt-4 flex flex-wrap gap-2">
+                {canWrite && <div className="mt-4 flex flex-wrap gap-2" data-onboarding="solicitudes-gestionar">
                   {request.status === 'PENDING' && <button type="button" disabled={action.isPending} onClick={() => runAction(request, 'pause')} className="btn rounded-lg border border-steel-300 px-3 py-2 text-sm font-medium text-ink-900 hover:bg-steel-50 disabled:opacity-50">Pausar</button>}
                   {request.status === 'PAUSED' && <button type="button" disabled={action.isPending} onClick={() => runAction(request, 'resume')} className="btn rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">Reanudar</button>}
                   {['PENDING', 'PAUSED'].includes(request.status) && <button type="button" disabled={action.isPending} onClick={() => runAction(request, 'cancel')} className="btn rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50">Cancelar</button>}

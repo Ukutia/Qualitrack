@@ -129,6 +129,7 @@ export default function Upload() {
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">
       <div
         role="button"
+        data-onboarding="carga-seleccionar"
         tabIndex={0}
         aria-label="Seleccionar archivos de evidencia: PDF, DOCX o XLSX"
         onKeyDown={(event) => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); inputRef.current?.click(); } }}
@@ -252,6 +253,7 @@ export default function Upload() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={startUpload}
+            data-onboarding="carga-subir"
             disabled={pendingCount === 0 || processing || hasDuplicate}
             className="btn rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 font-medium shadow-soft hover:shadow-lift disabled:opacity-50 disabled:shadow-none"
           >
