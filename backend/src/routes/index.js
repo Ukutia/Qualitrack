@@ -5,6 +5,7 @@ import { claimNextJob } from '../services/workerQueue.service.js';
 import { requireAuth } from '../middleware/auth.js';
 import { enforceRolePolicy } from '../middleware/authorize.js';
 import { auditRequests } from '../middleware/audit.js';
+import { recordClassificationOutcome } from '../services/audit.service.js';
 import { listSecurityEvents, recordDeniedNavigation } from '../controllers/securityEvents.controller.js';
 import { listMilestones, milestoneResponsibles, saveMilestone, completeMilestone } from '../controllers/milestones.controller.js';
 import {
@@ -106,7 +107,7 @@ const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req,
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // Auth
-router.post('/auth/login', login);
+router.post('/auth/login', asyncRoute(login));
 router.get('/auth/me', requireAuth, asyncRoute(me));
 
 // Google OAuth callback es público (Google redirige sin token; usa "state").
@@ -165,7 +166,7 @@ router.get('/worker/jobs', async (req, res) => {
 });
 
 // Webhook de actualización de estado de análisis (HU12)
-router.post('/webhooks/worker-update', async (req, res) => {
+router.post('/webhooks/worker-update', asyncRoute(async (req, res) => {
     const workerToken = req.headers['x-worker-token'];
 
     // Mismo riesgo que en /worker/jobs: sin secreto configurado, una peticion
@@ -181,59 +182,64 @@ router.post('/webhooks/worker-update', async (req, res) => {
     }
     const { documentId, status, result, userId, error } = req.body;
 
-    // Análisis cancelado (p. ej. se usó el respaldo): se descarta lo que llegue.
-    const actual = await prisma.document.findUnique({ where: { id: documentId }, select: { analysisStatus: true } });
-    if (['COMPLETED', 'ERROR'].includes(actual?.analysisStatus)) return res.status(200).send('IGNORED');
+    // Keep the result and its audit atomic. A retry can then recover from an
+    // audit outage instead of finding a terminal state with no security event.
+    const applied = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "Document" WHERE "id" = ${documentId} FOR UPDATE`;
+        const actual = await tx.document.findUnique({ where: { id: documentId }, select: { analysisStatus: true } });
+        if (['COMPLETED', 'ERROR'].includes(actual?.analysisStatus)) return false;
 
-    await prisma.document.update({
-        where: { id: documentId },
-        data: {
-            analysisStatus: status,
-            analysisError: status === 'ERROR' ? error : null,
-            analysisStatusUpdatedAt: new Date(),
-            // La justificacion se guarda siempre, tambien cuando el documento
-            // resulta NO relevante. Antes se descartaba, y un documento
-            // descartado por la IA quedaba indistinguible de uno nunca
-            // analizado: misma pantalla vacia, ninguna explicacion.
-            ...(status === 'COMPLETED' && result
-                ? {
-                      analysisSummary: result.justification ?? null,
-                      analysisEngine: result.engine ?? null,
-                  }
-                : {}),
-        }
-    });
-
-    if (status === 'COMPLETED' && result && result.relevant) {
-        await prisma.$transaction(async (tx) => {
-
-            const created = await tx.association.create({
-                data: {
-                    documentId,
-                    subcriterionId: result.subcriterionId,
-                    status: 'PROPOSED',
-                    justification: result.justification,
-                    evidenceFragment: result.evidenceFragment,
-                    confidence: result.confidence,
-                    engine: result.engine ?? null,
-                }
-            });
-
-            await tx.associationHistory.create({
-                data: {
-                    associationId: created.id,
-                    action: 'PROPOSED',
-                    userId,
-                    snapshot: {
-                        subcriterion: result.subcriterion.code,
-                        confidence: result.confidence,
-                        matchedKeywords: result.matchedKeywords,
-                    },
-                },
-            });
+        await tx.document.update({
+            where: { id: documentId },
+            data: {
+                analysisStatus: status,
+                analysisError: status === 'ERROR' ? error : null,
+                analysisStatusUpdatedAt: new Date(),
+                // La justificacion se guarda siempre, tambien cuando el documento
+                // resulta NO relevante. Antes se descartaba, y un documento
+                // descartado por la IA quedaba indistinguible de uno nunca
+                // analizado: misma pantalla vacia, ninguna explicacion.
+                ...(status === 'COMPLETED' && result
+                    ? {
+                          analysisSummary: result.justification ?? null,
+                          analysisEngine: result.engine ?? null,
+                      }
+                    : {}),
+            }
         });
-    }
 
+        if (status === 'COMPLETED' && result && result.relevant) {
+
+                const created = await tx.association.create({
+                    data: {
+                        documentId,
+                        subcriterionId: result.subcriterionId,
+                        status: 'PROPOSED',
+                        justification: result.justification,
+                        evidenceFragment: result.evidenceFragment,
+                        confidence: result.confidence,
+                        engine: result.engine ?? null,
+                    }
+                });
+
+                await tx.associationHistory.create({
+                    data: {
+                        associationId: created.id,
+                        action: 'PROPOSED',
+                        userId,
+                        snapshot: {
+                            subcriterion: result.subcriterion.code,
+                            confidence: result.confidence,
+                            matchedKeywords: result.matchedKeywords,
+                        },
+                    },
+                });
+        }
+
+        await recordClassificationOutcome({ userId, documentId, status }, tx);
+        return true;
+    });
+    if (!applied) return res.status(200).send('IGNORED');
     publishAnalysisStatus({
         documentId,
         analysisStatus: status,
@@ -242,7 +248,7 @@ router.post('/webhooks/worker-update', async (req, res) => {
     });
 
     res.status(200).send('OK');
-});
+}));
 
 // El destinatario no necesita cuenta. El token opaco es la única credencial;
 // el controlador nunca expone correo, usuario creador ni datos internos.

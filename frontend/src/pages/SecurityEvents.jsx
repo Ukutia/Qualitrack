@@ -3,18 +3,21 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api.js';
 
 const ACTION_LABELS = {
-  LOGIN: 'Inicio de sesión', LOGIN_FAILED: 'Inicio de sesión fallido', ACCOUNT_LOCKED: 'Bloqueo temporal de cuenta', ACCESS_DENIED: 'Acceso denegado',
+  LOGIN: 'Inicio de sesión', LOGIN_FAILED: 'Inicio de sesión fallido', LOGIN_BLOCKED: 'Inicio rechazado: cuenta bloqueada', ACCOUNT_LOCKED: 'Bloqueo temporal de cuenta', ACCESS_DENIED: 'Acceso denegado',
+  LOGIN_INVALID_PASSWORD: 'Contraseña incorrecta', LOGIN_UNKNOWN_ACCOUNT: 'Cuenta no encontrada', LOGIN_MISSING_CREDENTIALS: 'Credenciales incompletas',
   TEAM_MEMBER_DELETED: 'Eliminación de integrante',
+  PERMISSIONS_UPDATED: 'Modificación de permisos',
   MILESTONE_CREATED: 'Hito registrado', MILESTONE_UPDATED: 'Hito modificado', MILESTONE_COMPLETED: 'Hito completado',
   DOCUMENTS_POST: 'Carga de evidencia', DOCUMENTS_DELETE: 'Eliminación de evidencia', DOCUMENTS_TRASH_POST: 'Envío a papelera', DOCUMENTS_RESTORE_POST: 'Restauración de evidencia',
-  DOCUMENTS_CLASSIFY_POST: 'Clasificación de evidencia', DOCUMENTS_CLASSIFY_FALLBACK_POST: 'Clasificación de respaldo', DOCUMENTS_ASSOCIATION_PUT: 'Reasignación de evidencia',
+  DOCUMENTS_CLASSIFY_POST: 'Solicitud de clasificación', CLASSIFICATION_COMPLETED: 'Clasificación completada', CLASSIFICATION_FAILED: 'Clasificación fallida', DOCUMENTS_CLASSIFY_FALLBACK_POST: 'Clasificación de respaldo', DOCUMENTS_ASSOCIATION_PUT: 'Reasignación de evidencia',
   ASSOCIATIONS_VALIDATE_POST: 'Validación de clasificación', ASSOCIATIONS_REJECT_POST: 'Rechazo de clasificación',
   DOCUMENT_REQUESTS_POST: 'Creación de solicitud', DOCUMENT_REQUESTS_PAUSE_POST: 'Pausa de solicitud', DOCUMENT_REQUESTS_RESUME_POST: 'Reanudación de solicitud', DOCUMENT_REQUESTS_CANCEL_POST: 'Cancelación de solicitud', DOCUMENT_REQUESTS_DELETE: 'Eliminación de solicitud',
   REPORT_DRAFTS_POST: 'Creación de borrador', REPORT_DRAFTS_PUT: 'Modificación del informe', REPORT_DRAFTS_DELETE: 'Eliminación de borrador', REPORT_DRAFTS_SECTIONS_PUT: 'Modificación de sección', REPORT_STRUCTURE_POST: 'Actualización de estructura',
   CLOUD_GOOGLE_IMPORT_POST: 'Importación desde Google Drive', CLOUD_DROPBOX_IMPORT_POST: 'Importación desde Dropbox',
 };
-const RESOURCES = { account: 'Cuenta', milestone: 'Hito', documents: 'Evidencia', associations: 'Clasificación', 'document-requests': 'Solicitud', 'report-drafts': 'Informe', 'report-structure': 'Estructura del informe', cloud: 'Conexión de nube', section: 'Sección', 'team-member': 'Integrante' };
+const RESOURCES = { account: 'Cuenta', permission: 'Permiso de usuario', milestone: 'Hito', milestones: 'Hito', documents: 'Evidencia', folders: 'Carpeta', associations: 'Clasificación', 'document-requests': 'Solicitud', 'report-drafts': 'Informe', 'report-structure': 'Estructura del informe', cloud: 'Conexión de nube', section: 'Sección', 'team-member': 'Integrante' };
 const RESULTS = {
+  ACCEPTED: { label: 'Aceptado para procesar', classes: 'bg-brand-50 text-brand-800 ring-brand-200', dot: 'bg-brand-500' },
   SUCCESS: { label: 'Correcto', classes: 'bg-emerald-50 text-emerald-800 ring-emerald-200', dot: 'bg-emerald-500' },
   FAILURE: { label: 'Fallido', classes: 'bg-amber-50 text-amber-800 ring-amber-200', dot: 'bg-amber-500' },
   DENIED: { label: 'Denegado', classes: 'bg-rose-50 text-rose-800 ring-rose-200', dot: 'bg-rose-500' },
@@ -36,8 +39,9 @@ export default function SecurityEvents() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const table = useRef(null);
-  const [denied, setDenied] = useState(false);
-  const query = useQuery({ queryKey: ['security-events', page, pageSize, denied], queryFn: async ({ signal }) => (await api.get('/security-events', { signal, params: { page, pageSize, ...(denied ? { result: 'DENIED' } : {}) } })).data, refetchInterval: 30000 });
+  const [filter, setFilter] = useState('all');
+  const denied = filter === 'denied';
+  const query = useQuery({ queryKey: ['security-events', page, pageSize, filter], queryFn: async ({ signal }) => (await api.get('/security-events', { signal, params: { page, pageSize, ...(denied ? { result: 'DENIED' } : filter !== 'all' ? { category: filter } : {}) } })).data, refetchInterval: 30000 });
   const total = query.data?.total ?? 0;
   const visibleItems = query.data?.items ?? [];
   const pages = query.data?.totalPages ?? Math.max(1, Math.ceil(total / pageSize));
@@ -54,8 +58,8 @@ export default function SecurityEvents() {
     </header>
 
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-steel-200/70">
-      <div role="group" aria-label="Filtrar eventos" className="flex gap-6">
-        {[[false, 'Todos los eventos'], [true, 'Accesos denegados']].map(([value, label]) => <button type="button" key={label} aria-pressed={denied === value} onClick={() => { setDenied(value); setPage(1); }} className={`-mb-px border-b-2 px-1 pb-3 pt-1 text-sm font-medium transition-colors ${denied === value ? value ? 'border-rose-500 text-rose-700' : 'border-brand-600 text-brand-700' : 'border-transparent text-steel-600 hover:text-ink-900'}`}>{label}</button>)}
+      <div role="group" aria-label="Filtrar eventos" className="flex flex-wrap gap-x-6 gap-y-2">
+        {[['all', 'Todos los eventos'], ['denied', 'Accesos denegados'], ['authentication', 'Inicios de sesión'], ['locks', 'Bloqueos de cuenta']].map(([value, label]) => <button type="button" key={label} aria-pressed={filter === value} onClick={() => { setFilter(value); setPage(1); }} className={`-mb-px border-b-2 px-1 pb-3 pt-1 text-sm font-medium transition-colors ${filter === value ? value === 'denied' ? 'border-rose-500 text-rose-700' : 'border-brand-600 text-brand-700' : 'border-transparent text-steel-600 hover:text-ink-900'}`}>{label}</button>)}
       </div>
       <span className="mb-3 flex items-center gap-2 text-xs text-steel-600"><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-brand-500" />Actualización cada 30 s · Horario UTC</span>
     </div>
@@ -70,7 +74,9 @@ export default function SecurityEvents() {
             <thead className="bg-steel-50/80 text-steel-500 text-left"><tr>{['Fecha · UTC', 'Cuenta', 'Actividad', 'Información afectada', 'Resultado'].map((title) => <th scope="col" className={`px-4 py-3.5 font-sans text-xs font-semibold uppercase tracking-wide ${title === 'Resultado' ? 'text-center' : ''}`} key={title}>{title}</th>)}</tr></thead>
             <tbody className="divide-y divide-steel-100">
               {query.isPending ? Array.from({ length: 5 }, (_, row) => <tr key={row} aria-hidden="true">{Array.from({ length: 5 }, (_, col) => <td key={col} className="px-4 py-5"><div className="skeleton h-4 w-full" /><div className="skeleton mt-2 h-3 w-2/3" /></td>)}</tr>) : visibleItems.map((event) => {
-                const result = RESULTS[event.result] || { label: event.result, classes: 'bg-steel-50 text-steel-700 ring-steel-200', dot: 'bg-steel-400' };
+                const result = event.action === 'ACCOUNT_LOCKED'
+                  ? { label: 'Bloqueo', classes: 'bg-amber-50 text-amber-800 ring-amber-200', dot: 'bg-amber-500' }
+                  : RESULTS[event.result] || { label: event.result, classes: 'bg-steel-50 text-steel-700 ring-steel-200', dot: 'bg-steel-400' };
                 const date = new Date(event.createdAt);
                 return <tr key={event.id} className={`transition-colors ${event.result === 'DENIED' ? 'bg-rose-50/60 hover:bg-rose-50' : 'hover:bg-brand-50/30'}`}>
                   <td className={`border-l-2 px-4 py-4 align-top ${event.result === 'DENIED' ? 'border-rose-400' : 'border-transparent'}`}><time dateTime={event.createdAt} className="text-xs tabular-nums text-steel-700">{date.toLocaleDateString('es-CL', { timeZone: 'UTC' })}<span className="mt-1 block text-steel-600">{date.toLocaleTimeString('es-CL', { timeZone: 'UTC', hour12: false })}</span></time></td>

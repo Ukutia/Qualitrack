@@ -9,6 +9,7 @@ vi.mock('../src/config/prisma.js', () => ({
     user: { findFirst: vi.fn() },
     loginThrottle: { findUnique: vi.fn(), upsert: vi.fn(), update: vi.fn() },
     loginAttempt: { create: vi.fn() },
+    securityEvent: { create: vi.fn() },
   },
 }));
 
@@ -39,9 +40,18 @@ beforeEach(() => {
   vi.clearAllMocks();
   prisma.loginThrottle.update.mockImplementation(async ({ where, data }) => ({ email: where.email, ...data }));
   prisma.loginAttempt.create.mockResolvedValue({});
+  prisma.securityEvent.create.mockResolvedValue({});
 });
 
 describe('HU25 · escenario 1: sin bloqueo y bajo el límite', () => {
+  it('no entrega un token si la auditoría de inicio de sesión falla', async () => {
+    prisma.loginThrottle.findUnique.mockResolvedValue(null);
+    prisma.user.findFirst.mockResolvedValue(USER);
+    bcrypt.compare.mockResolvedValue(true);
+    prisma.securityEvent.create.mockRejectedValue(new Error('DB unavailable'));
+    await expect(attempt(USER.email, 'correcta')).rejects.toMatchObject({ status: 503 });
+    expect(prisma.loginThrottle.upsert).not.toHaveBeenCalled();
+  });
   it('concede el acceso con credenciales correctas y reinicia el contador', async () => {
     prisma.loginThrottle.findUnique.mockResolvedValue({ email: USER.email, failedCount: 3, lockedUntil: null });
     prisma.user.findFirst.mockResolvedValue(USER);
@@ -57,6 +67,7 @@ describe('HU25 · escenario 1: sin bloqueo y bajo el límite', () => {
       data: { failedCount: 0, lockedUntil: null },
     });
     expect(prisma.loginAttempt.create.mock.calls[0][0].data).toMatchObject({ success: true, locked: false });
+    expect(prisma.securityEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ actorId: USER.id, actorEmail: USER.email, action: 'LOGIN', resourceType: 'account', resourceId: String(USER.id), result: 'SUCCESS' }) });
   });
 
   it('un bloqueo vencido no impide el acceso y se limpia', async () => {
@@ -101,6 +112,8 @@ describe('HU25 · escenario 2: a un intento del límite', () => {
     expect(lockedUntil).toBeGreaterThanOrEqual(before + config.loginLockMinutes * MINUTE);
     expect(lockedUntil).toBeLessThanOrEqual(Date.now() + config.loginLockMinutes * MINUTE);
     expect(prisma.loginAttempt.create.mock.calls[0][0].data).toMatchObject({ success: false, locked: true });
+    expect(prisma.securityEvent.create.mock.calls.map(([arg]) => arg.data.action)).toEqual(['LOGIN_INVALID_PASSWORD', 'ACCOUNT_LOCKED']);
+    expect(prisma.securityEvent.create).toHaveBeenLastCalledWith({ data: expect.objectContaining({ actorId: USER.id, resourceId: String(USER.id), result: 'SUCCESS' }) });
   });
 
   it('bajo el límite solo incrementa el contador, sin bloquear', async () => {
@@ -114,6 +127,7 @@ describe('HU25 · escenario 2: a un intento del límite', () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(prisma.loginThrottle.update).not.toHaveBeenCalled();
     expect(prisma.loginAttempt.create.mock.calls[0][0].data).toMatchObject({ success: false, locked: false });
+    expect(prisma.securityEvent.create.mock.calls.map(([arg]) => arg.data.action)).toEqual(['LOGIN_INVALID_PASSWORD']);
   });
 
   it('tras un bloqueo vencido el contador parte de cero', async () => {
@@ -153,6 +167,8 @@ describe('HU25 · escenario 3: bloqueo vigente', () => {
     expect(res.json).toHaveBeenCalledWith({ error: LOGIN_FAILED_MESSAGE });
     expect(bcrypt.compare).not.toHaveBeenCalled();
     expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    expect(prisma.securityEvent.create.mock.calls.map(([arg]) => arg.data.action)).toEqual(['LOGIN_BLOCKED']);
+    expect(prisma.securityEvent.create.mock.calls[0][0].data.actorEmail).toBe(USER.email);
   });
 
   it('conserva la fecha de término del bloqueo (no la extiende)', async () => {
@@ -168,6 +184,7 @@ describe('HU25 · escenario 3: bloqueo vigente', () => {
     expect(prisma.loginAttempt.create).toHaveBeenCalledTimes(1);
     const { data } = prisma.loginAttempt.create.mock.calls[0][0];
     expect(data).toEqual({ email: USER.email, ip: '10.0.0.1', success: false, locked: true });
+    expect(JSON.stringify(prisma.securityEvent.create.mock.calls)).not.toContain('secreto-123');
     expect(JSON.stringify(data)).not.toContain('secreto-123');
   });
 });
@@ -180,6 +197,7 @@ describe('HU25 · correo inexistente', () => {
     bcrypt.compare.mockResolvedValue(false);
 
     const ghost = await attempt('Nadie@Qualitrack.cl', 'lo-que-sea');
+    expect(prisma.securityEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: 'LOGIN_UNKNOWN_ACCOUNT', actorEmail: 'nadie@qualitrack.cl', result: 'FAILURE' }) });
 
     expect(bcrypt.compare).toHaveBeenCalledTimes(1);
     expect(bcrypt.compare.mock.calls[0][1]).toMatch(/^\$2[aby]\$\d{2}\$/);
@@ -198,6 +216,7 @@ describe('HU25 · correo inexistente', () => {
     const real = await attempt(USER.email, 'incorrecta');
 
     expect(ghostResponse).toEqual([real.status.mock.calls, real.json.mock.calls]);
+    expect(prisma.securityEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: 'LOGIN_INVALID_PASSWORD', actorId: USER.id, result: 'FAILURE' }) });
   });
 
   it('también se bloquea al alcanzar el límite', async () => {
@@ -210,4 +229,11 @@ describe('HU25 · correo inexistente', () => {
 
     expect(prisma.loginThrottle.update.mock.calls[0][0].data.lockedUntil).toBeInstanceOf(Date);
   });
+});
+
+it('también registra credenciales incompletas sin incrementar el contador', async () => {
+  const res = await attempt(USER.email, '');
+  expect(res.status).toHaveBeenCalledWith(400);
+  expect(prisma.securityEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: 'LOGIN_MISSING_CREDENTIALS', actorEmail: USER.email, result: 'FAILURE' }) });
+  expect(prisma.loginThrottle.upsert).not.toHaveBeenCalled();
 });

@@ -28,3 +28,10 @@ it('una colección vacía y tamaños no admitidos mantienen una página válida'
   expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ page: 1, pageSize: 50, totalPages: 1, total: 0 }));
   expect(prisma.securityEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 0, take: 50 }));
 });
+it.each([['authentication', { in: expect.arrayContaining(['LOGIN_INVALID_PASSWORD', 'LOGIN_UNKNOWN_ACCOUNT', 'LOGIN_BLOCKED', 'ACCOUNT_LOCKED']) }], ['locks', 'ACCOUNT_LOCKED']])('filtra %s sin perder paginación', async (category, action) => {
+  prisma.securityEvent.count.mockResolvedValue(17);
+  const res = { json: vi.fn() };
+  await listSecurityEvents({ query: { category, page: '2', pageSize: '10' } }, res);
+  expect(prisma.securityEvent.count).toHaveBeenCalledWith({ where: { action } });
+  expect(prisma.securityEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { action }, skip: 10, take: 10 }));
+});
