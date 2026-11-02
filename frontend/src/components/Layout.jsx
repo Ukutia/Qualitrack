@@ -7,6 +7,7 @@ import { navFor } from '../lib/permissions.js';
 import AnalysisWatcher from './AnalysisWatcher.jsx';
 import NavigationIcon from './NavigationIcon.jsx';
 import AppearanceSettings from './AppearanceSettings.jsx';
+import OnboardingTour from './OnboardingTour.jsx';
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -121,6 +122,7 @@ export default function Layout() {
         </div>
       </main>
       <AnalysisWatcher />
+      <OnboardingTour />
     </div>
   );
 }

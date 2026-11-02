@@ -19,6 +19,12 @@ import { semanticSearch } from '../controllers/search.controller.js';
 import { getPassage, getPassageFocus, getSheets } from '../controllers/passages.controller.js';
 import { listTopics, createTopic, deleteTopic } from '../controllers/topics.controller.js';
 import {
+  getOnboarding,
+  syncSteps as syncOnboardingSteps,
+  completeStep as completeOnboardingStep,
+  skip as skipOnboarding,
+} from '../controllers/onboarding.controller.js';
+import {
   listDrafts,
   createDraft,
   getDraft,
@@ -264,6 +270,13 @@ router.post(
 // ruta nueva debe mapearse en config/permissions.js o solo la verá el admin.
 router.use(requireAuth);
 router.use(auditRequests);
+
+// HU23: solo requieren sesión; el servicio filtra según permisos efectivos.
+router.get('/onboarding', asyncRoute(getOnboarding));
+router.post('/onboarding/sync', asyncRoute(syncOnboardingSteps));
+router.post('/onboarding/skip', asyncRoute(skipOnboarding));
+router.post('/onboarding/steps/:stepId/complete', asyncRoute(completeOnboardingStep));
+
 router.use(enforceRolePolicy);
 
 router.get('/security-events', asyncRoute(listSecurityEvents));

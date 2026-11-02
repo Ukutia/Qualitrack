@@ -246,7 +246,7 @@ export default function Team() {
             <input type="text" maxLength={100} autoComplete="off" placeholder="Analista de Calidad" {...fieldProps('cargo')} />
           </Field>
           <Field id="team-rol" label="Rol a asignar" error={errors.rol}>
-            <select {...fieldProps('rol')}>
+            <select aria-label="Rol a asignar" {...fieldProps('rol')}>
               {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{roleLabel(role)}</option>)}
             </select>
           </Field>

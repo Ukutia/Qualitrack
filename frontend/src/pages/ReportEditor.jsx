@@ -93,7 +93,7 @@ function MatchesPanel({ query, search, elapsedMs, onClose, onRequestInsertEviden
   const documents = Array.from(groupedMap.values()).sort((a, b) => b.bestSimilarity - a.bestSimilarity);
 
   return (
-    <aside className="w-80 shrink-0 rounded-2xl bg-white p-4 ring-1 ring-stone-900/10 shadow-sm">
+    <aside data-matches-panel className="w-80 shrink-0 rounded-2xl bg-white p-4 ring-1 ring-stone-900/10 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-stone-500">Coincidencias</p>
@@ -588,7 +588,7 @@ export default function ReportEditor() {
               {sectionMode && (
                 <div className="rounded-2xl bg-white p-4 ring-1 ring-stone-900/10 shadow-sm animate-fade-in">
                   <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.22em] text-stone-500">Estructura del informe</p>
-                  <div className="flex flex-wrap gap-2">
+                  <div data-report-sections className="flex flex-wrap gap-2">
                     {draftSectionList.map((section) => (
                       <button
                         key={section.structureSectionId}
@@ -623,7 +623,7 @@ export default function ReportEditor() {
 
                   {activeGenerationSection ? (
                     <div className="mt-4 grid gap-4 md:grid-cols-[14rem_1fr] items-start">
-                      <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                      <div data-generation-sections className="space-y-2 max-h-64 overflow-y-auto pr-2">
                         {generationSectionList.map((section) => (
                           <button 
                             key={section.id} 
@@ -766,7 +766,7 @@ export default function ReportEditor() {
       {/* MODAL DE EVIDENCIAS Y VISTAS PREVIAS */}
       {pendingEvidence && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-ink-900/35 px-4 backdrop-blur-sm" role="presentation">
-          <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-stone-900/15 animate-fade-in-up">
+          <div data-insertion-dialog role="dialog" aria-modal="true" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-stone-900/15 animate-fade-in-up">
             <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-amber-700">Revisión asistida</p>
             <h3 className="mt-2 font-display text-xl font-semibold text-ink-900">{pendingKind === 'generated' ? '¿Desea insertar el texto generado?' : '¿Desea insertar esta evidencia?'}</h3>
             <p className="mt-2 text-sm leading-6 text-stone-600">Este contenido requiere revisión antes de incorporarlo al informe oficial.</p>
@@ -781,7 +781,7 @@ export default function ReportEditor() {
 
       {preview && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-ink-900/35 px-4 backdrop-blur-sm" role="presentation">
-          <div role="dialog" aria-modal="true" className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-stone-900/15 animate-fade-in-up">
+          <div data-preview-dialog role="dialog" aria-modal="true" className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-stone-900/15 animate-fade-in-up">
             <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-brand-600">Borrador IA generado</p>
             <h3 className="mt-2 font-display text-xl font-semibold text-ink-900">Contenido extraído</h3>
             <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950 ring-1 ring-amber-600/25">

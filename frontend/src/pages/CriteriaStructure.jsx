@@ -313,7 +313,7 @@ export default function CriteriaStructure() {
         style={{ zIndex: 100 }}
       >
         <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeRestoreDialog} />
-        <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-5">
+        <div data-restore-dialog className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-5">
           {/* icono */}
           <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 mx-auto">
             <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -511,7 +511,7 @@ export default function CriteriaStructure() {
 
       {/* ── Editor visual ────────────────────────────────────────────── */}
       {draft && (
-        <div className="bg-white rounded-xl shadow-sm p-5 space-y-3">
+        <div data-structure-editor className="bg-white rounded-xl shadow-sm p-5 space-y-3">
           <p className="text-sm text-steel-600">
             Edite las secciones del informe. Al guardar se crea una nueva versión y el sistema
             marca qué secciones se agregaron, eliminaron o renombraron.
