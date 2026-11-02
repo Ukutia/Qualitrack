@@ -421,6 +421,7 @@ export default function DocumentDetail() {
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <select
+              aria-label="Subcriterio para asignación manual"
               value={manualSub}
               onChange={(e) => setManualSub(e.target.value)}
               className="min-w-[22rem] rounded-lg border border-steel-300 bg-white px-3 py-2 text-sm text-steel-700 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"

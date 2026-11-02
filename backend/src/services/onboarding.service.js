@@ -1,6 +1,7 @@
 import { prisma } from '../config/prisma.js';
 import { loadPermissions } from '../middleware/authorize.js';
 import {
+  authorizedOnboardingStepIds,
   filterAuthorizedOnboardingStepIds,
   isKnownOnboardingStep,
   isOnboardingStepAuthorized,
@@ -16,6 +17,7 @@ function statusFor(status, authorizedStepIds, completedStepIds) {
 
 export async function syncOnboarding(user, suppliedPermissions = null) {
   const permissions = suppliedPermissions ?? (await loadPermissions(user));
+  const authorizedStepIds = authorizedOnboardingStepIds(user, permissions);
 
   const current = await prisma.onboardingProgress.findUnique({
     where: { userId: Number(user.id) },
@@ -27,21 +29,14 @@ export async function syncOnboarding(user, suppliedPermissions = null) {
         userId: Number(user.id),
         status: 'PENDING',
         completedStepIds: [],
-        authorizedStepIds: [],
+        authorizedStepIds,
       },
     });
   }
 
-  // CDA3:
-  // - conserva pasos válidos/completados que siguen autorizados;
-  // - elimina automáticamente pasos de permisos perdidos;
-  // - también depura IDs antiguos que ya no pertenecen a la lista curada.
-  const authorizedStepIds = filterAuthorizedOnboardingStepIds(
-    user,
-    permissions,
-    current.authorizedStepIds,
-  );
-
+  // CDA3: el catálogo autorizado se recalcula al iniciar sesión. Así se
+  // conservan los completados aún autorizados, se excluyen los revocados y
+  // aparecen inmediatamente los nuevos permisos como tareas pendientes.
   const completedStepIds = filterAuthorizedOnboardingStepIds(
     user,
     permissions,
@@ -64,46 +59,10 @@ export async function syncOnboarding(user, suppliedPermissions = null) {
   });
 }
 
-export async function syncAvailableOnboardingSteps(user, suppliedStepIds = []) {
-  const permissions = await loadPermissions(user);
-  const current = await syncOnboarding(user, permissions);
-
-  const incoming = filterAuthorizedOnboardingStepIds(
-    user,
-    permissions,
-    suppliedStepIds,
-  );
-
-  // IMPORTANTE:
-  // Los controles visibles ahora solo SE AGREGAN.
-  // Nunca borramos un paso válido/completado porque hoy no esté visible:
-  // puede depender de una pestaña, modal, estado o datos cargados después.
-  const authorizedStepIds = filterAuthorizedOnboardingStepIds(
-    user,
-    permissions,
-    [...current.authorizedStepIds, ...incoming],
-  );
-
-  const completedStepIds = filterAuthorizedOnboardingStepIds(
-    user,
-    permissions,
-    current.completedStepIds,
-  ).filter((stepId) => authorizedStepIds.includes(stepId));
-
-  const status = statusFor(
-    current.status,
-    authorizedStepIds,
-    completedStepIds,
-  );
-
-  return prisma.onboardingProgress.update({
-    where: { userId: Number(user.id) },
-    data: {
-      status,
-      completedStepIds,
-      authorizedStepIds,
-    },
-  });
+export async function syncAvailableOnboardingSteps(user) {
+  // Compatibilidad con el cliente V2: la visibilidad del DOM ya no define
+  // permisos ni progreso. El backend mantiene el catálogo completo por rol.
+  return syncOnboarding(user);
 }
 
 export async function completeOnboardingStep(user, stepId) {
@@ -124,15 +83,6 @@ export async function completeOnboardingStep(user, stepId) {
   }
 
   const current = await syncOnboarding(user, permissions);
-
-  if (!current.authorizedStepIds.includes(stepId)) {
-    const error = new Error(
-      'El paso aún no ha sido registrado como disponible en esta sección.',
-    );
-    error.status = 409;
-    throw error;
-  }
-
   const completedStepIds = [
     ...new Set([...current.completedStepIds, stepId]),
   ].sort();

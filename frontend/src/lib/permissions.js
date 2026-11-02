@@ -60,7 +60,7 @@ export const SECTIONS = [
   { to: '/upload', label: 'Cargar evidencia', module: MODULES.CARGA, level: LEVELS.ESCRITURA },
   { to: '/structure', label: 'Estructura informe', module: MODULES.INFORME },
   { to: '/report', label: 'Redacción informe', module: MODULES.INFORME },
-  { to: '/cloud', label: 'Google Drive', module: MODULES.NUBE },
+  { to: '/cloud', label: 'Nube', module: MODULES.NUBE },
   { to: '/trash', label: 'Papelera', module: MODULES.REPOSITORIO },
   { to: '/security-events', label: 'Registro de seguridad', module: null },
   { to: '/team', label: 'Equipo', module: null },

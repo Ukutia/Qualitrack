@@ -7,6 +7,11 @@ import {
   pendingControls,
 } from '../lib/onboarding.js';
 
+const SUBSECTION_STEPS = new Set([
+  'ui:app:hitos-de-acreditacion',
+  'ui:documents:carpetas',
+]);
+
 function rectFor(element) {
   const rect = element.getBoundingClientRect();
   return {
@@ -152,14 +157,26 @@ export default function OnboardingTour() {
     return null;
   }
 
-  const index = pending.findIndex((control) => control.id === current.id);
+  const authorized = new Set(onboarding?.authorizedStepIds ?? []);
+  const sectionControls = controls.filter((control) => authorized.has(control.id));
+  const index = sectionControls.findIndex((control) => control.id === current.id);
 
   async function handleNext() {
     if (saving) return;
 
     try {
       setSaving(true);
+      const subsectionTrigger = SUBSECTION_STEPS.has(current.id)
+        ? current.element
+        : null;
       await completeOnboardingStep(current.id);
+      if (
+        subsectionTrigger &&
+        document.body.contains(subsectionTrigger) &&
+        !subsectionTrigger.disabled
+      ) {
+        subsectionTrigger.click();
+      }
     } finally {
       setSaving(false);
     }
@@ -229,7 +246,7 @@ export default function OnboardingTour() {
           </div>
 
           <span className="shrink-0 rounded-full bg-steel-100 px-2.5 py-1 text-xs text-steel-600">
-            {index + 1} / {pending.length}
+            {index + 1} / {sectionControls.length}
           </span>
         </div>
 

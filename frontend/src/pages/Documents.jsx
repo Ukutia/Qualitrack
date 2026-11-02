@@ -109,7 +109,7 @@ function CreateFolderModal({ open, count, parentName, onClose, onCreate, pending
   useEffect(() => { if (open) { setName(''); setColor('blue'); } }, [open]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink-900/45 p-4" role="dialog" aria-modal="true" aria-labelledby="create-folder-title">
+    <div data-create-folder-dialog className="fixed inset-0 z-50 grid place-items-center bg-ink-900/45 p-4" role="dialog" aria-modal="true" aria-labelledby="create-folder-title">
       <form onSubmit={(event) => { event.preventDefault(); onCreate({ name, color }); }} className="w-full max-w-md rounded-xl2 bg-white p-6 shadow-xl">
         <h2 id="create-folder-title" className="font-display text-xl font-semibold text-ink-900">Crear carpeta</h2>
         <p className="mt-1 text-sm text-steel-500">Se moverán {count} archivo(s) desde {parentName || 'Repositorio'}.</p>
@@ -136,7 +136,7 @@ function CreateFolderModal({ open, count, parentName, onClose, onCreate, pending
 function DeleteFolderModal({ folder, onClose, onDelete, pending }) {
   if (!folder) return null;
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink-900/45 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-folder-title">
+    <div data-delete-folder-dialog className="fixed inset-0 z-50 grid place-items-center bg-ink-900/45 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-folder-title">
       <div className="w-full max-w-lg rounded-xl2 bg-white p-6 shadow-xl">
         <h2 id="delete-folder-title" className="font-display text-xl font-semibold text-ink-900">Eliminar “{folder.name}”</h2>
         <p className="mt-2 text-sm text-steel-600">La acción incluye todas sus subcarpetas. Elige qué debe ocurrir con los documentos.</p>
