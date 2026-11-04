@@ -1,5 +1,4 @@
 import { prisma } from '../config/prisma.js';
-import { ROLES } from '../config/roles.js';
 import {
   intervalDaysToMinutes,
   cancelOutstandingRequestEmails,
@@ -23,11 +22,8 @@ import { config } from '../config/env.js';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
-function accessWhere(user, id) {
-  return {
-    ...(id == null ? {} : { id }),
-    ...(user.role === ROLES.ADMIN ? {} : { createdById: user.id }),
-  };
+function accessWhere(_user, id) {
+  return id == null ? {} : { id };
 }
 
 async function accessibleRequest(req) {
@@ -186,6 +182,37 @@ export async function listDocumentRequests(req, res) {
   const requests = await prisma.documentRequest.findMany({
     where: accessWhere(req.user),
     orderBy: { createdAt: 'desc' },
+    include: {
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      document: {
+        select: {
+          id: true,
+          originalName: true,
+          format: true,
+          sizeBytes: true,
+          uploadedAt: true,
+          deletedAt: true,
+        },
+      },
+      emails: {
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          tokenVersion: true,
+          type: true,
+          status: true,
+          attemptCount: true,
+          createdAt: true,
+          sentAt: true,
+          lastAttemptAt: true,
+        },
+      },
+    },
   });
   return res.json(requests.map(serializeDocumentRequest));
 }
@@ -316,18 +343,9 @@ export async function cancelDocumentRequest(req, res) {
 export async function deleteDocumentRequest(req, res) {
   const request = await accessibleRequest(req);
   if (!request) return res.status(404).json({ error: 'Solicitud no encontrada.' });
-  if (!['PAUSED', 'CANCELLED'].includes(request.status)) {
-    return res.status(409).json({
-      error: 'Solo se pueden eliminar solicitudes pausadas o canceladas.',
-      code: 'INVALID_STATUS',
-    });
-  }
 
   const deleted = await prisma.documentRequest.deleteMany({
-    where: {
-      ...accessWhere(req.user, request.id),
-      status: { in: ['PAUSED', 'CANCELLED'] },
-    },
+    where: accessWhere(req.user, request.id),
   });
   if (!deleted.count) {
     return res.status(409).json({ error: 'La solicitud cambió de estado. Actualice la página.' });

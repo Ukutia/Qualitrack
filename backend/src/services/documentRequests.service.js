@@ -36,6 +36,29 @@ export function serializeDocumentRequest(request) {
     tokenCreatedAt: request.tokenCreatedAt,
     createdAt: request.createdAt,
     updatedAt: request.updatedAt,
+    createdBy: request.createdBy ? {
+      id: request.createdBy.id,
+      name: request.createdBy.name,
+    } : null,
+    documentId: request.documentId,
+    document: request.document ? {
+      id: request.document.id,
+      originalName: request.document.originalName,
+      format: request.document.format,
+      sizeBytes: request.document.sizeBytes,
+      uploadedAt: request.document.uploadedAt,
+      deletedAt: request.document.deletedAt,
+    } : null,
+    emails: Array.isArray(request.emails) ? request.emails.map((email) => ({
+      id: email.id,
+      tokenVersion: email.tokenVersion,
+      type: email.type,
+      status: email.status,
+      attemptCount: email.attemptCount,
+      createdAt: email.createdAt,
+      sentAt: email.sentAt,
+      lastAttemptAt: email.lastAttemptAt,
+    })) : [],
   };
 }
 

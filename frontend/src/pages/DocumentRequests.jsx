@@ -16,8 +16,29 @@ const STATUS = {
   CANCELLED: { label: 'Cancelada', classes: 'bg-steel-100 text-steel-600 ring-steel-200' },
   RECEIVED: { label: 'Recibida', classes: 'bg-emerald-50 text-emerald-800 ring-emerald-200' },
 };
+
+const EMAIL_TYPE = {
+  INITIAL: 'Envío inicial',
+  REMINDER: 'Recordatorio',
+  RESUMED: 'Reanudación',
+};
+
+const EMAIL_STATUS = {
+  PENDING: { label: 'En cola', classes: 'bg-amber-50 text-amber-800' },
+  SENDING: { label: 'Enviando', classes: 'bg-sky-50 text-sky-800' },
+  SENT: { label: 'Enviado', classes: 'bg-emerald-50 text-emerald-800' },
+  FAILED: { label: 'Fallido', classes: 'bg-red-50 text-red-700' },
+  CANCELLED: { label: 'Cancelado', classes: 'bg-steel-100 text-steel-600' },
+};
+
 function formatDate(value) {
-  return value ? new Date(value).toLocaleString('es-CL') : '—';
+  if (!value) return '—';
+  return `${new Intl.DateTimeFormat('es-CL', {
+    dateStyle: 'medium',
+    timeStyle: 'medium',
+    hour12: false,
+    timeZone: 'UTC',
+  }).format(new Date(value))} UTC`;
 }
 
 function formatDays(value) {
@@ -30,8 +51,28 @@ function errorMessage(error) {
   return error?.response?.data?.error || 'No fue posible completar la operación.';
 }
 
+function formatSize(bytes) {
+  const value = Number(bytes);
+  if (!Number.isFinite(value)) return '—';
+  if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
+  return `${(value / (1024 * 1024)).toLocaleString('es-CL', { maximumFractionDigits: 1 })} MB`;
+}
+
+function EyeIcon({ hidden }) {
+  return hidden ? (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8">
+      <path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 4.2A10.8 10.8 0 0 1 12 4c5.3 0 9 5.1 9 5.1a15.8 15.8 0 0 1-3 3.7M6.2 6.2C4.1 7.7 3 9.1 3 9.1S6.7 14.2 12 14.2c.7 0 1.4-.1 2-.3" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8">
+      <path d="M3 12s3.7-5.2 9-5.2 9 5.2 9 5.2-3.7 5.2-9 5.2S3 12 3 12Z" /><circle cx="12" cy="12" r="2.4" />
+    </svg>
+  );
+}
+
 function CurrentToken({ token, createdAt }) {
   const [copied, setCopied] = useState(false);
+  const [visible, setVisible] = useState(false);
   if (!token) return <p className="mt-2 text-sm text-steel-500">No existe un token vigente.</p>;
 
   const publicUrl = `${window.location.origin}/document-request/${encodeURIComponent(token)}`;
@@ -43,18 +84,136 @@ function CurrentToken({ token, createdAt }) {
 
   return (
     <div className="mt-2 space-y-3">
-      <code className="block break-all text-sm text-ink-900">{token}</code>
-      <div className="border-t border-steel-200 pt-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-steel-500">Link público vigente</p>
-        <a href={publicUrl} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm font-medium text-brand-700 hover:underline">
-          {publicUrl}
-        </a>
-        <button type="button" onClick={copyLink} className="btn mt-2 rounded-lg border border-steel-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-900 hover:bg-steel-50">
+      <div className="flex min-w-0 items-center gap-2">
+        <code className={`min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm ${visible ? 'text-ink-900' : 'select-none tracking-widest text-steel-500'}`}>
+          {visible ? token : '••••••••••••••••••••••••'}
+        </code>
+        <button type="button" onClick={() => setVisible((current) => !current)} aria-pressed={visible} className="btn inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-steel-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-900 hover:bg-steel-50">
+          <EyeIcon hidden={!visible} /> {visible ? 'Ocultar' : 'Mostrar'}
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 border-t border-steel-200 pt-3">
+        <button type="button" onClick={copyLink} className="btn rounded-lg border border-steel-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-900 hover:bg-steel-50">
           {copied ? 'Link copiado' : 'Copiar link'}
         </button>
+        {visible && <a href={publicUrl} target="_blank" rel="noreferrer" className="text-xs font-medium text-brand-700 hover:underline">Abrir link público ↗</a>}
       </div>
       <span className="sr-only">Token generado: {formatDate(createdAt)}</span>
     </div>
+  );
+}
+
+function DocumentAssociation({ document }) {
+  if (!document) return null;
+  const content = (
+    <>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8"><path d="M7 3h7l4 4v14H7z" /><path d="M14 3v5h5M9.5 13h5M9.5 16h5" /></svg>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-medium uppercase tracking-wide text-emerald-700">Documento recibido</span>
+        <span className="mt-0.5 block truncate text-sm font-semibold text-ink-900">{document.originalName}</span>
+        <span className="mt-0.5 block text-xs text-steel-500">{String(document.format || '').toUpperCase()} · {formatSize(document.sizeBytes)} · {formatDate(document.uploadedAt)}</span>
+      </span>
+      {!document.deletedAt && <span className="shrink-0 text-sm font-medium text-brand-700">Ver documento →</span>}
+    </>
+  );
+
+  const classes = 'mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-left';
+  return document.deletedAt ? (
+    <div className={classes}>{content}<span className="shrink-0 rounded-full bg-steel-200 px-2 py-1 text-xs text-steel-600">En papelera</span></div>
+  ) : (
+    <Link to={`/documents/${document.id}`} className={`${classes} transition hover:border-emerald-300 hover:bg-emerald-50`} onClick={(event) => event.stopPropagation()}>{content}</Link>
+  );
+}
+
+function requestSteps(request) {
+  const sentEmail = request.emails?.find((email) => email.status === 'SENT' && email.sentAt);
+  const lastEmail = request.emails?.[request.emails.length - 1];
+  const second = sentEmail ? {
+    label: 'Enlace enviado',
+    detail: `${EMAIL_TYPE[sentEmail.type] || 'Correo'} · token v${sentEmail.tokenVersion}`,
+    date: sentEmail.sentAt,
+    state: 'done',
+  } : lastEmail?.status === 'FAILED' ? {
+    label: 'Enlace aún no enviado',
+    detail: 'Qualitrack tuvo un problema. Intentaremos nuevamente.',
+    date: lastEmail.lastAttemptAt,
+    state: 'error',
+  } : {
+    label: 'Enlace por enviar',
+    detail: lastEmail ? (EMAIL_STATUS[lastEmail.status]?.label || 'En proceso') : 'Sin envío registrado',
+    date: lastEmail?.createdAt,
+    state: 'current',
+  };
+
+  const finalByStatus = {
+    RECEIVED: { label: 'Documento enviado', detail: request.document?.originalName || 'Entrega recibida', date: request.document?.uploadedAt || request.updatedAt, state: 'done' },
+    CANCELLED: { label: 'Solicitud cancelada', detail: 'El enlace dejó de estar vigente', date: request.updatedAt, state: 'cancelled' },
+    PAUSED: { label: 'Solicitud pausada', detail: 'El enlace está temporalmente inactivo', date: request.updatedAt, state: 'current' },
+    PENDING: { label: 'Esperando documento', detail: 'El destinatario aún puede responder', date: null, state: 'waiting' },
+  };
+
+  return [
+    { label: 'Solicitud creada', detail: `Solicitud #${request.id}`, date: request.createdAt, state: 'done' },
+    second,
+    finalByStatus[request.status] || finalByStatus.PENDING,
+  ];
+}
+
+function RequestTimeline({ request }) {
+  const steps = requestSteps(request);
+  const pointClasses = {
+    done: 'border-emerald-600 bg-emerald-600 text-white',
+    error: 'border-red-500 bg-red-50 text-red-700',
+    cancelled: 'border-steel-500 bg-steel-500 text-white',
+    current: 'border-brand-600 bg-brand-50 text-brand-700',
+    waiting: 'border-steel-300 bg-white text-steel-500',
+  };
+
+  return (
+    <div className="relative">
+      <div aria-hidden="true" className="absolute bottom-0 left-[0.95rem] top-4 w-px bg-steel-200 sm:bottom-auto sm:left-[16.66%] sm:right-[16.66%] sm:top-4 sm:h-px sm:w-auto" />
+      <ol className="relative grid gap-5 sm:grid-cols-3 sm:gap-3" aria-label="Seguimiento de la solicitud">
+        {steps.map((step, index) => (
+          <li key={step.label} className="relative flex gap-3 sm:block sm:text-center">
+            <span className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold ${pointClasses[step.state]}`}>
+              {step.state === 'done' ? '✓' : index + 1}
+            </span>
+            <div className="min-w-0 sm:mt-3">
+              <p className="text-sm font-semibold text-ink-900">{step.label}</p>
+              <p className="mt-1 text-xs leading-5 text-steel-600">{step.detail}</p>
+              <time className="mt-1 block text-xs font-medium tabular-nums text-steel-500" dateTime={step.date || undefined}>{formatDate(step.date)}</time>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function EmailHistory({ emails = [] }) {
+  if (!emails.length) return <p className="text-sm text-steel-500">Todavía no hay envíos de correo registrados.</p>;
+  return (
+    <ul className="divide-y divide-steel-100">
+      {emails.map((email) => {
+        const status = EMAIL_STATUS[email.status] || EMAIL_STATUS.PENDING;
+        return (
+          <li key={email.id} className="grid gap-2 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            <div>
+              <p className="font-medium text-ink-900">{EMAIL_TYPE[email.type] || email.type} · token v{email.tokenVersion}</p>
+              <p className="mt-0.5 text-xs text-steel-500">{email.sentAt ? `Enviado ${formatDate(email.sentAt)}` : `Creado ${formatDate(email.createdAt)}`} · {email.attemptCount || 0} intento(s)</p>
+              {email.status === 'FAILED' && (
+                <p className="mt-1 text-xs leading-5 text-red-700">
+                  Esto es un problema de Qualitrack, no tuyo. Intentaremos nuevamente; también puedes volver más tarde.
+                </p>
+              )}
+            </div>
+            <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-medium ${status.classes}`}>{status.label}</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -63,6 +222,7 @@ export default function DocumentRequests() {
   const action = useDocumentRequestAction();
   const deleteRequest = useDeleteDocumentRequest();
   const [actionError, setActionError] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
   // Con solo lectura se ven las solicitudes, pero no se crean ni cambian (HU19).
   const { canWrite } = usePermission(MODULES.SOLICITUDES);
 
@@ -83,10 +243,14 @@ export default function DocumentRequests() {
   }
 
   async function removeRequest(request) {
-    if (!window.confirm('Esta solicitud y su historial de correos se eliminarán permanentemente. ¿Deseas continuar?')) return;
+    const documentNote = request.document
+      ? ' El documento recibido permanecerá en el repositorio.'
+      : ' Si el enlace está vigente, dejará de funcionar inmediatamente.';
+    if (!window.confirm(`Esta solicitud y su historial de correos se eliminarán permanentemente.${documentNote} ¿Deseas continuar?`)) return;
     setActionError('');
     try {
       await deleteRequest.mutateAsync(request.id);
+      setExpandedId((current) => current === request.id ? null : current);
     } catch (error) {
       setActionError(errorMessage(error));
     }
@@ -97,7 +261,7 @@ export default function DocumentRequests() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">Solicitudes de documentos</h1>
-          <p className="mt-2 text-sm text-steel-500">Etapa de prueba del ciclo de vida y la rotación segura de tokens.</p>
+          <p className="mt-2 text-sm text-steel-500">Sigue cada solicitud desde su creación hasta la entrega del documento.</p>
         </div>
         {canWrite && <Link to="/requests/new" className="btn inline-flex items-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700">Crear solicitud</Link>}
       </header>
@@ -119,18 +283,35 @@ export default function DocumentRequests() {
         <div className="grid gap-4">
           {requests.data.map((request) => {
             const status = STATUS[request.status] || STATUS.CANCELLED;
+            const expanded = expandedId === request.id;
             return (
-              <article key={request.id} className="rounded-xl2 bg-white p-5 shadow-soft ring-1 ring-steel-200/70">
+              <article
+                key={request.id}
+                className={`rounded-xl2 bg-white p-5 shadow-soft ring-1 transition ${expanded ? 'ring-2 ring-brand-300' : 'ring-steel-200/70 hover:ring-brand-200'}`}
+                onClick={(event) => {
+                  if (event.target.closest('a, button, input, textarea, select')) return;
+                  setExpandedId(expanded ? null : request.id);
+                }}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="font-semibold text-ink-900">{request.recipientEmail}</h2>
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${status.classes}`}>{status.label}</span>
                     </div>
                     <p className="mt-2 whitespace-pre-wrap text-sm text-steel-700">{request.description}</p>
+                    {request.createdBy?.name && <p className="mt-2 text-xs text-steel-500">Creada por {request.createdBy.name}</p>}
                   </div>
-                  <span className="text-xs text-steel-500">Solicitud #{request.id}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-steel-500">Solicitud #{request.id}</span>
+                    <button type="button" onClick={() => setExpandedId(expanded ? null : request.id)} aria-expanded={expanded} aria-controls={`request-details-${request.id}`} className="btn inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50">
+                      {expanded ? 'Ocultar detalle' : 'Ver recorrido'}
+                      <svg viewBox="0 0 20 20" aria-hidden="true" className={`h-4 w-4 fill-none stroke-current transition ${expanded ? 'rotate-180' : ''}`} strokeWidth="1.8"><path d="m5 7.5 5 5 5-5" /></svg>
+                    </button>
+                  </div>
                 </div>
+
+                <DocumentAssociation document={request.document} />
 
                 <dl className="mt-4 grid gap-3 border-t border-steel-100 pt-4 text-sm sm:grid-cols-3">
                   <div><dt className="text-steel-500">Frecuencia</dt><dd className="mt-1 font-medium text-ink-900">{formatDays(request.reminderIntervalDays)}</dd></div>
@@ -146,11 +327,33 @@ export default function DocumentRequests() {
                   <CurrentToken token={request.token} createdAt={request.tokenCreatedAt} />
                 </div>
 
+                {expanded && (
+                  <section id={`request-details-${request.id}`} className="mt-5 space-y-5 border-t border-steel-200 pt-5" onClick={(event) => event.stopPropagation()}>
+                    <div>
+                      <p className="mb-5 text-xs font-semibold uppercase tracking-wider text-steel-500">Recorrido de la solicitud</p>
+                      <RequestTimeline request={request} />
+                    </div>
+
+                    <dl className="grid gap-3 rounded-xl bg-steel-50 p-4 text-sm sm:grid-cols-2 lg:grid-cols-5">
+                      <div><dt className="text-xs text-steel-500">Destinatario</dt><dd className="mt-1 break-all font-medium text-ink-900">{request.recipientEmail}</dd></div>
+                      <div><dt className="text-xs text-steel-500">Creada por</dt><dd className="mt-1 font-medium text-ink-900">{request.createdBy?.name || 'Usuario de Qualitrack'}</dd></div>
+                      <div><dt className="text-xs text-steel-500">Creada</dt><dd className="mt-1 font-medium text-ink-900">{formatDate(request.createdAt)}</dd></div>
+                      <div><dt className="text-xs text-steel-500">Última actualización</dt><dd className="mt-1 font-medium text-ink-900">{formatDate(request.updatedAt)}</dd></div>
+                      <div><dt className="text-xs text-steel-500">Correos registrados</dt><dd className="mt-1 font-medium text-ink-900">{request.emails?.length || 0}</dd></div>
+                    </dl>
+
+                    <div>
+                      <h3 className="text-sm font-semibold text-ink-900">Historial de enlaces enviados</h3>
+                      <div className="mt-2 rounded-xl border border-steel-200 px-4"><EmailHistory emails={request.emails} /></div>
+                    </div>
+                  </section>
+                )}
+
                 {canWrite && <div className="mt-4 flex flex-wrap gap-2">
                   {request.status === 'PENDING' && <button type="button" disabled={action.isPending} onClick={() => runAction(request, 'pause')} className="btn rounded-lg border border-steel-300 px-3 py-2 text-sm font-medium text-ink-900 hover:bg-steel-50 disabled:opacity-50">Pausar</button>}
                   {request.status === 'PAUSED' && <button type="button" disabled={action.isPending} onClick={() => runAction(request, 'resume')} className="btn rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">Reanudar</button>}
                   {['PENDING', 'PAUSED'].includes(request.status) && <button type="button" disabled={action.isPending} onClick={() => runAction(request, 'cancel')} className="btn rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50">Cancelar</button>}
-                  {['PAUSED', 'CANCELLED'].includes(request.status) && <button type="button" disabled={deleteRequest.isPending} onClick={() => removeRequest(request)} className="btn rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100 disabled:opacity-50">Eliminar</button>}
+                  <button type="button" disabled={deleteRequest.isPending} onClick={() => removeRequest(request)} className="btn rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100 disabled:opacity-50">Eliminar</button>
                 </div>}
               </article>
             );
