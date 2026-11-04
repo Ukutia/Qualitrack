@@ -313,20 +313,6 @@ export default function DocumentRequests() {
 
                 <DocumentAssociation document={request.document} />
 
-                <dl className="mt-4 grid gap-3 border-t border-steel-100 pt-4 text-sm sm:grid-cols-3">
-                  <div><dt className="text-steel-500">Frecuencia</dt><dd className="mt-1 font-medium text-ink-900">{formatDays(request.reminderIntervalDays)}</dd></div>
-                  <div><dt className="text-steel-500">Próxima rotación</dt><dd className="mt-1 font-medium text-ink-900">{formatDate(request.nextReminderAt)}</dd></div>
-                  <div><dt className="text-steel-500">Versión del token</dt><dd className="mt-1 font-medium text-ink-900">v{request.tokenVersion}</dd></div>
-                </dl>
-
-                <div className="mt-4 rounded-lg bg-steel-50 p-3 ring-1 ring-steel-200">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-medium uppercase tracking-wide text-steel-500">Token vigente</span>
-                    <span className="text-xs text-steel-500">Generado: {formatDate(request.tokenCreatedAt)}</span>
-                  </div>
-                  <CurrentToken token={request.token} createdAt={request.tokenCreatedAt} />
-                </div>
-
                 {expanded && (
                   <section id={`request-details-${request.id}`} className="mt-5 space-y-5 border-t border-steel-200 pt-5" onClick={(event) => event.stopPropagation()}>
                     <div>
@@ -341,6 +327,37 @@ export default function DocumentRequests() {
                       <div><dt className="text-xs text-steel-500">Última actualización</dt><dd className="mt-1 font-medium text-ink-900">{formatDate(request.updatedAt)}</dd></div>
                       <div><dt className="text-xs text-steel-500">Correos registrados</dt><dd className="mt-1 font-medium text-ink-900">{request.emails?.length || 0}</dd></div>
                     </dl>
+
+                    <details className="group overflow-hidden rounded-xl border border-steel-200 bg-white">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold text-ink-900 transition hover:bg-steel-50 [&::-webkit-details-marker]:hidden">
+                        <span className="flex items-center gap-2.5">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8"><path d="M8 11V8a4 4 0 0 1 8 0v3M6 11h12v9H6z" /></svg>
+                          </span>
+                          <span>
+                            <span className="block">Enlace y recordatorios</span>
+                            <span className="mt-0.5 block text-xs font-normal text-steel-500">Configuración de entrega y acceso público</span>
+                          </span>
+                        </span>
+                        <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4 shrink-0 fill-none stroke-current text-steel-500 transition group-open:rotate-180" strokeWidth="1.8"><path d="m5 7.5 5 5 5-5" /></svg>
+                      </summary>
+
+                      <div className="space-y-4 border-t border-steel-200 bg-steel-50/50 p-4">
+                        <dl className="grid gap-3 text-sm sm:grid-cols-3">
+                          <div><dt className="text-steel-500">Frecuencia</dt><dd className="mt-1 font-medium text-ink-900">{formatDays(request.reminderIntervalDays)}</dd></div>
+                          <div><dt className="text-steel-500">Próxima rotación</dt><dd className="mt-1 font-medium text-ink-900">{formatDate(request.nextReminderAt)}</dd></div>
+                          <div><dt className="text-steel-500">Versión del token</dt><dd className="mt-1 font-medium text-ink-900">v{request.tokenVersion}</dd></div>
+                        </dl>
+
+                        <div className="rounded-lg bg-white p-3 ring-1 ring-steel-200">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-xs font-medium uppercase tracking-wide text-steel-500">Token vigente</span>
+                            <span className="text-xs text-steel-500">Generado: {formatDate(request.tokenCreatedAt)}</span>
+                          </div>
+                          <CurrentToken token={request.token} createdAt={request.tokenCreatedAt} />
+                        </div>
+                      </div>
+                    </details>
 
                     <div>
                       <h3 className="text-sm font-semibold text-ink-900">Historial de enlaces enviados</h3>
