@@ -685,7 +685,7 @@ export function discoverOnboardingControls(pathname, root = document.querySelect
 }
 
 export function pendingControls(controls, onboarding) {
-  if (!onboarding || onboarding.status === 'SKIPPED') return [];
+  if (!onboarding) return [];
 
   const authorized = new Set(onboarding.authorizedStepIds ?? []);
   const completed = new Set(onboarding.completedStepIds ?? []);

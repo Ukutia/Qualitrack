@@ -29,6 +29,12 @@
 .appearance-size-button:hover { background: #e8f2fc; }
 .appearance-size-button:disabled { opacity: .4; cursor: not-allowed; }
 
+:root[data-app-theme='dark'] .read-only-notice {
+  background: #222830;
+  color: #d8ebfb;
+  --tw-ring-color: #343e49;
+}
+
 /* Apply a real dark palette to surfaces and text; never invert images or PDFs. */
 :root[data-app-theme='dark'] {
   color-scheme: dark;

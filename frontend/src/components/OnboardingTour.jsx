@@ -150,7 +150,6 @@ export default function OnboardingTour() {
 
   if (
     !section ||
-    onboarding?.status === 'SKIPPED' ||
     !current ||
     !targetRect
   ) {
@@ -261,7 +260,7 @@ export default function OnboardingTour() {
             disabled={saving}
             className="text-sm font-medium text-steel-500 hover:text-steel-800 disabled:opacity-50"
           >
-            Omitir esta guía
+            Omitir esta sección
           </button>
 
           <button

@@ -8,8 +8,9 @@ import {
   SECTION_STEP_KEYS,
 } from '../config/onboarding.js';
 
-function statusFor(status, authorizedStepIds, completedStepIds) {
-  if (status === 'SKIPPED') return 'SKIPPED';
+function statusFor(authorizedStepIds, completedStepIds) {
+  // Una omisión solo completa los pasos de su sección. Los estados SKIPPED
+  // antiguos no deben impedir las guías que todavía tienen pasos pendientes.
   if (authorizedStepIds.length === 0) return 'PENDING';
   if (completedStepIds.length === authorizedStepIds.length) return 'COMPLETED';
   if (completedStepIds.length > 0) return 'IN_PROGRESS';
@@ -45,7 +46,6 @@ export async function syncOnboarding(user, suppliedPermissions = null) {
   ).filter((stepId) => authorizedStepIds.includes(stepId));
 
   const status = statusFor(
-    current.status,
     authorizedStepIds,
     completedStepIds,
   );
@@ -89,7 +89,6 @@ export async function completeOnboardingStep(user, stepId) {
   ].sort();
 
   const status = statusFor(
-    current.status,
     current.authorizedStepIds,
     completedStepIds,
   );
@@ -131,7 +130,6 @@ export async function skipOnboardingSection(user, section) {
     where: { userId: Number(user.id) },
     data: {
       status: statusFor(
-        current.status,
         current.authorizedStepIds,
         completedStepIds,
       ),

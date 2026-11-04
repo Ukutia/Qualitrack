@@ -203,6 +203,31 @@ describe('HU23 · criterios de aceptación', () => {
     expect(result.completedStepIds).toHaveLength(searchSteps.length);
   });
 
+  it('recupera guías pendientes de una omisión global antigua y mantiene la omisión por sección', async () => {
+    const user = {
+      id: 8,
+      role: 'user',
+      permissions: {
+        ...denied(),
+        [MODULES.BUSQUEDA]: LEVELS.LECTURA,
+        [MODULES.REPOSITORIO]: LEVELS.LECTURA,
+      },
+    };
+    mockStoredProgress({ userId: 8, status: 'SKIPPED', completedStepIds: [], authorizedStepIds: [] });
+
+    expect((await syncOnboarding(user)).status).toBe('PENDING');
+    await skipOnboardingSection(user, 'documents');
+    const result = await syncOnboarding(user);
+    expect(result.status).toBe('IN_PROGRESS');
+    expect(result.authorizedStepIds.filter((id) => id.startsWith('ui:documents:'))
+      .every((id) => result.completedStepIds.includes(id))).toBe(true);
+    expect(result.completedStepIds).not.toContain('ui:search:intro');
+
+    const next = await completeOnboardingStep(user, 'ui:search:intro');
+    expect(next.completedStepIds).toContain('ui:search:intro');
+    expect(next.completedStepIds).not.toContain('ui:search:lista');
+  });
+
   it('rechaza omitir una guía que no existe', async () => {
     await expect(skipOnboardingSection(fullAdmin, 'desconocida')).rejects.toMatchObject({
       status: 400,

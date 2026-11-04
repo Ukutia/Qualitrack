@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { usePermission } from '../hooks/usePermission.js';
+import { MODULES } from '../lib/permissions.js';
+import ReadOnlyNotice from './ReadOnlyNotice.jsx';
 
 const labels = { gray: 'En plazo', yellow: 'Próximo a vencer', red: 'Vencido', green: 'Completado' };
 const colors = { gray: 'bg-steel-100 text-steel-600', yellow: 'bg-amber-100 text-amber-800', red: 'bg-rose-100 text-rose-800', green: 'bg-emerald-100 text-emerald-800' };
@@ -18,6 +21,7 @@ function deadlineLabel(item, today) {
 
 export default function Milestones({ panel = false }) {
   const { user } = useAuth();
+  const { canWrite } = usePermission(MODULES.TABLERO);
   const client = useQueryClient();
   const [open, setOpen] = useState(!panel);
   const [form, setForm] = useState(empty);
@@ -27,9 +31,9 @@ export default function Milestones({ panel = false }) {
   const dialog = useRef(null);
   const trigger = useRef(null);
   const query = useQuery({ queryKey: ['milestones'], queryFn: async () => (await api.get('/milestones')).data, refetchInterval: 60000 });
-  const responsibles = useQuery({ queryKey: ['milestone-responsibles'], queryFn: async () => (await api.get('/milestones/responsibles')).data, enabled: open });
+  const responsibles = useQuery({ queryKey: ['milestone-responsibles'], queryFn: async () => (await api.get('/milestones/responsibles')).data, enabled: open && canWrite });
   useEffect(() => {
-    if (!panel || !open) return;
+    if (!panel || !open || !canWrite) return;
     const element = dialog.current;
     const main = element?.closest('main');
     const previousMainOverflow = main?.style.overflow;
@@ -42,7 +46,7 @@ export default function Milestones({ panel = false }) {
       document.body.style.overflow = previousOverflow;
       if (main) main.style.overflow = previousMainOverflow;
     };
-  }, [panel, open]);
+  }, [panel, open, canWrite]);
   const save = useMutation({
     mutationFn: async () => {
       const payload = { ...form, responsibleId: Number(form.responsibleId), tasks: form.tasks.split('\n').filter((t) => t.trim()) };
@@ -88,7 +92,7 @@ export default function Milestones({ panel = false }) {
         <span className="mt-2 block text-3xl font-semibold tabular-nums text-ink-900">{query.data.items.filter((item) => item.color === color).length}</span>
       </button>)}</div>
       <div className="flex items-center justify-between text-sm"><p className="text-steel-500">{filter === 'all' ? 'Todos los hitos' : labels[filter]}</p>{filter !== 'all' && <button onClick={() => setFilter('all')} className="font-medium text-brand-600">Ver todos</button>}</div>
-      {query.data.items.length === 0 && <div className="rounded-xl2 border-2 border-dashed border-steel-200 bg-white/60 px-6 py-12 text-center"><span className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-2xl text-brand-600" aria-hidden="true">⚑</span><h3 className="font-display text-xl font-semibold text-ink-900">Cada avance empieza con un hito</h3><p className="mt-2 text-sm text-steel-500">Registra el primero para organizar fechas, responsables y tareas.</p></div>}
+      {query.data.items.length === 0 && <div className="rounded-xl2 border-2 border-dashed border-steel-200 bg-white/60 px-6 py-12 text-center"><span className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-2xl text-brand-600" aria-hidden="true">⚑</span><h3 className="font-display text-xl font-semibold text-ink-900">Cada avance empieza con un hito</h3><p className="mt-2 text-sm text-steel-500">{canWrite ? 'Registra el primero para organizar fechas, responsables y tareas.' : 'Aún no hay hitos registrados para consultar.'}</p></div>}
       {query.data.items.length > 0 && !query.data.items.some((item) => filter === 'all' || item.color === filter) && <p className="rounded-xl border border-steel-200 bg-white p-6 text-sm text-steel-500">No hay hitos con este estado.</p>}
     </>}
     <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{query.data?.items.filter((item) => filter === 'all' || item.color === filter).map((item) => <article key={item.id} className="relative flex min-w-0 flex-col overflow-hidden break-words rounded-xl2 bg-white shadow-soft ring-1 ring-steel-200/70 transition-shadow hover:shadow-lift">
@@ -100,20 +104,22 @@ export default function Milestones({ panel = false }) {
       <div className="mb-4 flex items-center gap-2.5"><span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700">{item.responsible.name.split(' ').filter(Boolean).slice(0, 2).map((name) => name[0]).join('').toLocaleUpperCase('es-CL')}</span><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400">Responsable</p><p className="text-sm font-medium text-steel-700">{item.responsible.name}</p></div></div>
       <details className="mb-4 text-sm text-steel-600"><summary className="cursor-pointer font-medium">{item.tasks.length} tarea{item.tasks.length === 1 ? '' : 's'} asociada{item.tasks.length === 1 ? '' : 's'}</summary>{item.tasks.length > 0 ? <ul className="mt-2 list-disc space-y-1 pl-5">{item.tasks.map((task) => <li key={task.id}>{task.title}</li>)}</ul> : <p className="mt-2 text-xs text-steel-400">Sin tareas asociadas.</p>}</details>
       <div className="mt-auto border-t border-steel-100 pt-3">
-      {item.completedAt ? <p className="mt-2 text-xs text-steel-500">Completado por {item.completedBy?.name} el {new Date(item.completedAt).toLocaleString('es-CL', { timeZone: 'America/Santiago' })}.</p> : (user.role === 'admin' || item.responsibleId === user.id) && <div className="mt-3 flex gap-4 text-sm"><button className="underline" onClick={() => edit(item)}>Modificar</button><button disabled={complete.isPending} className="font-semibold text-emerald-700 disabled:opacity-50" onClick={() => complete.mutate(item.id)}>Marcar completado</button></div>}
+      {item.completedAt ? <p className="mt-2 text-xs text-steel-500">Completado por {item.completedBy?.name} el {new Date(item.completedAt).toLocaleString('es-CL', { timeZone: 'America/Santiago' })}.</p> : canWrite && (user.role === 'admin' || item.responsibleId === user.id) && <div className="mt-3 flex gap-4 text-sm"><button className="underline" onClick={() => edit(item)}>Modificar</button><button disabled={complete.isPending} className="font-semibold text-emerald-700 disabled:opacity-50" onClick={() => complete.mutate(item.id)}>Marcar completado</button></div>}
       </div></div>
     </article>)}</div>
   </>;
-  if (!panel) return <section>{content}{tracking}</section>;
+  const readOnlyNotice = !canWrite && <div className="space-y-2"><p className="text-sm font-semibold text-steel-700">Modo lectura</p><ReadOnlyNotice /></div>;
+  if (!panel) return <section className="space-y-4">{readOnlyNotice}{canWrite && content}{tracking}</section>;
   return <><section aria-labelledby="milestones-tracking-title" className="space-y-4">
+    {readOnlyNotice}
     <header className="milestone-intro relative flex flex-wrap items-center justify-between gap-5 overflow-hidden rounded-xl2 border border-steel-200/70 p-6 text-ink-900 sm:p-8">
       <svg aria-hidden="true" viewBox="0 0 160 120" className="milestone-route pointer-events-none absolute right-8 top-0 h-full w-44 opacity-20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M15 105V75a18 18 0 0 1 18-18h42a18 18 0 0 0 18-18V15" strokeDasharray="4 6" /><circle cx="15" cy="105" r="5" /><circle cx="75" cy="57" r="5" /><path d="M93 15h32l-7 9 7 9H93" /></svg>
       <div className="relative"><p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700">Ruta de acreditación</p><h2 id="milestones-tracking-title" className="font-display text-2xl font-semibold">Los próximos pasos, a la vista</h2><p className="mt-2 max-w-md text-sm text-steel-700">Organiza fechas, coordina responsables y sigue cada avance del proceso.</p></div>
-      <button ref={trigger} onClick={create} aria-haspopup="dialog" className="relative rounded-lg bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-soft transition-colors hover:bg-brand-700">+ Registrar hito</button>
+      {canWrite && <button ref={trigger} onClick={create} aria-haspopup="dialog" className="relative rounded-lg bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-soft transition-colors hover:bg-brand-700">+ Registrar hito</button>}
     </header>
     {save.isSuccess && <p role="status" className="text-sm text-emerald-700">Hito guardado.</p>}
     {tracking}
   </section>
-    {open && <dialog ref={dialog} onCancel={close} onClose={() => setOpen(false)} aria-labelledby="milestones-title" className="milestone-drawer"><div className="milestone-drawer-content">{content}</div></dialog>}
+    {open && canWrite && <dialog ref={dialog} onCancel={close} onClose={() => setOpen(false)} aria-labelledby="milestones-title" className="milestone-drawer"><div className="milestone-drawer-content">{content}</div></dialog>}
   </>;
 }
