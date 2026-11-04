@@ -25,7 +25,7 @@ export default function SemanticSearch() {
   const addTopicButton = useRef(null);
 
   useEffect(() => {
-    if (!topicModalOpen) return;
+    if (!topicModalOpen || !canWrite) return;
     const dialog = topicDialog.current;
     const main = document.querySelector('main');
     const previousMainOverflow = main?.style.overflow;
@@ -39,7 +39,7 @@ export default function SemanticSearch() {
       if (main) main.style.overflow = previousMainOverflow;
       addTopicButton.current?.focus();
     };
-  }, [topicModalOpen]);
+  }, [topicModalOpen, canWrite]);
 
   async function handleTopicSearch(topicName) {
     const value = topicName.trim();
@@ -98,6 +98,8 @@ export default function SemanticSearch() {
         </p>
       </header>
 
+      {!canWrite && <ReadOnlyNotice />}
+
       <div className="thematic-view-toolbar">
       <div role="group" aria-label="Visualización de búsqueda temática" className="thematic-view-switch">
         {[['list', 'Lista'], ['network', 'Red visual']].map(([value, label]) => (
@@ -114,7 +116,7 @@ export default function SemanticSearch() {
       {canWrite && <button ref={addTopicButton} type="button" aria-haspopup="dialog" className="thematic-add-button" onClick={() => { createTopic.reset(); setTopicName(''); setTopicModalOpen(true); }}>+ Agregar temática</button>}
       </div>
 
-      {topicModalOpen && createPortal(<dialog ref={topicDialog} className="thematic-topic-modal" aria-labelledby="new-topic-title" aria-describedby="new-topic-description" onCancel={(event) => { event.preventDefault(); if (!createTopic.isPending) setTopicModalOpen(false); }}>
+      {canWrite && topicModalOpen && createPortal(<dialog ref={topicDialog} className="thematic-topic-modal" aria-labelledby="new-topic-title" aria-describedby="new-topic-description" onCancel={(event) => { event.preventDefault(); if (!createTopic.isPending) setTopicModalOpen(false); }}>
       <header className="flex items-center justify-between gap-3"><h2 id="new-topic-title" className="font-display text-2xl font-semibold text-ink-900">Nueva temática</h2><button type="button" disabled={createTopic.isPending} aria-label="Cerrar nueva temática" onClick={() => setTopicModalOpen(false)} className="rounded-lg px-3 py-2 text-steel-600 hover:bg-steel-50 disabled:opacity-50">✕</button></header>
       <p id="new-topic-description" className="mb-5 mt-2 text-sm leading-6 text-steel-600">Escribe el tema que quieres explorar en las evidencias del repositorio.</p>
       <form
@@ -123,7 +125,7 @@ export default function SemanticSearch() {
 
           const value = topicName.trim();
 
-          if (value.length < 3) return;
+          if (!canWrite || value.length < 3) return;
 
           try {
             await createTopic.mutateAsync(value);
