@@ -274,7 +274,7 @@ router.use(auditRequests);
 // HU23: solo requieren sesión; el servicio filtra según permisos efectivos.
 router.get('/onboarding', asyncRoute(getOnboarding));
 router.post('/onboarding/sync', asyncRoute(syncOnboardingSteps));
-router.post('/onboarding/skip', asyncRoute(skipOnboarding));
+router.post('/onboarding/sections/:section/skip', asyncRoute(skipOnboarding));
 router.post('/onboarding/steps/:stepId/complete', asyncRoute(completeOnboardingStep));
 
 router.use(enforceRolePolicy);

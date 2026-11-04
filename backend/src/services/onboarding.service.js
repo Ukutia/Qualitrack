@@ -5,6 +5,7 @@ import {
   filterAuthorizedOnboardingStepIds,
   isKnownOnboardingStep,
   isOnboardingStepAuthorized,
+  SECTION_STEP_KEYS,
 } from '../config/onboarding.js';
 
 function statusFor(status, authorizedStepIds, completedStepIds) {
@@ -102,15 +103,39 @@ export async function completeOnboardingStep(user, stepId) {
   });
 }
 
-export async function skipOnboarding(user) {
-  const current = await syncOnboarding(user);
+export async function skipOnboardingSection(user, section) {
+  if (!Object.hasOwn(SECTION_STEP_KEYS, section)) {
+    const error = new Error('Guía de onboarding no válida.');
+    error.status = 400;
+    throw error;
+  }
+
+  const permissions = await loadPermissions(user);
+  const current = await syncOnboarding(user, permissions);
+  const prefix = `ui:${section}:`;
+  const sectionStepIds = current.authorizedStepIds.filter((stepId) =>
+    stepId.startsWith(prefix),
+  );
+
+  if (sectionStepIds.length === 0) {
+    const error = new Error('No tienes autorización para esta guía de onboarding.');
+    error.status = 403;
+    throw error;
+  }
+
+  const completedStepIds = [
+    ...new Set([...current.completedStepIds, ...sectionStepIds]),
+  ].sort();
 
   return prisma.onboardingProgress.update({
     where: { userId: Number(user.id) },
     data: {
-      status: 'SKIPPED',
-      completedStepIds: current.completedStepIds,
-      authorizedStepIds: current.authorizedStepIds,
+      status: statusFor(
+        current.status,
+        current.authorizedStepIds,
+        completedStepIds,
+      ),
+      completedStepIds,
     },
   });
 }

@@ -2,7 +2,7 @@ import {
   syncOnboarding,
   syncAvailableOnboardingSteps,
   completeOnboardingStep,
-  skipOnboarding,
+  skipOnboardingSection,
 } from '../services/onboarding.service.js';
 
 export async function getOnboarding(req, res) {
@@ -41,6 +41,13 @@ export async function completeStep(req, res) {
 }
 
 export async function skip(req, res) {
-  const onboarding = await skipOnboarding(req.user);
-  return res.json({ onboarding });
+  try {
+    const onboarding = await skipOnboardingSection(req.user, req.params.section);
+    return res.json({ onboarding });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    throw error;
+  }
 }

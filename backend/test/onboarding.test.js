@@ -27,7 +27,7 @@ const {
 } = await import('../src/config/onboarding.js');
 const {
   completeOnboardingStep,
-  skipOnboarding,
+  skipOnboardingSection,
   syncOnboarding,
 } = await import('../src/services/onboarding.service.js');
 
@@ -168,11 +168,15 @@ describe('HU23 · criterios de aceptación', () => {
     expect(prisma.onboardingProgress.create).toHaveBeenCalledOnce();
   });
 
-  it('CDA2 registra SKIPPED y conserva el acceso a las tareas autorizadas', async () => {
+  it('CDA2 omite solo los pasos de la pestaña indicada', async () => {
     const user = {
       id: 8,
       role: 'user',
-      permissions: { ...denied(), [MODULES.BUSQUEDA]: LEVELS.LECTURA },
+      permissions: {
+        ...denied(),
+        [MODULES.BUSQUEDA]: LEVELS.LECTURA,
+        [MODULES.REPOSITORIO]: LEVELS.LECTURA,
+      },
     };
     mockStoredProgress({
       id: 2,
@@ -182,11 +186,28 @@ describe('HU23 · criterios de aceptación', () => {
       completedStepIds: [],
     });
 
-    const result = await skipOnboarding(user);
+    const result = await skipOnboardingSection(user, 'search');
 
-    expect(result.status).toBe('SKIPPED');
+    expect(result.status).toBe('IN_PROGRESS');
     expect(result.authorizedStepIds).toContain('ui:search:intro');
     expect(result.authorizedStepIds).toContain('ui:search:lista');
+    expect(result.completedStepIds).toContain('ui:search:intro');
+    expect(result.completedStepIds).toContain('ui:search:lista');
+    expect(result.completedStepIds).not.toContain('ui:documents:intro');
+    expect(result.completedStepIds).not.toContain('ui:documents:lista');
+    const searchSteps = result.authorizedStepIds.filter((stepId) =>
+      stepId.startsWith('ui:search:'),
+    );
+    expect(searchSteps.length).toBeGreaterThan(1);
+    expect(searchSteps.every((stepId) => result.completedStepIds.includes(stepId))).toBe(true);
+    expect(result.completedStepIds).toHaveLength(searchSteps.length);
+  });
+
+  it('rechaza omitir una guía que no existe', async () => {
+    await expect(skipOnboardingSection(fullAdmin, 'desconocida')).rejects.toMatchObject({
+      status: 400,
+      message: 'Guía de onboarding no válida.',
+    });
   });
 
   it('CDA3 conserva completados autorizados, quita revocados y agrega nuevos pendientes', async () => {

@@ -187,7 +187,7 @@ export default function OnboardingTour() {
 
     try {
       setSaving(true);
-      await skipOnboarding();
+      await skipOnboarding(section);
       setTargetRect(null);
       setCurrentStepId(null);
     } finally {
@@ -261,7 +261,7 @@ export default function OnboardingTour() {
             disabled={saving}
             className="text-sm font-medium text-steel-500 hover:text-steel-800 disabled:opacity-50"
           >
-            Omitir guía
+            Omitir esta guía
           </button>
 
           <button

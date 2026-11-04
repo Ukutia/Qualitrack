@@ -84,8 +84,10 @@ export function AuthProvider({ children }) {
     return res.data.onboarding;
   }
 
-  async function skipOnboarding() {
-    const res = await api.post('/onboarding/skip');
+  async function skipOnboarding(section) {
+    const res = await api.post(
+      `/onboarding/sections/${encodeURIComponent(section)}/skip`,
+    );
 
     setOnboarding(res.data.onboarding);
     return res.data.onboarding;
