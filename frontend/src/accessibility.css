@@ -171,6 +171,25 @@
 :root[data-app-theme='dark'] .cloud-provider[aria-pressed='true'] { color: var(--dark-accent); border-bottom-color: var(--dark-accent); }
 :root[data-app-theme='dark'] .login-logo-light { display: none; }
 :root[data-app-theme='dark'] .login-logo-dark { display: block; }
+:root[data-app-theme='dark'] .landing-logo-light { display: none; }
+:root[data-app-theme='dark'] .landing-logo-dark { display: block; }
+:root[data-app-theme='dark'] .landing-page [class~='bg-white/45'] { background-color: #2a2f38; }
+:root[data-app-theme='dark'] .landing-page :where(.text-steel-600) { color: #d0ccc5; }
+
+/* La asociación conserva una superficie clara, por lo que sus textos deben
+   permanecer oscuros también cuando el resto de la aplicación cambia de tema. */
+:root[data-app-theme='dark'] .document-association {
+  background-color: #d8ebfb;
+  border-color: #7fb6ea;
+}
+:root[data-app-theme='dark'] .document-association-status { color: #166534; }
+:root[data-app-theme='dark'] .document-association-name { color: var(--dark-canvas); }
+:root[data-app-theme='dark'] .document-association-meta { color: #424242; }
+:root[data-app-theme='dark'] .document-association-action { color: #234a74; }
+:root[data-app-theme='dark'] .document-association-link:hover {
+  background-color: #c5e2f7;
+  border-color: #4f96d9;
+}
 
 /* Custom network labels use rem too, so the text controls affect them. */
 :root[data-app-theme='dark'] .repository-filter { background: var(--dark-inset); border-color: var(--dark-border); }

@@ -117,6 +117,38 @@ describe('HU23 · catálogo y autorización', () => {
     expect(dropdownSteps.every(isKnownOnboardingStep)).toBe(true);
   });
 
+  it('incluye el recorrido actualizado de solicitudes de documentos', () => {
+    const requestSteps = [
+      'tarjeta-solicitud',
+      'ver-recorrido',
+      'documento-asociado',
+      'recorrido',
+      'enlace-recordatorios',
+      'mostrar-token',
+      'copiar-link',
+      'historial-envios',
+    ].map((control) => `ui:requests:${control}`);
+
+    expect(requestSteps.every(isKnownOnboardingStep)).toBe(true);
+  });
+
+  it('muestra el seguimiento de solicitudes a cuentas de solo lectura', () => {
+    const reader = {
+      id: 4,
+      role: 'user',
+      permissions: { ...denied(), [MODULES.SOLICITUDES]: LEVELS.LECTURA },
+    };
+    const authorized = authorizedOnboardingStepIds(reader, reader.permissions);
+
+    expect(authorized).toContain('ui:requests:tarjeta-solicitud');
+    expect(authorized).toContain('ui:requests:recorrido');
+    expect(authorized).toContain('ui:requests:mostrar-token');
+    expect(authorized).toContain('ui:requests:historial-envios');
+    expect(authorized).not.toContain('ui:requests:crear-solicitud');
+    expect(authorized).not.toContain('ui:requests:pausar');
+    expect(authorized).not.toContain('ui:requests:eliminar');
+  });
+
   it('no entrega acciones de escritura a una cuenta con permiso de lectura', () => {
     const user = {
       id: 2,

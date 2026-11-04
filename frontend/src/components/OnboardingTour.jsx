@@ -10,6 +10,8 @@ import {
 const SUBSECTION_STEPS = new Set([
   'ui:app:hitos-de-acreditacion',
   'ui:documents:carpetas',
+  'ui:requests:ver-recorrido',
+  'ui:requests:enlace-recordatorios',
 ]);
 
 function rectFor(element) {
@@ -41,6 +43,7 @@ export default function OnboardingTour() {
   const [targetRect, setTargetRect] = useState(null);
   const [saving, setSaving] = useState(false);
   const syncTimer = useRef(null);
+  const subsectionTimer = useRef(null);
   const lastSyncedIds = useRef([]);
 
   const pending = useMemo(
@@ -58,6 +61,7 @@ export default function OnboardingTour() {
     setCurrentStepId(null);
     setTargetRect(null);
     lastSyncedIds.current = [];
+    window.clearTimeout(subsectionTimer.current);
   }, [pathname]);
 
   useEffect(() => {
@@ -99,7 +103,7 @@ export default function OnboardingTour() {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['disabled', 'aria-disabled', 'class', 'hidden'],
+      attributeFilter: ['disabled', 'aria-disabled', 'aria-expanded', 'class', 'hidden', 'open'],
     });
 
     window.addEventListener('resize', scheduleScan);
@@ -108,6 +112,7 @@ export default function OnboardingTour() {
       cancelled = true;
       observer.disconnect();
       window.clearTimeout(syncTimer.current);
+      window.clearTimeout(subsectionTimer.current);
       window.removeEventListener('resize', scheduleScan);
     };
   }, [pathname, section, syncOnboardingSteps]);
@@ -175,6 +180,12 @@ export default function OnboardingTour() {
         !subsectionTrigger.disabled
       ) {
         subsectionTrigger.click();
+        window.clearTimeout(subsectionTimer.current);
+        subsectionTimer.current = window.setTimeout(() => {
+          // La mutación del DOM ya incorporó los controles recién desplegados.
+          // Volver a resolver desde el inicio conserva el orden visual del panel.
+          setCurrentStepId(null);
+        }, 200);
       }
     } finally {
       setSaving(false);

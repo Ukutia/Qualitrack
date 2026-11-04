@@ -47,8 +47,9 @@ export const SECTION_STEP_KEYS = {
     'seleccionar-subcriterio', 'clasificacion-respaldo', 'mover-a-papelera', 'volver',
   ]),
   requests: new Set([
-    'intro', 'crear-solicitud', 'copiar-link', 'pausar', 'reanudar', 'cancelar',
-    'eliminar',
+    'intro', 'crear-solicitud', 'tarjeta-solicitud', 'ver-recorrido',
+    'documento-asociado', 'recorrido', 'enlace-recordatorios', 'mostrar-token',
+    'copiar-link', 'historial-envios', 'pausar', 'reanudar', 'cancelar', 'eliminar',
   ]),
   'requests-new': new Set(['intro', 'crear-solicitud', 'volver']),
   search: new Set([

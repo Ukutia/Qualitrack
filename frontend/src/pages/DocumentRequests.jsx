@@ -88,12 +88,12 @@ function CurrentToken({ token, createdAt }) {
         <code className={`min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm ${visible ? 'text-ink-900' : 'select-none tracking-widest text-steel-500'}`}>
           {visible ? token : '••••••••••••••••••••••••'}
         </code>
-        <button type="button" onClick={() => setVisible((current) => !current)} aria-pressed={visible} className="btn inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-steel-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-900 hover:bg-steel-50">
+        <button type="button" data-onboarding-key="mostrar-token" onClick={() => setVisible((current) => !current)} aria-pressed={visible} className="btn inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-steel-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-900 hover:bg-steel-50">
           <EyeIcon hidden={!visible} /> {visible ? 'Ocultar' : 'Mostrar'}
         </button>
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-steel-200 pt-3">
-        <button type="button" onClick={copyLink} className="btn rounded-lg border border-steel-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-900 hover:bg-steel-50">
+        <button type="button" data-onboarding-key="copiar-link" onClick={copyLink} className="btn rounded-lg border border-steel-300 bg-white px-3 py-1.5 text-xs font-medium text-ink-900 hover:bg-steel-50">
           {copied ? 'Link copiado' : 'Copiar link'}
         </button>
         {visible && <a href={publicUrl} target="_blank" rel="noreferrer" className="text-xs font-medium text-brand-700 hover:underline">Abrir link público ↗</a>}
@@ -111,19 +111,19 @@ function DocumentAssociation({ document }) {
         <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8"><path d="M7 3h7l4 4v14H7z" /><path d="M14 3v5h5M9.5 13h5M9.5 16h5" /></svg>
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-xs font-medium uppercase tracking-wide text-emerald-700">Documento recibido</span>
-        <span className="mt-0.5 block truncate text-sm font-semibold text-ink-900">{document.originalName}</span>
-        <span className="mt-0.5 block text-xs text-steel-500">{String(document.format || '').toUpperCase()} · {formatSize(document.sizeBytes)} · {formatDate(document.uploadedAt)}</span>
+        <span className="document-association-status block text-xs font-medium uppercase tracking-wide text-emerald-700">Documento recibido</span>
+        <span className="document-association-name mt-0.5 block truncate text-sm font-semibold text-ink-900">{document.originalName}</span>
+        <span className="document-association-meta mt-0.5 block text-xs text-steel-500">{String(document.format || '').toUpperCase()} · {formatSize(document.sizeBytes)} · {formatDate(document.uploadedAt)}</span>
       </span>
-      {!document.deletedAt && <span className="shrink-0 text-sm font-medium text-brand-700">Ver documento →</span>}
+      {!document.deletedAt && <span className="document-association-action shrink-0 text-sm font-medium text-brand-700">Ver documento →</span>}
     </>
   );
 
-  const classes = 'mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-left';
+  const classes = 'document-association mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-left';
   return document.deletedAt ? (
-    <div className={classes}>{content}<span className="shrink-0 rounded-full bg-steel-200 px-2 py-1 text-xs text-steel-600">En papelera</span></div>
+    <div data-onboarding-key="documento-asociado" className={classes}>{content}<span className="shrink-0 rounded-full bg-steel-200 px-2 py-1 text-xs text-steel-600">En papelera</span></div>
   ) : (
-    <Link to={`/documents/${document.id}`} className={`${classes} transition hover:border-emerald-300 hover:bg-emerald-50`} onClick={(event) => event.stopPropagation()}>{content}</Link>
+    <Link to={`/documents/${document.id}`} data-onboarding-key="documento-asociado" className={`${classes} document-association-link transition hover:border-emerald-300 hover:bg-emerald-50`} onClick={(event) => event.stopPropagation()}>{content}</Link>
   );
 }
 
@@ -172,7 +172,7 @@ function RequestTimeline({ request }) {
   };
 
   return (
-    <div className="relative">
+    <div data-onboarding-key="recorrido" className="relative">
       <div aria-hidden="true" className="absolute bottom-0 left-[0.95rem] top-4 w-px bg-steel-200 sm:bottom-auto sm:left-[16.66%] sm:right-[16.66%] sm:top-4 sm:h-px sm:w-auto" />
       <ol className="relative grid gap-5 sm:grid-cols-3 sm:gap-3" aria-label="Seguimiento de la solicitud">
         {steps.map((step, index) => (
@@ -287,6 +287,7 @@ export default function DocumentRequests() {
             return (
               <article
                 key={request.id}
+                data-onboarding-key="tarjeta-solicitud"
                 className={`rounded-xl2 bg-white p-5 shadow-soft ring-1 transition ${expanded ? 'ring-2 ring-brand-300' : 'ring-steel-200/70 hover:ring-brand-200'}`}
                 onClick={(event) => {
                   if (event.target.closest('a, button, input, textarea, select')) return;
@@ -304,7 +305,7 @@ export default function DocumentRequests() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-steel-500">Solicitud #{request.id}</span>
-                    <button type="button" onClick={() => setExpandedId(expanded ? null : request.id)} aria-expanded={expanded} aria-controls={`request-details-${request.id}`} className="btn inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50">
+                    <button type="button" data-onboarding-key="ver-recorrido" onClick={() => setExpandedId(expanded ? null : request.id)} aria-expanded={expanded} aria-controls={`request-details-${request.id}`} className="btn inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50">
                       {expanded ? 'Ocultar detalle' : 'Ver recorrido'}
                       <svg viewBox="0 0 20 20" aria-hidden="true" className={`h-4 w-4 fill-none stroke-current transition ${expanded ? 'rotate-180' : ''}`} strokeWidth="1.8"><path d="m5 7.5 5 5 5-5" /></svg>
                     </button>
@@ -329,7 +330,7 @@ export default function DocumentRequests() {
                     </dl>
 
                     <details className="group overflow-hidden rounded-xl border border-steel-200 bg-white">
-                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold text-ink-900 transition hover:bg-steel-50 [&::-webkit-details-marker]:hidden">
+                      <summary data-onboarding-key="enlace-recordatorios" className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold text-ink-900 transition hover:bg-steel-50 [&::-webkit-details-marker]:hidden">
                         <span className="flex items-center gap-2.5">
                           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
                             <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8"><path d="M8 11V8a4 4 0 0 1 8 0v3M6 11h12v9H6z" /></svg>
@@ -359,7 +360,7 @@ export default function DocumentRequests() {
                       </div>
                     </details>
 
-                    <div>
+                    <div data-onboarding-key="historial-envios">
                       <h3 className="text-sm font-semibold text-ink-900">Historial de enlaces enviados</h3>
                       <div className="mt-2 rounded-xl border border-steel-200 px-4"><EmailHistory emails={request.emails} /></div>
                     </div>

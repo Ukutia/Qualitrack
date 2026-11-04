@@ -381,3 +381,8 @@ body::after {
 .skip-link:focus {
   top: 0.75rem;
 }
+
+/* El texto secundario de la landing necesita más contraste sobre el papel. */
+.landing-page :where(.text-steel-600) {
+  color: #5c5c5c;
+}

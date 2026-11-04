@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import useDocumentMeta from '../lib/useDocumentMeta.js';
 import fullLogo from '../assets/fulllogo.svg';
+import fullLogoDark from '../assets/fulllogo_darkmode.svg';
 import teamPhoto from '../assets/team/equipo.jpeg';
 import javieraPhoto from '../assets/team/javiera.jpeg';
 import paulinaPhoto from '../assets/team/paulina.jpeg';
@@ -289,7 +290,7 @@ export default function Landing() {
   ];
 
   return (
-    <div className="min-h-full">
+    <div className="landing-page min-h-full">
       <a href="#contenido" className="skip-link">
         Saltar al contenido
       </a>
@@ -302,7 +303,8 @@ export default function Landing() {
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <a href="#top" className="flex items-center">
-            <img src={fullLogo} alt="Qualitrack" className="h-10 w-auto" />
+            <img src={fullLogo} alt="Qualitrack" className="landing-logo-light h-10 w-auto" />
+            <img src={fullLogoDark} alt="Qualitrack" className="landing-logo-dark hidden h-10 w-auto" />
           </a>
 
           <nav className="hidden items-center gap-8 md:flex">
@@ -856,7 +858,8 @@ export default function Landing() {
         <div className="mx-auto max-w-6xl px-6 py-14">
           <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             <div className="lg:col-span-2">
-              <img src={fullLogo} alt="Qualitrack" className="h-9 w-auto" />
+              <img src={fullLogo} alt="Qualitrack" className="landing-logo-light h-9 w-auto" />
+              <img src={fullLogoDark} alt="Qualitrack" className="landing-logo-dark hidden h-9 w-auto" />
               <p className="mt-4 max-w-xs text-sm leading-relaxed text-steel-600">
                 Evidencia ordenada, trazable y confiable para la acreditación institucional ante
                 la CNA.

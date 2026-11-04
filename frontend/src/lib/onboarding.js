@@ -60,7 +60,14 @@ const SECTION_DESCRIPTIONS = {
 
   requests: {
     'crear-solicitud': ['Crear solicitud', 'Solicita un documento a una persona externa y define la frecuencia de recordatorio.'],
+    'tarjeta-solicitud': ['Resumen de la solicitud', 'Cada tarjeta muestra el destinatario, el estado, la descripción y quién creó la solicitud. Puedes seleccionarla para abrir o cerrar sus detalles.'],
+    'ver-recorrido': ['Ver recorrido', 'Despliega el seguimiento completo de la solicitud, desde su creación hasta la recepción del documento o su cancelación.'],
+    'documento-asociado': ['Documento recibido', 'Cuando la persona destinataria entrega el archivo, queda asociado visualmente a la solicitud. Selecciónalo para abrirlo en el repositorio.'],
+    'recorrido': ['Estado del envío', 'Consulta las tres etapas de la solicitud con sus fechas y horas UTC: creación, envío del enlace y resultado final.'],
+    'enlace-recordatorios': ['Enlace y recordatorios', 'Despliega la frecuencia, la próxima rotación, la versión del token y el acceso al enlace público vigente.'],
+    'mostrar-token': ['Mostrar u ocultar token', 'El token permanece oculto por seguridad. Usa este control solo cuando necesites revisarlo y vuelve a ocultarlo al terminar.'],
     'copiar-link': ['Copiar enlace de entrega', 'Copia el enlace público vigente para compartirlo con la persona destinataria.'],
+    'historial-envios': ['Historial de enlaces enviados', 'Revisa cada correo generado, su versión de token, fecha, cantidad de intentos y estado de entrega.'],
     'pausar': ['Pausar solicitud', 'Detiene temporalmente los recordatorios y deja sin efecto el enlace vigente.'],
     'reanudar': ['Reanudar solicitud', 'Reactiva una solicitud pausada y genera un nuevo enlace de entrega.'],
     'cancelar': ['Cancelar solicitud', 'Finaliza la solicitud e invalida su enlace vigente.'],
@@ -168,7 +175,7 @@ const SECTION_INTROS = {
   milestones: ['Hitos de acreditación', 'Aquí puedes consultar y gestionar los hitos de acreditación que tienes autorizados.'],
   documents: ['Repositorio de evidencias', 'Aquí puedes buscar, revisar y organizar las evidencias disponibles para tu rol.'],
   'document-detail': ['Detalle de la evidencia', 'Aquí puedes revisar el archivo y realizar las acciones de clasificación que tienes autorizadas.'],
-  requests: ['Solicitudes de documentos', 'Aquí puedes revisar y gestionar solicitudes de documentos externos.'],
+  requests: ['Solicitudes de documentos', 'Aquí puedes seguir cada solicitud desde su creación hasta la entrega del documento, revisar sus envíos y gestionar su enlace público.'],
   'requests-new': ['Nueva solicitud', 'Completa los datos para solicitar un documento y generar su enlace de entrega.'],
   search: ['Búsqueda temática', 'Aquí puedes encontrar evidencias por temática y explorar sus relaciones.'],
   upload: ['Cargar evidencia', 'Aquí puedes seleccionar documentos, resolver duplicados y cargarlos al repositorio.'],
@@ -373,6 +380,10 @@ function extraMatchingKey(section, element, label) {
     if (text.includes('ver archivo')) return 'ver-archivo';
     if (text.includes('clasificación de respaldo') || text.includes('usar método de respaldo')) return 'clasificacion-respaldo';
     if (text.includes('papelera')) return 'mover-a-papelera';
+  }
+
+  if (section === 'requests') {
+    if (text === 'mostrar' || text === 'ocultar') return 'mostrar-token';
   }
 
   if (section === 'search') {
@@ -657,12 +668,14 @@ export function discoverOnboardingControls(pathname, root = document.querySelect
   }
 
   const candidates = Array.from(
-    root.querySelectorAll('button, [role="button"], a[href], select'),
+    root.querySelectorAll('button, [role="button"], a[href], select, [data-onboarding-key]'),
   ).filter(available);
 
   for (const element of candidates) {
     const label = elementLabel(element);
-    const key = extraMatchingKey(section, element, label) || firstMatchingKey(section, element, label);
+    const key = element.getAttribute('data-onboarding-key') ||
+      extraMatchingKey(section, element, label) ||
+      firstMatchingKey(section, element, label);
 
     if (!key || !descriptions[key] || byFunction.has(key)) continue;
 
