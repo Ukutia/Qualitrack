@@ -24,7 +24,21 @@ export function formatFromName(name) {
   return ALLOWED[path.extname(name).toLowerCase()] || null;
 }
 
+/**
+ * Busboy/Multer puede interpretar como Latin-1 el parámetro `filename` que el
+ * navegador envía en UTF-8. Solo adoptamos la recodificación cuando es válida
+ * y reversible, para no dañar nombres que ya llegaron correctamente.
+ */
+export function normalizeUploadFilename(name) {
+  const original = String(name || '');
+  const decoded = Buffer.from(original, 'latin1').toString('utf8');
+  const reversible = !decoded.includes('\uFFFD') &&
+    Buffer.from(decoded, 'utf8').toString('latin1') === original;
+  return (reversible ? decoded : original).normalize('NFC');
+}
+
 function fileFilter(req, file, cb) {
+  file.originalname = normalizeUploadFilename(file.originalname);
   const ext = path.extname(file.originalname).toLowerCase();
   const okExt = Boolean(ALLOWED[ext]);
   const okMime = ALLOWED_MIME.has(file.mimetype) || file.mimetype === 'application/octet-stream';
@@ -46,6 +60,7 @@ export const upload = multer({
 
 /** Multer restringido a PDF / DOC / DOCX para parseo de estructura. */
 function structureFileFilter(req, file, cb) {
+  file.originalname = normalizeUploadFilename(file.originalname);
   const ext = path.extname(file.originalname).toLowerCase();
   const okExt = ['.pdf', '.doc', '.docx'].includes(ext);
   const okMime =
