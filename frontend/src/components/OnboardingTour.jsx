@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
@@ -12,6 +13,9 @@ const SUBSECTION_STEPS = new Set([
   'ui:documents:carpetas',
   'ui:requests:ver-recorrido',
   'ui:requests:enlace-recordatorios',
+  'ui:team:editar-permisos',
+  'ui:team:volver-equipo',
+  'ui:team:cancelar-incorporacion',
 ]);
 
 function rectFor(element) {
@@ -162,8 +166,12 @@ export default function OnboardingTour() {
   }
 
   const authorized = new Set(onboarding?.authorizedStepIds ?? []);
-  const sectionControls = controls.filter((control) => authorized.has(control.id));
-  const index = sectionControls.findIndex((control) => control.id === current.id);
+  const currentDialog = current.element.closest('dialog[open]');
+  const surfaceControls = controls.filter((control) =>
+    authorized.has(control.id) &&
+    control.element.closest('dialog[open]') === currentDialog,
+  );
+  const index = surfaceControls.findIndex((control) => control.id === current.id);
 
   async function handleNext() {
     if (saving) return;
@@ -217,7 +225,7 @@ export default function OnboardingTour() {
     Math.max(16, window.innerWidth - 376),
   );
 
-  return (
+  const tour = (
     <>
       <div
         className="fixed inset-0 z-[90] bg-black/50"
@@ -256,7 +264,7 @@ export default function OnboardingTour() {
           </div>
 
           <span className="shrink-0 rounded-full bg-steel-100 px-2.5 py-1 text-xs text-steel-600">
-            {index + 1} / {sectionControls.length}
+            {index + 1} / {surfaceControls.length}
           </span>
         </div>
 
@@ -286,4 +294,7 @@ export default function OnboardingTour() {
       </div>
     </>
   );
+
+  const openDialog = current.element.closest('dialog[open]');
+  return openDialog ? createPortal(tour, openDialog) : tour;
 }

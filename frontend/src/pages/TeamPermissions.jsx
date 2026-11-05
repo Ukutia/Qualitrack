@@ -70,7 +70,7 @@ export default function TeamPermissions() {
   return (
     <div className="space-y-6">
       <header>
-        <Link to="/team" className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-800">
+        <Link to="/team" data-onboarding-key="volver-equipo" data-onboarding-order="50" className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-800">
           <ArrowLeftIcon />
           Volver al equipo
         </Link>
@@ -90,8 +90,8 @@ export default function TeamPermissions() {
 
       <section ref={permissionsTable} className="min-w-0 scroll-mt-4 overflow-hidden rounded-xl2 bg-white shadow-soft ring-1 ring-steel-200/70" aria-label="Permisos de los integrantes por módulo">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-steel-100 px-5 py-4">
-          <TableSearch id="permissions-search" label="Buscar integrantes en permisos" placeholder="Buscar por nombre, correo, cargo o rol…" value={search} onChange={(value) => { setSearch(value); setPage(1); }} />
-          <PageSizeSelect value={pageSize} onChange={(value) => { setPageSize(value); setPage(1); }} />
+          <TableSearch id="permissions-search" label="Buscar integrantes en permisos" placeholder="Buscar por nombre, correo, cargo o rol…" value={search} onChange={(value) => { setSearch(value); setPage(1); }} onboardingKey="buscar-permisos" onboardingOrder={10} />
+          <PageSizeSelect value={pageSize} onChange={(value) => { setPageSize(value); setPage(1); }} onboardingKey="filas-permisos" onboardingOrder={20} />
           <p aria-live="polite" className="w-full text-sm font-medium text-steel-700">
             {members.isLoading ? 'Cargando permisos…' : members.isError ? 'Permisos no disponibles' : `Mostrando ${visibleMembers.length} de ${filteredMembers.length} integrantes`}
           </p>
@@ -131,6 +131,7 @@ export default function TeamPermissions() {
                           <select
                             aria-label={`${MODULE_LABELS[permission.module]} para ${member.name}`}
                             data-onboarding-key="nivel-permiso"
+                            data-onboarding-order="30"
                             value={permission.level}
                             disabled={pendingKey === key}
                             onChange={(event) => change(member, permission.module, event.target.value)}
@@ -152,7 +153,7 @@ export default function TeamPermissions() {
         )}
 
         {!members.isLoading && !members.isError && (
-          <PaginationFooter page={currentPage} pages={pages} pageSize={pageSize} total={filteredMembers.length} itemLabel="integrantes" ariaLabel="Paginación de permisos" onPageChange={goToPage} />
+          <PaginationFooter page={currentPage} pages={pages} pageSize={pageSize} total={filteredMembers.length} itemLabel="integrantes" ariaLabel="Paginación de permisos" onPageChange={goToPage} onboardingKeys={{ previous: 'pagina-anterior-permisos', page: 'ir-pagina-permisos', next: 'pagina-siguiente-permisos' }} onboardingOrder={40} />
         )}
       </section>
     </div>

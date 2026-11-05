@@ -110,11 +110,44 @@ describe('HU23 · catálogo y autorización', () => {
       'ui:report:estilo-parrafo',
       'ui:cloud:filtrar-tipo-archivo',
       'ui:security-events:filas-por-pagina',
+      'ui:team:filas-equipo',
+      'ui:team:filas-permisos',
       'ui:team:nivel-permiso',
       'ui:team:rol-integrante',
     ];
 
     expect(dropdownSteps.every(isKnownOnboardingStep)).toBe(true);
+  });
+
+  it('incluye todos los controles visibles del recorrido actualizado de Equipo', () => {
+    const teamSteps = [
+      'intro',
+      'buscar-integrantes',
+      'filas-equipo',
+      'pagina-anterior-equipo',
+      'ir-pagina-equipo',
+      'pagina-siguiente-equipo',
+      'incorporar-equipo',
+      'formulario-integrante',
+      'correo-integrante',
+      'nombre-integrante',
+      'cargo-integrante',
+      'rol-integrante',
+      'confirmar-incorporacion',
+      'cancelar-incorporacion',
+      'eliminar-integrante',
+      'editar-permisos',
+      'buscar-permisos',
+      'filas-permisos',
+      'nivel-permiso',
+      'pagina-anterior-permisos',
+      'ir-pagina-permisos',
+      'pagina-siguiente-permisos',
+      'volver-equipo',
+    ].map((control) => `ui:team:${control}`);
+
+    expect(teamSteps.every(isKnownOnboardingStep)).toBe(true);
+    expect(isKnownOnboardingStep('ui:team:cancelar-eliminacion')).toBe(false);
   });
 
   it('incluye el recorrido actualizado de solicitudes de documentos', () => {

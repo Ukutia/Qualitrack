@@ -102,8 +102,13 @@ export const SECTION_STEP_KEYS = {
     'pagina-siguiente', 'filas-por-pagina', 'reintentar',
   ]),
   team: new Set([
-    'intro', 'incorporar-equipo', 'eliminar-integrante', 'cancelar-eliminacion',
-    'nivel-permiso', 'rol-integrante',
+    'intro', 'buscar-integrantes', 'filas-equipo', 'pagina-anterior-equipo',
+    'ir-pagina-equipo', 'pagina-siguiente-equipo', 'incorporar-equipo',
+    'formulario-integrante', 'correo-integrante', 'nombre-integrante',
+    'cargo-integrante', 'rol-integrante', 'confirmar-incorporacion',
+    'cancelar-incorporacion', 'eliminar-integrante', 'editar-permisos', 'buscar-permisos',
+    'filas-permisos', 'nivel-permiso', 'pagina-anterior-permisos',
+    'ir-pagina-permisos', 'pagina-siguiente-permisos', 'volver-equipo',
   ]),
 };
 

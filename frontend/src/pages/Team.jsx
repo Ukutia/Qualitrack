@@ -183,6 +183,8 @@ export default function Team() {
             to="/team/permissions"
             aria-label="Editar permisos por módulo"
             title="Editar permisos por módulo"
+            data-onboarding-key="editar-permisos"
+            data-onboarding-order="60"
             className="inline-grid h-11 w-11 place-items-center rounded-full border border-steel-300 bg-white text-brand-700 shadow-soft transition-colors hover:border-brand-300 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2"
           >
             <PencilIcon />
@@ -193,6 +195,7 @@ export default function Team() {
             aria-label="Incorporar integrante"
             title="Incorporar integrante"
             data-onboarding-key="incorporar-equipo"
+            data-onboarding-order="40"
             className="btn inline-grid h-11 w-11 place-items-center rounded-full bg-brand-600 text-white shadow-soft hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2"
           >
             <PlusIcon />
@@ -207,8 +210,8 @@ export default function Team() {
         )}
         <div ref={listTable} className="min-w-0 scroll-mt-4 overflow-hidden rounded-xl2 bg-white shadow-soft ring-1 ring-steel-200/70">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-steel-100 px-5 py-4">
-            <TableSearch id="team-search" label="Buscar integrantes" placeholder="Buscar por nombre, correo, cargo o rol…" value={search} onChange={(value) => { setSearch(value); setPage(1); }} />
-            <PageSizeSelect value={pageSize} onChange={(value) => { setPageSize(value); setPage(1); }} />
+            <TableSearch id="team-search" label="Buscar integrantes" placeholder="Buscar por nombre, correo, cargo o rol…" value={search} onChange={(value) => { setSearch(value); setPage(1); }} onboardingKey="buscar-integrantes" onboardingOrder={10} />
+            <PageSizeSelect value={pageSize} onChange={(value) => { setPageSize(value); setPage(1); }} onboardingKey="filas-equipo" onboardingOrder={20} />
             <p aria-live="polite" className="w-full text-sm font-medium text-steel-700">
               {members.isLoading ? 'Cargando integrantes…' : members.isError ? 'Equipo no disponible' : `Mostrando ${visibleMembers.length} de ${filteredMembers.length} integrantes`}
             </p>
@@ -255,6 +258,7 @@ export default function Team() {
                               aria-label={`Eliminar a ${member.name}`}
                               title={`Eliminar a ${member.name}`}
                               data-onboarding-key="eliminar-integrante"
+                              data-onboarding-order="50"
                               className="inline-grid h-9 w-9 place-items-center rounded-lg text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-400"
                             >
                               <TrashIcon />
@@ -270,7 +274,7 @@ export default function Team() {
           )}
 
           {!members.isLoading && !members.isError && (
-            <PaginationFooter page={currentPage} pages={pages} pageSize={pageSize} total={filteredMembers.length} itemLabel="integrantes" ariaLabel="Paginación del equipo" onPageChange={goToPage} />
+            <PaginationFooter page={currentPage} pages={pages} pageSize={pageSize} total={filteredMembers.length} itemLabel="integrantes" ariaLabel="Paginación del equipo" onPageChange={goToPage} onboardingKeys={{ previous: 'pagina-anterior-equipo', page: 'ir-pagina-equipo', next: 'pagina-siguiente-equipo' }} onboardingOrder={30} />
           )}
         </div>
       </section>
@@ -285,7 +289,7 @@ export default function Team() {
         className="w-[min(92vw,42rem)] rounded-xl2 bg-white p-0 text-ink-900 shadow-2xl backdrop:bg-ink-950/45"
       >
         <form noValidate onSubmit={submit} className="p-6">
-          <h2 id="add-member-title" className="font-display text-2xl font-semibold">Incorporar integrante</h2>
+          <h2 id="add-member-title" data-onboarding-key="formulario-integrante" data-onboarding-order="70" className="font-display text-2xl font-semibold">Incorporar integrante</h2>
           <p className="mt-2 text-sm leading-6 text-steel-600">El acceso se concede de inmediato con el rol elegido y se notifica por correo.</p>
 
           {formError && <div role="alert" className="mt-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">{formError}</div>}
@@ -305,16 +309,16 @@ export default function Team() {
 
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <Field id="team-email" label="Correo" error={errors.email}>
-              <input type="email" maxLength={254} autoComplete="off" placeholder="nombre@institucion.cl" {...fieldProps('email')} />
+              <input type="email" maxLength={254} autoComplete="off" placeholder="nombre@institucion.cl" data-onboarding-key="correo-integrante" data-onboarding-order="71" {...fieldProps('email')} />
             </Field>
             <Field id="team-nombre" label="Nombre" error={errors.nombre}>
-              <input type="text" maxLength={100} autoComplete="off" placeholder="María José Peña" {...fieldProps('nombre')} />
+              <input type="text" maxLength={100} autoComplete="off" placeholder="María José Peña" data-onboarding-key="nombre-integrante" data-onboarding-order="72" {...fieldProps('nombre')} />
             </Field>
             <Field id="team-cargo" label="Cargo" error={errors.cargo}>
-              <input type="text" maxLength={100} autoComplete="off" placeholder="Analista de Calidad" {...fieldProps('cargo')} />
+              <input type="text" maxLength={100} autoComplete="off" placeholder="Analista de Calidad" data-onboarding-key="cargo-integrante" data-onboarding-order="73" {...fieldProps('cargo')} />
             </Field>
             <Field id="team-rol" label="Rol a asignar" error={errors.rol}>
-              <select aria-label="Rol a asignar" data-onboarding-key="rol-integrante" {...fieldProps('rol')}>
+              <select aria-label="Rol a asignar" data-onboarding-key="rol-integrante" data-onboarding-order="74" {...fieldProps('rol')}>
                 {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{roleLabel(role)}</option>)}
               </select>
             </Field>
@@ -322,8 +326,8 @@ export default function Team() {
           <p className="mt-4 text-xs text-steel-500">Nombre y cargo solo admiten letras (incluidas tildes y ñ) y espacios.</p>
 
           <div className="mt-6 flex justify-end gap-3 border-t border-steel-200 pt-5">
-            <button type="button" onClick={closeAdd} disabled={addMember.isPending} className="rounded-lg border border-steel-300 px-4 py-2.5 text-sm font-medium text-steel-700 hover:bg-steel-50 disabled:opacity-50">{result ? 'Cerrar' : 'Cancelar'}</button>
-            <button type="submit" disabled={addMember.isPending} className="btn rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">{addMember.isPending ? 'Incorporando…' : 'Incorporar al equipo'}</button>
+            <button type="button" onClick={closeAdd} disabled={addMember.isPending} data-onboarding-key="cancelar-incorporacion" data-onboarding-order="76" className="rounded-lg border border-steel-300 px-4 py-2.5 text-sm font-medium text-steel-700 hover:bg-steel-50 disabled:opacity-50">{result ? 'Cerrar' : 'Cancelar'}</button>
+            <button type="submit" disabled={addMember.isPending} data-onboarding-key="confirmar-incorporacion" data-onboarding-order="75" className="btn rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">{addMember.isPending ? 'Incorporando…' : 'Incorporar al equipo'}</button>
           </div>
         </form>
       </dialog>

@@ -163,10 +163,28 @@ const SECTION_DESCRIPTIONS = {
   },
 
   team: {
-    'incorporar-equipo': ['Incorporar integrante', 'Agrega una persona al equipo y selecciona su rol inicial desde la lista desplegable del formulario.'],
-    'eliminar-integrante': ['Eliminar integrante', 'Revoca el acceso de un integrante conservando la trazabilidad de sus acciones.'],
-    'nivel-permiso': ['Permiso por módulo', 'Cada lista desplegable permite dejar el permiso según el rol o asignar lectura, escritura o acceso denegado. Las listas repetidas cumplen la misma función.'],
-    'rol-integrante': ['Rol del integrante', 'Selecciona en la lista desplegable el rol inicial que tendrá la persona incorporada.'],
+    'buscar-integrantes': ['Buscar integrantes', 'Filtra la lista actual por nombre, correo, cargo, rol o fecha de incorporación.'],
+    'filas-equipo': ['Filas por página', 'Selecciona cuántos integrantes mostrar en cada página de la lista.'],
+    'pagina-anterior-equipo': ['Página anterior', 'Regresa a la página anterior de integrantes.'],
+    'ir-pagina-equipo': ['Ir a página', 'Abre directamente la página seleccionada de la lista del equipo.'],
+    'pagina-siguiente-equipo': ['Página siguiente', 'Avanza a la página siguiente de integrantes.'],
+    'incorporar-equipo': ['Incorporar integrante', 'Abre un formulario para ingresar correo, nombre y cargo, y seleccionar el rol inicial de la nueva persona.'],
+    'formulario-integrante': ['Datos del nuevo integrante', 'Este formulario reúne la información necesaria para conceder acceso a una nueva persona.'],
+    'correo-integrante': ['Correo del integrante', 'Ingresa la dirección institucional que la persona utilizará para acceder a Qualitrack.'],
+    'nombre-integrante': ['Nombre del integrante', 'Ingresa el nombre que identificará a la persona dentro del equipo.'],
+    'cargo-integrante': ['Cargo del integrante', 'Indica el cargo o función que la persona desempeña en la institución.'],
+    'rol-integrante': ['Rol inicial', 'Selecciona el rol que definirá la plantilla inicial de permisos del nuevo integrante.'],
+    'confirmar-incorporacion': ['Confirmar incorporación', 'Concede el acceso con los datos y el rol seleccionados, y envía la notificación correspondiente.'],
+    'cancelar-incorporacion': ['Cancelar incorporación', 'Cierra el formulario sin incorporar a una persona. Al continuar, la guía cerrará este modal.'],
+    'eliminar-integrante': ['Eliminar integrante', 'Abre una confirmación para revocar el acceso del integrante. Sus documentos y registros históricos se conservan.'],
+    'editar-permisos': ['Editar permisos por módulo', 'Abre la matriz general para revisar y personalizar los permisos de todos los integrantes. Al continuar, la guía te llevará a esa vista.'],
+    'buscar-permisos': ['Buscar en la matriz', 'Filtra la matriz de permisos por nombre, correo, cargo o rol del integrante.'],
+    'filas-permisos': ['Filas por página', 'Selecciona cuántos integrantes mostrar en cada página de la matriz.'],
+    'nivel-permiso': ['Permiso por módulo', 'Cada lista desplegable permite mantener el permiso según el rol o asignar lectura, escritura o acceso denegado. Las listas repetidas cumplen la misma función.'],
+    'pagina-anterior-permisos': ['Página anterior', 'Regresa a la página anterior de la matriz de permisos.'],
+    'ir-pagina-permisos': ['Ir a página', 'Abre directamente la página seleccionada de la matriz de permisos.'],
+    'pagina-siguiente-permisos': ['Página siguiente', 'Avanza a la página siguiente de la matriz de permisos.'],
+    'volver-equipo': ['Volver al equipo', 'Regresa a la lista de integrantes. Al continuar, la guía volverá a esa vista.'],
   },
 };
 
@@ -184,7 +202,7 @@ const SECTION_INTROS = {
   cloud: ['Almacenamiento en la nube', 'Aquí puedes conectar un proveedor e importar evidencias desde la nube.'],
   trash: ['Papelera', 'Aquí puedes restaurar evidencias o eliminarlas definitivamente.'],
   'security-events': ['Eventos de seguridad', 'Aquí puedes revisar la actividad de acceso y seguridad de Qualitrack.'],
-  team: ['Equipo y permisos', 'Aquí puedes administrar integrantes y sus permisos efectivos.'],
+  team: ['Equipo y permisos', 'La lista reúne a quienes tienen acceso; desde el botón de lápiz puedes abrir la matriz general y personalizar sus permisos por módulo.'],
 };
 
 const EXTRA_DESCRIPTIONS = {
@@ -288,9 +306,6 @@ const EXTRA_DESCRIPTIONS = {
     'pagina-siguiente': ['Página siguiente', 'Muestra la página siguiente del registro de seguridad.'],
     reintentar: ['Reintentar carga', 'Vuelve a solicitar el registro de seguridad.'],
   },
-  team: {
-    'cancelar-eliminacion': ['Cancelar eliminación', 'Cierra la confirmación y conserva el acceso del integrante.'],
-  },
 };
 
 export function onboardingSectionForPath(pathname) {
@@ -338,9 +353,6 @@ function extraMatchingKey(section, element, label) {
     if (section === 'report' && text.includes('estilo de párrafo')) return 'estilo-parrafo';
     if (section === 'cloud' && text.includes('tipo de archivo')) return 'filtrar-tipo-archivo';
     if (section === 'security-events' && text.startsWith('filas por página')) return 'filas-por-pagina';
-    if (section === 'team') {
-      return text.includes('rol a asignar') ? 'rol-integrante' : 'nivel-permiso';
-    }
   }
 
   if (section === 'app' || section === 'milestones') {
@@ -451,8 +463,6 @@ function extraMatchingKey(section, element, label) {
     if (text === 'siguiente →' || text === 'siguiente') return 'pagina-siguiente';
     if (text === 'reintentar') return 'reintentar';
   }
-
-  if (section === 'team' && text === 'cancelar') return 'cancelar-eliminacion';
 
   return null;
 }
@@ -664,6 +674,7 @@ export function discoverOnboardingControls(pathname, root = document.querySelect
       title,
       description,
       element: heading,
+      order: 0,
     });
   }
 
@@ -671,7 +682,7 @@ export function discoverOnboardingControls(pathname, root = document.querySelect
     root.querySelectorAll('button, [role="button"], a[href], select, [data-onboarding-key]'),
   ).filter(available);
 
-  for (const element of candidates) {
+  for (const [index, element] of candidates.entries()) {
     const label = elementLabel(element);
     const key = element.getAttribute('data-onboarding-key') ||
       extraMatchingKey(section, element, label) ||
@@ -691,10 +702,11 @@ export function discoverOnboardingControls(pathname, root = document.querySelect
       title,
       description,
       element,
+      order: Number(element.getAttribute('data-onboarding-order')) || 1000 + index,
     });
   }
 
-  return [...byFunction.values()];
+  return [...byFunction.values()].sort((a, b) => a.order - b.order);
 }
 
 export function pendingControls(controls, onboarding) {
