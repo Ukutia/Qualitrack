@@ -1,5 +1,7 @@
 import { searchSimilarChunks } from './vector.service.js';
+import { searchRelevantChunksLexically } from './lexicalRetrieval.service.js';
 import { generateText, llmLabel } from './llm.service.js';
+import { config } from '../config/env.js';
 
 // Tope fijo de la vista previa. NO depende de las reglas de la sección
 // (el "Extensión máxima: N páginas" de la CNA aplica al informe final, no a esta vista).
@@ -75,13 +77,14 @@ function normalizeRequirements(requirements) {
   };
 }
 
-function cacheKey(section, requirements, documentIds) {
+function cacheKey(section, requirements, documentIds, retrievalMode) {
   return JSON.stringify({
     sectionId: section.id,
     sectionName: section.name,
     sectionDescription: section.description || null,
     requirements,
     documentIds: [...documentIds].sort((a, b) => a - b),
+    retrievalMode,
     promptVersion: 'report-preview-v4',
     llm: llmLabel(),
   });
@@ -110,20 +113,24 @@ export async function generateReportPreview({ section, requirements, documentIds
     throw error;
   }
 
-  const key = cacheKey(section, normalizedRequirements, documentIds);
+  const retrievalMode = config.embeddings.enabled ? 'semantic' : 'lexical';
+  const key = cacheKey(section, normalizedRequirements, documentIds, retrievalMode);
   const cached = getCached(key);
   if (cached) return cached;
 
   const query = `${section.name}. ${section.description || ''}`;
   // ~5 fragmentos en total (antes ~9): menos texto de entrada = respuesta más rápida en CPU.
   const perDocument = Math.max(2, Math.ceil(5 / documentIds.length));
+  const searchChunks = config.embeddings.enabled
+    ? searchSimilarChunks
+    : searchRelevantChunksLexically;
   const results = await Promise.all(
-    documentIds.map((documentId) => searchSimilarChunks(query, { limit: perDocument, documentId }))
+    documentIds.map((documentId) => searchChunks(query, { limit: perDocument, documentId }))
   );
   const chunks = results.flat();
 
   if (chunks.length === 0) {
-    const error = new Error('No se encontraron fragmentos indexados para los documentos seleccionados.');
+    const error = new Error('No se encontró contenido utilizable en los documentos seleccionados.');
     error.code = 'NO_RELEVANT_CONTENT';
     throw error;
   }
@@ -173,6 +180,7 @@ ${sourceContext}
     wordCount: limited.wordCount,
     truncated: limited.truncated,
     maxWords: MAX_PREVIEW_WORDS,
+    retrievalMode,
     sources: [...new Map(chunks.map((chunk) => [chunk.documentId, {
       id: chunk.documentId,
       name: chunk.originalName,

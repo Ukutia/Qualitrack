@@ -13,7 +13,9 @@ export const config = {
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
   storageDir: process.env.STORAGE_DIR || '/app/data',
   embeddings: {
-    enabled: booleanEnv(process.env.EMBEDDINGS_ENABLED, true),
+    // El modo económico usa recuperación léxica para generar informes. La
+    // búsqueda vectorial solo se enciende cuando el despliegue la pide.
+    enabled: booleanEnv(process.env.EMBEDDINGS_ENABLED, false),
     serviceUrl: process.env.EMBEDDING_SERVICE_URL || 'http://localhost:8000',
     timeoutMs: Math.max(
       1000,

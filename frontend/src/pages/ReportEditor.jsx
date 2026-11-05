@@ -161,6 +161,7 @@ export default function ReportEditor() {
   const [restoreNonce, setRestoreNonce] = useState(0);
   const [matchesQuery, setMatchesQuery] = useState(null);
   const [generationOpen, setGenerationOpen] = useState(false);
+  const [generationRulesOpen, setGenerationRulesOpen] = useState(false);
 
   const [localEditorHtml, setLocalEditorHtml] = useState('');
   const [loadedKey, setLoadedKey] = useState(null);
@@ -609,45 +610,60 @@ export default function ReportEditor() {
               {/* BLOQUE: GENERACIÓN DE SECCIONES (IA) */}
               {generationOpen && (
                 <div className="rounded-2xl bg-white p-4 ring-1 ring-stone-900/10 shadow-sm animate-fade-in border-l-4 border-l-brand-500">
-                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-brand-600">Reglas personalizadas</p>
-                      <p className="mt-1 text-sm text-stone-600"></p>
+                      <p className="mt-1 text-sm text-stone-600">Opcional: define cómo debe redactar la IA cada sección.</p>
                     </div>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={handleCreateGenerationSection} className="btn rounded-lg bg-brand-600 hover:bg-brand-700 px-3 py-2 text-xs font-medium text-white shadow-sm">+ Añadir sección</button>
-                      <button type="button" onClick={() => generationFileRef.current?.click()} className="btn rounded-lg bg-white px-3 py-2 text-xs font-medium text-stone-700 ring-1 ring-stone-900/10 hover:bg-stone-50">Importar reglas (.docx/.pdf)</button>
-                      <input ref={generationFileRef} type="file" accept=".pdf,.doc,.docx" onChange={handleImportGenerationFile} className="hidden" />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setGenerationRulesOpen((open) => !open)}
+                      aria-expanded={generationRulesOpen}
+                      aria-controls="generation-rules-panel"
+                      className="btn inline-flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 hover:bg-brand-100"
+                    >
+                      {generationRulesOpen ? 'Ocultar reglas' : 'Configurar reglas'}
+                      <span aria-hidden="true" className={`text-sm transition-transform ${generationRulesOpen ? 'rotate-180' : ''}`}>⌄</span>
+                    </button>
                   </div>
 
-                  {activeGenerationSection ? (
-                    <div className="mt-4 grid gap-4 md:grid-cols-[14rem_1fr] items-start">
-                      <div data-generation-sections className="space-y-2 max-h-64 overflow-y-auto pr-2">
-                        {generationSectionList.map((section) => (
-                          <button 
-                            key={section.id} 
-                            type="button" 
-                            onClick={() => { setGenerationSectionId(section.id); setGenerationDraft({ name: section.name, description: section.description || '', instructions: (section.requirements?.instructions || []).join('\n') }); }} 
-                            className={`block w-full rounded-lg px-3 py-2 text-left text-sm ring-1 transition-colors ${section.id === activeGenerationSection.id ? 'bg-brand-50 text-brand-900 ring-brand-500 font-medium' : 'bg-stone-50 text-stone-700 ring-stone-900/10 hover:bg-white'}`}
-                          >
-                            {section.name}
-                          </button>
-                        ))}
+                  {generationRulesOpen && (
+                    <div id="generation-rules-panel" className="mt-4 border-t border-stone-200 pt-4">
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        <button type="button" onClick={handleCreateGenerationSection} className="btn rounded-lg bg-brand-600 hover:bg-brand-700 px-3 py-2 text-xs font-medium text-white shadow-sm">+ Añadir sección</button>
+                        <button type="button" onClick={() => generationFileRef.current?.click()} className="btn rounded-lg bg-white px-3 py-2 text-xs font-medium text-stone-700 ring-1 ring-stone-900/10 hover:bg-stone-50">Importar reglas (.docx/.pdf)</button>
+                        <input ref={generationFileRef} type="file" accept=".pdf,.doc,.docx" onChange={handleImportGenerationFile} className="hidden" />
                       </div>
-                      <div className="space-y-3 bg-stone-50/50 p-4 rounded-xl border border-stone-200">
-                        <input value={generationDraft.name} onChange={(e) => setGenerationDraft((draft) => ({ ...draft, name: e.target.value }))} className="w-full rounded-lg bg-white px-3 py-2 text-sm font-medium ring-1 ring-stone-900/10 outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500" placeholder="Nombre de la sección" />
-                        <textarea value={generationDraft.description} onChange={(e) => setGenerationDraft((draft) => ({ ...draft, description: e.target.value }))} className="min-h-[4rem] w-full rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-stone-900/10 outline-none focus:ring-2 focus:ring-brand-500" placeholder="Descripción o propósito del texto a generar" />
-                        <textarea value={generationDraft.instructions} onChange={(e) => setGenerationDraft((draft) => ({ ...draft, instructions: e.target.value }))} className="min-h-[6rem] w-full rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-stone-900/10 outline-none focus:ring-2 focus:ring-brand-500" placeholder="Instrucciones estrictas para la IA (una por línea)" />
-                        <div className="flex gap-2 pt-1">
-                          <button type="button" onClick={handleSaveGenerationSection} className="btn rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2 text-xs font-medium text-white">Guardar configuración</button>
-                          <button type="button" onClick={() => deleteGenerationSection.mutate({ draftId: selectedId, sectionId: activeGenerationSection.id })} className="btn rounded-lg bg-white hover:bg-rose-50 px-4 py-2 text-xs font-medium text-rose-600 ring-1 ring-stone-900/10 hover:ring-rose-200">Eliminar</button>
+                      {activeGenerationSection ? (
+                        <div className="grid gap-4 md:grid-cols-[14rem_1fr] items-start">
+                          <div data-generation-sections className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                            {generationSectionList.map((section) => (
+                              <button
+                                key={section.id}
+                                type="button"
+                                onClick={() => { setGenerationSectionId(section.id); setGenerationDraft({ name: section.name, description: section.description || '', instructions: (section.requirements?.instructions || []).join('\n') }); }}
+                                className={`block w-full rounded-lg px-3 py-2 text-left text-sm ring-1 transition-colors ${section.id === activeGenerationSection.id ? 'bg-brand-50 text-brand-900 ring-brand-500 font-medium' : 'bg-stone-50 text-stone-700 ring-stone-900/10 hover:bg-white'}`}
+                              >
+                                {section.name}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="space-y-3 bg-stone-50/50 p-4 rounded-xl border border-stone-200">
+                            <input value={generationDraft.name} onChange={(e) => setGenerationDraft((draft) => ({ ...draft, name: e.target.value }))} className="w-full rounded-lg bg-white px-3 py-2 text-sm font-medium ring-1 ring-stone-900/10 outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500" placeholder="Nombre de la sección" />
+                            <textarea value={generationDraft.description} onChange={(e) => setGenerationDraft((draft) => ({ ...draft, description: e.target.value }))} className="min-h-[4rem] w-full rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-stone-900/10 outline-none focus:ring-2 focus:ring-brand-500" placeholder="Descripción o propósito del texto a generar" />
+                            <textarea value={generationDraft.instructions} onChange={(e) => setGenerationDraft((draft) => ({ ...draft, instructions: e.target.value }))} className="min-h-[6rem] w-full rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-stone-900/10 outline-none focus:ring-2 focus:ring-brand-500" placeholder="Cómo debe redactar la IA (opcional, una indicación por línea)" />
+                            <p className="text-xs leading-5 text-stone-500">Use este campo para priorizar cifras, comparaciones o enfoques. La evidencia se selecciona más abajo.</p>
+                            <div className="flex gap-2 pt-1">
+                              <button type="button" onClick={handleSaveGenerationSection} className="btn rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2 text-xs font-medium text-white">Guardar configuración</button>
+                              <button type="button" onClick={() => deleteGenerationSection.mutate({ draftId: selectedId, sectionId: activeGenerationSection.id })} className="btn rounded-lg bg-white hover:bg-rose-50 px-4 py-2 text-xs font-medium text-rose-600 ring-1 ring-stone-900/10 hover:ring-rose-200">Eliminar</button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 bg-stone-50 rounded-xl border border-stone-200">
-                      <p className="text-sm text-stone-500">No hay reglas configuradas. Añade una sección para comenzar.</p>
+                      ) : (
+                        <div className="text-center py-6 bg-stone-50 rounded-xl border border-stone-200">
+                          <p className="text-sm text-stone-500">No hay reglas configuradas. Añade una sección para comenzar.</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -661,7 +677,8 @@ export default function ReportEditor() {
                     <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-stone-500">Fuentes para generar contenido</p>
                     <p className="mt-1 text-sm text-stone-600">Seleccione entre 1 y 5 documentos del repositorio para extraer la información.</p>
                   </div>
-                  <button type="button" onClick={handleGeneratePreview} disabled={!activeGenerationSection || selectedDocumentIds.length < 1 || generatePreview.isPending} className="btn rounded-lg bg-ink-800 px-4 py-2 text-sm font-medium text-white hover:bg-ink-700 disabled:opacity-50">
+                  <button type="button" onClick={handleGeneratePreview} disabled={!activeGenerationSection || selectedDocumentIds.length < 1 || generatePreview.isPending} className="btn inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/20 ring-2 ring-brand-200 hover:bg-brand-700 hover:shadow-lg disabled:bg-stone-300 disabled:text-stone-600 disabled:shadow-none disabled:ring-stone-200 disabled:opacity-70">
+                    <span aria-hidden="true">✦</span>
                     {generatePreview.isPending ? 'Preparando IA…' : 'Generar contenido con IA'}
                   </button>
                 </div>

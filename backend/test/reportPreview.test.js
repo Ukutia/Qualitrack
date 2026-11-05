@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+vi.mock('../src/config/env.js', () => ({ config: { embeddings: { enabled: true } } }));
 vi.mock('../src/services/vector.service.js', () => ({ searchSimilarChunks: vi.fn() }));
 vi.mock('../src/services/llm.service.js', () => ({
   generateText: vi.fn(),
