@@ -462,7 +462,7 @@ export function useTrashDocument() {
       })).data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['documents'] });
+      invalidateRepository(qc);
       qc.invalidateQueries({ queryKey: ['trash'] });
       qc.invalidateQueries({ queryKey: ['compliance'] });
     },
@@ -481,7 +481,7 @@ export function useRestoreDocument() {
   return useMutation({
     mutationFn: async (id) => (await api.post(`/documents/${id}/restore`)).data,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['documents'] });
+      invalidateRepository(qc);
       qc.invalidateQueries({ queryKey: ['trash'] });
       qc.invalidateQueries({ queryKey: ['compliance'] });
     },
