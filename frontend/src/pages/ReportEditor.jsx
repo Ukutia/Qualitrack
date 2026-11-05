@@ -474,12 +474,13 @@ export default function ReportEditor() {
 
   function handleSelect(id) {
     if (id === selectedId) return;
-    flush(); flushSection(); setSelectedId(id);
+    flush(); flushSection(); setHistoryOpen(false); setSelectedId(id);
   }
 
   async function handleNew() {
     flush(); flushSection();
     const created = await createDraft.mutateAsync({});
+    setHistoryOpen(false);
     setSelectedId(created.id);
   }
 
@@ -506,7 +507,7 @@ export default function ReportEditor() {
   }
 
   const list = drafts.data ?? [];
-  const filteredDrafts = list.filter((item) => `${item.title} ${item.preview || ''}`.toLocaleLowerCase('es').includes(draftFilter.toLocaleLowerCase('es').trim()));
+  const filteredDrafts = list.filter((item) => `${item.title} ${item.preview || ''} ${item.author?.name || ''} ${item.author?.email || ''}`.toLocaleLowerCase('es').includes(draftFilter.toLocaleLowerCase('es').trim()));
 
   // Un solo indicador para ambos caminos de guardado (título/borrador y sección oficial).
   const statuses = [status, sectionStatus];
@@ -530,8 +531,17 @@ export default function ReportEditor() {
             Redacte el borrador dentro de la plataforma. Los cambios se guardan solos.
           </p>
         </div>
-        {canWrite && <div className="flex flex-wrap items-center gap-2">
-          <button
+        <div className="flex flex-wrap items-center gap-2">
+          {draft.data && <button
+            type="button"
+            onClick={async () => { await flushAll(); setHistoryOpen(true); }}
+            aria-haspopup="dialog"
+            className="btn inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-stone-700 shadow-sm ring-1 ring-stone-900/10 hover:bg-stone-50"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4"><path d="M3.5 12a8.5 8.5 0 1 0 2.1-5.6L3.5 8.5M3.5 4v4.5H8" strokeLinecap="round" strokeLinejoin="round" /><path d="M12 7.5V12l3 2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            Historial
+          </button>}
+          {canWrite && <><button
             type="button"
             onClick={() => setGenerationOpen((open) => !open)}
             disabled={!draft.data}
@@ -542,15 +552,15 @@ export default function ReportEditor() {
           </button>
           <button onClick={handleNew} disabled={createDraft.isPending} className="btn rounded-xl bg-ink-800 px-4 py-2.5 text-sm font-medium text-stone-50 shadow-sm hover:bg-ink-700 disabled:opacity-60">
             {createDraft.isPending ? 'Creando…' : 'Nuevo borrador'}
-          </button>
-        </div>}
+          </button></>}
+        </div>
       </header>
 
       {!canWrite && <div className="mb-6"><ReadOnlyNotice /></div>}
 
       <div className="grid items-start gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
         <aside className="draft-library rounded-2xl bg-white/60 p-3 ring-1 ring-stone-900/10" aria-label="Biblioteca de borradores">
-          <div className="mb-3 flex items-center justify-between px-1"><h3 className="text-sm font-semibold text-ink-900">Mis borradores</h3><span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs tabular-nums text-stone-600">{list.length}</span></div>
+          <div className="mb-3 flex items-center justify-between px-1"><h3 className="text-sm font-semibold text-ink-900">Borradores del equipo</h3><span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs tabular-nums text-stone-600">{list.length}</span></div>
           <label className="sr-only" htmlFor="draft-filter">Buscar borradores</label>
           <input id="draft-filter" type="search" value={draftFilter} onChange={(event) => setDraftFilter(event.target.value)} placeholder="Buscar borrador…" className="mb-3 w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-ink-900" />
           <div className="draft-library-list space-y-2" role="region" aria-label="Borradores guardados" tabIndex={0}>
@@ -564,7 +574,8 @@ export default function ReportEditor() {
               <button onClick={() => handleSelect(item.id)} aria-current={item.id === selectedId ? 'true' : undefined} className="block w-full py-3 pl-4 pr-9 text-left">
                 <p className="truncate text-sm font-medium text-ink-900">{item.title}</p>
                 <p className="mt-0.5 truncate text-xs text-stone-500">{item.preview || 'Sin contenido'}</p>
-                <p className="mt-1 text-[11px] text-stone-400 tnum">Creado el {listFmt.format(new Date(item.createdAt))}</p>
+                <p className="mt-1 truncate text-[11px] text-stone-400">Creado por {item.author?.name || item.author?.email || 'usuario no disponible'}</p>
+                <p className="mt-0.5 text-[11px] text-stone-400 tnum">{listFmt.format(new Date(item.createdAt))}</p>
               </button>
               {canWrite && <button onClick={() => handleDelete(item.id)} aria-label={`Eliminar borrador ${item.title}`} title="Eliminar borrador" className="btn absolute right-1 top-2 grid h-8 w-8 place-items-center rounded-md text-xs text-stone-500 hover:bg-rose-50 hover:text-rose-600">✕</button>}
             </div>
@@ -724,6 +735,7 @@ export default function ReportEditor() {
 
               {/* TÍTULO DEL INFORME */}
               <input value={title} onChange={(e) => { setTitle(e.target.value); schedule({ title: e.target.value }); }} onBlur={flush} readOnly={!canWrite} aria-label="Título del borrador" placeholder="Título del borrador" className="mt-6 w-full rounded-xl bg-white px-5 py-3 font-display text-lg font-semibold text-ink-900 ring-1 ring-stone-900/10 focus:ring-ink-800/30 outline-none" />
+              <p className="mt-2 px-1 text-xs text-stone-500">Creado por <span className="font-medium text-stone-700">{draft.data.author?.name || draft.data.author?.email || 'usuario no disponible'}</span></p>
 
               {/* EDITOR PRINCIPAL CON ENCABEZADO */}
               <div className="flex items-start gap-4 mt-4">
@@ -757,7 +769,6 @@ export default function ReportEditor() {
                   <div className="flex flex-wrap items-center justify-between gap-3 px-1">
                     <SaveIndicator status={combinedStatus} savedAt={combinedSavedAt} />
                     <div className="flex items-center gap-2">
-                      <button onClick={() => setHistoryOpen((v) => !v)} className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900">{historyOpen ? 'Ocultar historial' : 'Historial de versiones'}</button>
                       <button onClick={() => handleExport('pdf')} className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900">Exportar a PDF</button>
                       <button onClick={() => handleExport('docx')} className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:text-ink-900">Exportar a DOCX</button>
                       {canWrite && <button
@@ -770,7 +781,6 @@ export default function ReportEditor() {
                     </div>
                   </div>
 
-                  {historyOpen && <DraftHistory draftId={draft.data.id} canRestore={canWrite} onRestored={(restored) => { setTitle(restored.title); setSavedAt(restored.updatedAt); setStatus('idle'); setSectionStatus('idle'); pendingRef.current = {}; sectionPendingRef.current = {}; clearTimeout(timerRef.current); clearTimeout(sectionTimerRef.current); contentCacheRef.current = {}; setRestoreNonce((n) => n + 1); }} />}
                 </div>
 
                 {matchesQuery !== null && <MatchesPanel query={matchesQuery} search={matchesSearch} elapsedMs={searchElapsedMs} onRequestInsertEvidence={handleRequestInsertEvidence} onClose={() => { setMatchesQuery(null); matchesSearch.reset(); }} />}
@@ -817,31 +827,87 @@ export default function ReportEditor() {
           </div>
         </div>
       )}
+      {historyOpen && draft.data && <DraftHistoryDialog draftId={draft.data.id} draftTitle={title} canRestore={canWrite} onClose={() => setHistoryOpen(false)} onRestored={(restored) => { setTitle(restored.title); setSavedAt(restored.updatedAt); setStatus('idle'); setSectionStatus('idle'); pendingRef.current = {}; sectionPendingRef.current = {}; clearTimeout(timerRef.current); clearTimeout(sectionTimerRef.current); contentCacheRef.current = {}; setRestoreNonce((n) => n + 1); setHistoryOpen(false); }} />}
     </div>
   );
 }
 
-function DraftHistory({ draftId, canRestore, onRestored }) {
+function historyDayLabel(value) {
+  const date = new Date(value);
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const days = Math.round((start - target) / 86400000);
+  if (days === 0) return 'Hoy';
+  if (days === 1) return 'Ayer';
+  return new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+}
+
+function DraftHistoryDialog({ draftId, draftTitle, canRestore, onClose, onRestored }) {
   const history = useReportDraftHistory(draftId);
   const restoreDraft = useRestoreReportDraft();
+  const groups = (history.data ?? []).reduce((result, version) => {
+    const label = historyDayLabel(version.updatedAt || version.createdAt);
+    const current = result[result.length - 1];
+    if (current?.label === label) current.versions.push(version);
+    else result.push({ label, versions: [version] });
+    return result;
+  }, []);
+
+  useEffect(() => {
+    const closeOnEscape = (event) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [onClose]);
 
   return (
-    <div className="rounded-2xl bg-white p-4 ring-1 ring-stone-900/10">
-      <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.22em] text-stone-500">Historial de versiones</p>
-      {history.isLoading && <div className="skeleton h-10" />}
-      {history.data && history.data.length === 0 && <p className="text-sm text-stone-500">Aún no hay instantáneas guardadas. Se crean automáticamente al redactar.</p>}
-      <ul className="divide-y divide-stone-900/5">
-        {(history.data ?? []).map((v) => (
-          <li key={v.version} className="flex items-center justify-between gap-3 py-2.5">
+    <div className="fixed inset-0 z-50 flex justify-end bg-ink-900/35 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <aside role="dialog" aria-modal="true" aria-labelledby="draft-history-title" className="flex h-full w-full max-w-lg flex-col bg-stone-50 shadow-2xl animate-fade-in">
+        <header className="border-b border-stone-200 bg-white px-6 py-5">
+          <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-ink-900">{v.title}</p>
-              <p className="truncate text-xs text-stone-500">{v.preview || 'Sin contenido'}</p>
-              <p className="mt-0.5 text-[11px] text-stone-400 tnum">Versión {v.version} · {listFmt.format(new Date(v.createdAt))} {v.createdBy ? ` · ${v.createdBy.name}` : ''}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">Borrador</p>
+              <h2 id="draft-history-title" className="mt-1 font-display text-2xl font-semibold text-ink-900">Historial de versiones</h2>
+              <p className="mt-1 truncate text-sm text-stone-500">{draftTitle}</p>
             </div>
-            {canRestore && <button onClick={() => { if (window.confirm(`¿Restaurar la versión ${v.version}? Se reemplazará el contenido actual.`)) restoreDraft.mutate({ id: draftId, version: v.version }, { onSuccess: onRestored }); }} disabled={restoreDraft.isPending} className="btn shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-900/10 hover:bg-stone-50 disabled:opacity-50">Restaurar</button>}
-          </li>
-        ))}
-      </ul>
+            <button type="button" onClick={onClose} aria-label="Cerrar historial" className="btn grid h-9 w-9 shrink-0 place-items-center rounded-lg text-xl text-stone-500 hover:bg-stone-100">×</button>
+          </div>
+          <p className="mt-4 rounded-xl bg-brand-50 px-4 py-3 text-xs leading-5 text-brand-900 ring-1 ring-brand-600/15">Cada autoguardado que modifica el borrador crea una versión nueva e inmutable. Las versiones se ordenan por día e indican quién realizó el cambio.</p>
+          <p className="mt-2 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900 ring-1 ring-amber-600/20"><span className="font-semibold">Retención de versiones:</span> el historial conserva las versiones durante 30 días.</p>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          {history.isLoading && <div className="space-y-3"><div className="skeleton h-24" /><div className="skeleton h-24" /></div>}
+          {history.isError && <div role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-600/20">No se pudo cargar el historial. <button type="button" onClick={() => history.refetch()} className="font-medium underline">Reintentar</button></div>}
+          {history.data && history.data.length === 0 && <div className="rounded-2xl bg-white px-5 py-8 text-center ring-1 ring-stone-900/10"><p className="font-medium text-ink-900">Aún no hay versiones</p><p className="mt-2 text-sm leading-6 text-stone-500">La primera se guardará automáticamente cuando se edite este borrador.</p></div>}
+
+          <div className="space-y-6">
+            {groups.map((group) => <section key={group.label}>
+              <h3 className="mb-2 text-xs font-semibold capitalize text-stone-500">{group.label}</h3>
+              <ol className="space-y-2">
+                {group.versions.map((version, index) => {
+                  const modifier = version.createdBy?.name || version.createdBy?.email || 'Usuario no disponible';
+                  const initials = modifier.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+                  return <li key={version.version} className="rounded-xl bg-white p-4 ring-1 ring-stone-900/10">
+                    <div className="flex items-start gap-3">
+                      <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-100 text-xs font-semibold text-brand-800">{initials || '?'}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <p className="font-medium text-ink-900">{modifier}</p>
+                          {index === 0 && group === groups[0] && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-800 ring-1 ring-emerald-600/20">Actual</span>}
+                        </div>
+                        <p className="mt-0.5 text-xs text-stone-500 tnum">{listFmt.format(new Date(version.updatedAt || version.createdAt))} · Versión {version.version}</p>
+                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-stone-600">{version.preview || 'Sin contenido'}</p>
+                      </div>
+                    </div>
+                    {canRestore && <div className="mt-3 flex justify-end border-t border-stone-100 pt-3"><button type="button" onClick={() => { if (window.confirm(`¿Restaurar la versión ${version.version}? Se reemplazará el contenido actual.`)) restoreDraft.mutate({ id: draftId, version: version.version }, { onSuccess: onRestored }); }} disabled={restoreDraft.isPending} className="btn rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-stone-900/10 hover:bg-brand-50 disabled:opacity-50">Restaurar esta versión</button></div>}
+                  </li>;
+                })}
+              </ol>
+            </section>)}
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }

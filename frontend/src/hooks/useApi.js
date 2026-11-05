@@ -779,6 +779,7 @@ export function useRestoreReportDraft() {
         prev ? { ...prev, title: data.title, contentHtml: data.contentHtml, updatedAt: data.updatedAt } : prev
       );
       qc.invalidateQueries({ queryKey: ['report-drafts'] });
+      qc.invalidateQueries({ queryKey: ['report-draft-sections', id] });
       qc.invalidateQueries({ queryKey: ['report-draft-history', id] });
     },
   });

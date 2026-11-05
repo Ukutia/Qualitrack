@@ -23,12 +23,9 @@ import { extractText } from '../services/textExtraction.service.js';
 import { parseStructureSections } from '../services/structureParser.service.js';
 import { parseSectionDescriptions } from '../services/sectionRulesParser.service.js';
 import { formatFromName } from '../middleware/upload.js';
+import { purgeExpiredReportDraftVersions } from '../services/reportDraftRetention.service.js';
 
 const PREVIEW_CHARS = 180;
-
-// Intervalo mínimo entre instantáneas automáticas: el autoguardado pega cada
-// pocos segundos y no cada cambio merece quedar en el historial.
-const MIN_VERSION_INTERVAL_MS = 5 * 60 * 1000;
 
 function sectionPayload(section, contentHtml = '') {
   return {
@@ -46,11 +43,41 @@ function sectionPayload(section, contentHtml = '') {
   };
 }
 
+function versionSectionPayload(section) {
+  return {
+    structureSectionId: section.structureSectionId,
+    contentHtml: section.contentHtml,
+    contentText: section.contentText,
+  };
+}
+
+async function recordDraftVersion(tx, draft, userId) {
+  const sections = await tx.reportDraftSection.findMany({
+    where: { draftId: draft.id },
+    orderBy: { structureSectionId: 'asc' },
+    select: { structureSectionId: true, contentHtml: true, contentText: true },
+  });
+  const snapshot = {
+    title: draft.title,
+    contentHtml: draft.contentHtml,
+    contentText: draft.contentText,
+    sections: sections.map(versionSectionPayload),
+    createdById: userId,
+  };
+  const last = await tx.reportDraftVersion.findFirst({
+    where: { draftId: draft.id },
+    orderBy: { version: 'desc' },
+  });
+  return tx.reportDraftVersion.create({
+    data: { draftId: draft.id, version: (last?.version || 0) + 1, ...snapshot },
+  });
+}
+
 /** GET /report-drafts/:id/sections — estructura activa + contenido del borrador. */
 export async function listDraftSections(req, res) {
   const id = Number(req.params.id);
   const draft = await prisma.reportDraft.findFirst({
-    where: { id, authorId: req.user.id },
+    where: { id },
     select: { id: true, contentHtml: true, contentText: true },
   });
   if (!draft) return res.status(404).json({ error: 'Borrador no encontrado.' });
@@ -105,7 +132,10 @@ export async function updateDraftSection(req, res) {
   }
 
   const [draft, structureSection] = await Promise.all([
-    prisma.reportDraft.findFirst({ where: { id: draftId, authorId: req.user.id }, select: { id: true } }),
+    prisma.reportDraft.findFirst({
+      where: { id: draftId },
+      select: { id: true, title: true, contentHtml: true, contentText: true },
+    }),
     prisma.reportSection.findUnique({ where: { id: structureSectionId } }),
   ]);
   if (!draft) return res.status(404).json({ error: 'Borrador no encontrado.' });
@@ -113,11 +143,15 @@ export async function updateDraftSection(req, res) {
 
   const contentHtml = sanitizeDraftHtml(req.body.contentHtml);
   const contentText = htmlToPlainText(contentHtml);
-  const section = await prisma.reportDraftSection.upsert({
-    where: { draftId_structureSectionId: { draftId, structureSectionId } },
-    create: { draftId, structureSectionId, contentHtml, contentText },
-    update: { contentHtml, contentText },
-    include: { structureSection: true },
+  const section = await prisma.$transaction(async (tx) => {
+    const saved = await tx.reportDraftSection.upsert({
+      where: { draftId_structureSectionId: { draftId, structureSectionId } },
+      create: { draftId, structureSectionId, contentHtml, contentText },
+      update: { contentHtml, contentText },
+      include: { structureSection: true },
+    });
+    await recordDraftVersion(tx, draft, req.user.id);
+    return saved;
   });
 
   return res.json({ id: section.id, updatedAt: section.updatedAt, contentHtml: section.contentHtml });
@@ -137,13 +171,13 @@ function generationSectionPayload(section) {
   };
 }
 
-async function ownDraft(draftId, userId) {
-  return prisma.reportDraft.findFirst({ where: { id: draftId, authorId: userId }, select: { id: true } });
+async function existingDraft(draftId) {
+  return prisma.reportDraft.findFirst({ where: { id: draftId }, select: { id: true } });
 }
 
 export async function listGenerationSections(req, res) {
   const draftId = Number(req.params.id);
-  if (!(await ownDraft(draftId, req.user.id))) return res.status(404).json({ error: 'Borrador no encontrado.' });
+  if (!(await existingDraft(draftId))) return res.status(404).json({ error: 'Borrador no encontrado.' });
   const sections = await prisma.reportGenerationSection.findMany({ where: { draftId }, orderBy: { order: 'asc' } });
   return res.json({ sections: sections.map(generationSectionPayload) });
 }
@@ -162,7 +196,7 @@ function generationInput(body, order = 0) {
 
 export async function createGenerationSection(req, res) {
   const draftId = Number(req.params.id);
-  if (!(await ownDraft(draftId, req.user.id))) return res.status(404).json({ error: 'Borrador no encontrado.' });
+  if (!(await existingDraft(draftId))) return res.status(404).json({ error: 'Borrador no encontrado.' });
   const order = await prisma.reportGenerationSection.count({ where: { draftId } });
   const data = generationInput(req.body, order);
   if (data.error) return res.status(400).json({ error: data.error });
@@ -172,7 +206,7 @@ export async function createGenerationSection(req, res) {
 
 export async function updateGenerationSection(req, res) {
   const id = Number(req.params.sectionId);
-  const section = await prisma.reportGenerationSection.findFirst({ where: { id, draft: { authorId: req.user.id } } });
+  const section = await prisma.reportGenerationSection.findFirst({ where: { id } });
   if (!section) return res.status(404).json({ error: 'Sección de generación no encontrada.' });
   const data = generationInput(req.body, section.order);
   if (data.error) return res.status(400).json({ error: data.error });
@@ -182,7 +216,7 @@ export async function updateGenerationSection(req, res) {
 export async function updateGenerationSectionContent(req, res) {
   const id = Number(req.params.sectionId);
   if (typeof req.body?.contentHtml !== 'string') return res.status(400).json({ error: 'El contenido debe ser texto.' });
-  const section = await prisma.reportGenerationSection.findFirst({ where: { id, draft: { authorId: req.user.id } } });
+  const section = await prisma.reportGenerationSection.findFirst({ where: { id } });
   if (!section) return res.status(404).json({ error: 'Sección de generación no encontrada.' });
   const contentHtml = sanitizeDraftHtml(req.body.contentHtml);
   return res.json(await prisma.reportGenerationSection.update({ where: { id }, data: { contentHtml, contentText: htmlToPlainText(contentHtml) }, select: { id: true, updatedAt: true, contentHtml: true } }));
@@ -190,7 +224,7 @@ export async function updateGenerationSectionContent(req, res) {
 
 export async function deleteGenerationSection(req, res) {
   const id = Number(req.params.sectionId);
-  const section = await prisma.reportGenerationSection.findFirst({ where: { id, draft: { authorId: req.user.id } }, select: { id: true } });
+  const section = await prisma.reportGenerationSection.findFirst({ where: { id }, select: { id: true } });
   if (!section) return res.status(404).json({ error: 'Sección de generación no encontrada.' });
   await prisma.reportGenerationSection.delete({ where: { id } });
   return res.status(204).end();
@@ -198,7 +232,7 @@ export async function deleteGenerationSection(req, res) {
 
 export async function importGenerationSections(req, res) {
   const draftId = Number(req.params.id);
-  if (!(await ownDraft(draftId, req.user.id))) return res.status(404).json({ error: 'Borrador no encontrado.' });
+  if (!(await existingDraft(draftId))) return res.status(404).json({ error: 'Borrador no encontrado.' });
   if (!req.file) return res.status(400).json({ error: 'Debe subir un PDF o DOCX.' });
 
   const format = formatFromName(req.file.originalname);
@@ -258,7 +292,7 @@ export async function previewDraftFromDocuments(req, res) {
   // manejador y puede tumbar el proceso (ver router.param en routes/index.js).
   try {
     const draft = await prisma.reportDraft.findFirst({
-      where: { id: draftId, authorId: req.user.id },
+      where: { id: draftId },
       select: { id: true },
     });
     if (!draft) return res.status(404).json({ error: 'Borrador no encontrado.' });
@@ -314,7 +348,7 @@ export async function detectDraftIncoherences(req, res) {
 
   try {
     const draft = await prisma.reportDraft.findFirst({
-      where: { id: draftId, authorId: req.user.id },
+      where: { id: draftId },
       select: { id: true },
     });
     if (!draft) return res.status(404).json({ error: 'Borrador no encontrado.' });
@@ -343,7 +377,7 @@ export async function detectDraftIncoherences(req, res) {
 
 async function getExportData(req, draftId) {
   const draft = await prisma.reportDraft.findFirst({
-    where: { id: draftId, authorId: req.user.id },
+    where: { id: draftId },
     select: { id: true, title: true, contentHtml: true },
   });
   if (!draft) return null;
@@ -484,14 +518,15 @@ function toSummary(draft) {
     preview: draft.contentText.slice(0, PREVIEW_CHARS),
     createdAt: draft.createdAt,
     updatedAt: draft.updatedAt,
+    author: draft.author,
   };
 }
 
-/** GET /report-drafts — borradores del usuario, del más reciente al más antiguo. */
+/** GET /report-drafts — biblioteca compartida, del más reciente al más antiguo. */
 export async function listDrafts(req, res) {
   const drafts = await prisma.reportDraft.findMany({
-    where: { authorId: req.user.id },
     orderBy: { updatedAt: 'desc' },
+    include: { author: { select: { id: true, name: true, email: true } } },
   });
   return res.json(drafts.map(toSummary));
 }
@@ -501,13 +536,17 @@ export async function createDraft(req, res) {
   const title = normalizeDraftTitle(req.body?.title);
   const contentHtml = sanitizeDraftHtml(req.body?.contentHtml);
 
-  const draft = await prisma.reportDraft.create({
-    data: {
-      title,
-      contentHtml,
-      contentText: htmlToPlainText(contentHtml),
-      authorId: req.user.id,
-    },
+  const draft = await prisma.$transaction(async (tx) => {
+    const created = await tx.reportDraft.create({
+      data: {
+        title,
+        contentHtml,
+        contentText: htmlToPlainText(contentHtml),
+        authorId: req.user.id,
+      },
+    });
+    await recordDraftVersion(tx, created, req.user.id);
+    return created;
   });
   return res.status(201).json(draft);
 }
@@ -518,7 +557,8 @@ export async function getDraft(req, res) {
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'Identificador inválido.' });
 
   const draft = await prisma.reportDraft.findFirst({
-    where: { id, authorId: req.user.id },
+    where: { id },
+    include: { author: { select: { id: true, name: true, email: true } } },
   });
   if (!draft) return res.status(404).json({ error: 'Borrador no encontrado.' });
 
@@ -531,7 +571,7 @@ export async function updateDraft(req, res) {
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'Identificador inválido.' });
 
   const existing = await prisma.reportDraft.findFirst({
-    where: { id, authorId: req.user.id },
+    where: { id },
   });
   if (!existing) return res.status(404).json({ error: 'Borrador no encontrado.' });
 
@@ -556,12 +596,14 @@ export async function updateDraft(req, res) {
     return res.status(400).json({ error: 'No se recibieron cambios.' });
   }
 
-  const contentChanged =
-    data.contentHtml !== undefined && data.contentHtml !== existing.contentHtml;
+  const draftChanged =
+    (data.title !== undefined && data.title !== existing.title)
+    || (data.contentHtml !== undefined && data.contentHtml !== existing.contentHtml);
 
   const draft = await prisma.$transaction(async (tx) => {
-    if (contentChanged) await snapshotIfDue(tx, existing, req.user.id);
-    return tx.reportDraft.update({ where: { id }, data });
+    const saved = await tx.reportDraft.update({ where: { id }, data });
+    if (draftChanged) await recordDraftVersion(tx, saved, req.user.id);
+    return saved;
   });
 
   return res.json({
@@ -571,36 +613,20 @@ export async function updateDraft(req, res) {
   });
 }
 
-/** Respalda el estado previo del borrador si pasó el intervalo mínimo desde la última instantánea. */
-async function snapshotIfDue(tx, draft, userId) {
-  const last = await tx.reportDraftVersion.findFirst({
-    where: { draftId: draft.id },
-    orderBy: { version: 'desc' },
-  });
-  if (last && Date.now() - last.createdAt.getTime() < MIN_VERSION_INTERVAL_MS) return;
-
-  await tx.reportDraftVersion.create({
-    data: {
-      draftId: draft.id,
-      version: (last?.version || 0) + 1,
-      title: draft.title,
-      contentHtml: draft.contentHtml,
-      contentText: draft.contentText,
-      createdById: userId,
-    },
-  });
-}
-
 /** GET /report-drafts/:id/history — instantáneas guardadas, de más reciente a más antigua. */
 export async function getDraftHistory(req, res) {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'Identificador inválido.' });
 
   const draft = await prisma.reportDraft.findFirst({
-    where: { id, authorId: req.user.id },
+    where: { id },
     select: { id: true },
   });
   if (!draft) return res.status(404).json({ error: 'Borrador no encontrado.' });
+
+  // Respaldo del scheduler: una consulta nunca devuelve versiones vencidas,
+  // incluso si el proceso periódico estuvo detenido temporalmente.
+  await purgeExpiredReportDraftVersions(prisma, new Date(), id);
 
   const versions = await prisma.reportDraftVersion.findMany({
     where: { draftId: id },
@@ -609,15 +635,21 @@ export async function getDraftHistory(req, res) {
   });
 
   return res.json(
-    versions.map((v) => ({
-      version: v.version,
-      title: v.title,
-      preview: v.contentText.slice(0, PREVIEW_CHARS),
-      createdAt: v.createdAt,
-      createdBy: v.createdBy
-        ? { id: v.createdBy.id, name: v.createdBy.name, email: v.createdBy.email }
-        : null,
-    }))
+    versions.map((v) => {
+      const sectionText = Array.isArray(v.sections)
+        ? v.sections.map((section) => section?.contentText || '').filter(Boolean).join(' ')
+        : '';
+      return {
+        version: v.version,
+        title: v.title,
+        preview: (sectionText || v.contentText).slice(0, PREVIEW_CHARS),
+        createdAt: v.createdAt,
+        updatedAt: v.updatedAt || v.createdAt,
+        createdBy: v.createdBy
+          ? { id: v.createdBy.id, name: v.createdBy.name, email: v.createdBy.email }
+          : null,
+      };
+    })
   );
 }
 
@@ -633,7 +665,7 @@ export async function restoreDraftVersion(req, res) {
     return res.status(400).json({ error: 'Identificador o versión inválidos.' });
   }
 
-  const draft = await prisma.reportDraft.findFirst({ where: { id, authorId: req.user.id } });
+  const draft = await prisma.reportDraft.findFirst({ where: { id } });
   if (!draft) return res.status(404).json({ error: 'Borrador no encontrado.' });
 
   const target = await prisma.reportDraftVersion.findUnique({
@@ -642,24 +674,7 @@ export async function restoreDraftVersion(req, res) {
   if (!target) return res.status(404).json({ error: `Versión ${targetVersion} no encontrada.` });
 
   const restored = await prisma.$transaction(async (tx) => {
-    if (draft.contentHtml !== target.contentHtml || draft.title !== target.title) {
-      const last = await tx.reportDraftVersion.findFirst({
-        where: { draftId: id },
-        orderBy: { version: 'desc' },
-      });
-      await tx.reportDraftVersion.create({
-        data: {
-          draftId: id,
-          version: (last?.version || 0) + 1,
-          title: draft.title,
-          contentHtml: draft.contentHtml,
-          contentText: draft.contentText,
-          createdById: req.user.id,
-        },
-      });
-    }
-
-    return tx.reportDraft.update({
+    const saved = await tx.reportDraft.update({
       where: { id },
       data: {
         title: target.title,
@@ -667,6 +682,33 @@ export async function restoreDraftVersion(req, res) {
         contentText: target.contentText,
       },
     });
+
+    if (Array.isArray(target.sections)) {
+      const requested = target.sections.filter((section) => Number.isInteger(section?.structureSectionId));
+      const validSections = requested.length
+        ? await tx.reportSection.findMany({
+            where: { id: { in: requested.map((section) => section.structureSectionId) } },
+            select: { id: true },
+          })
+        : [];
+      const validIds = new Set(validSections.map((section) => section.id));
+      await tx.reportDraftSection.deleteMany({ where: { draftId: id } });
+      const sectionData = requested
+        .filter((section) => validIds.has(section.structureSectionId))
+        .map((section) => {
+          const contentHtml = sanitizeDraftHtml(section.contentHtml);
+          return {
+            draftId: id,
+            structureSectionId: section.structureSectionId,
+            contentHtml,
+            contentText: htmlToPlainText(contentHtml),
+          };
+        });
+      if (sectionData.length) await tx.reportDraftSection.createMany({ data: sectionData });
+    }
+
+    await recordDraftVersion(tx, saved, req.user.id);
+    return saved;
   });
 
   return res.json({
@@ -679,13 +721,13 @@ export async function restoreDraftVersion(req, res) {
   });
 }
 
-/** DELETE /report-drafts/:id — elimina un borrador propio. */
+/** DELETE /report-drafts/:id — elimina un borrador de la biblioteca compartida. */
 export async function deleteDraft(req, res) {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'Identificador inválido.' });
 
   const { count } = await prisma.reportDraft.deleteMany({
-    where: { id, authorId: req.user.id },
+    where: { id },
   });
   if (count === 0) return res.status(404).json({ error: 'Borrador no encontrado.' });
 

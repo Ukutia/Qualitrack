@@ -334,10 +334,8 @@ model ReportGenerationSection {
   @@index([draftId, order])
 }
 
-/// Instantánea de un ReportDraft en un punto del tiempo. No se crea en cada
-/// autoguardado (saturaría el historial): `updateDraft` solo respalda el
-/// estado anterior cuando ha pasado un intervalo mínimo desde la última
-/// instantánea, o al restaurar una versión previa.
+/// Instantánea inmutable de un ReportDraft en un punto del tiempo. Cada
+/// autoguardado que cambia contenido crea una versión nueva con su modificador.
 model ReportDraftVersion {
   id          Int         @id @default(autoincrement())
   draft       ReportDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
@@ -346,7 +344,11 @@ model ReportDraftVersion {
   title       String
   contentHtml String      @default("") @db.Text
   contentText String      @default("") @db.Text
+  /// Instantánea de las secciones oficiales del borrador. Es nullable para
+  /// conservar compatibilidad con las versiones creadas antes de HU historial.
+  sections    Json?
   createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   createdBy   User? @relation(fields: [createdById], references: [id])
   createdById Int?

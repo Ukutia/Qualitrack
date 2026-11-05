@@ -126,7 +126,7 @@ const SECTION_DESCRIPTIONS = {
     'insertar-texto': ['Insertar texto generado', 'Inserta en el borrador el contenido generado que decidiste conservar.'],
     'buscar-coincidencias': ['Buscar coincidencias', 'Busca evidencia relacionada con el fragmento de texto que seleccionaste.'],
     'insertar-evidencia': ['Insertar evidencia', 'Inserta en el borrador un fragmento relevante encontrado en el repositorio.'],
-    'historial': ['Historial del borrador', 'Consulta versiones anteriores del borrador para revisar o restaurar cambios.'],
+    'historial': ['Historial del borrador', 'Consulta cada versión autoguardada, quién hizo el cambio y cuándo se guardó. Las versiones se conservan durante 30 días.'],
     'restaurar-version': ['Restaurar versión', 'Recupera una versión anterior del borrador.'],
     'exportar-pdf': ['Exportar a PDF', 'Genera una versión PDF del borrador actual.'],
     'exportar-docx': ['Exportar a Word', 'Descarga el borrador actual como documento Word.'],

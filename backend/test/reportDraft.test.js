@@ -15,7 +15,13 @@ vi.mock('../src/config/prisma.js', () => {
     reportDraftVersion: {
       findFirst: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
+    reportDraftSection: {
+      findMany: vi.fn(async () => []),
+      upsert: vi.fn(),
+    },
+    reportSection: { findUnique: vi.fn() },
   };
   prisma.$transaction = vi.fn((callback) => callback(prisma));
   return { prisma };
@@ -27,7 +33,7 @@ const {
   htmlToPlainText,
   normalizeDraftTitle,
 } = await import('../src/services/draftSanitizer.service.js');
-const { updateDraft, createDraft } = await import('../src/controllers/reportDrafts.controller.js');
+const { updateDraft, updateDraftSection, createDraft, listDrafts } = await import('../src/controllers/reportDrafts.controller.js');
 
 function mockRes() {
   const res = {};
@@ -103,6 +109,7 @@ describe('updateDraft', () => {
     const res = mockRes();
     await updateDraft(req({ contentHtml: '<p onclick="x">hola</p>' }), res);
 
+    expect(prisma.reportDraft.findFirst).toHaveBeenCalledWith({ where: { id: 1 } });
     expect(prisma.reportDraft.update).toHaveBeenCalledWith({
       where: { id: 1 },
       data: { contentHtml: '<p>hola</p>', contentText: 'hola' },
@@ -110,7 +117,7 @@ describe('updateDraft', () => {
     expect(res.json).toHaveBeenCalledWith({ id: 1, title: 'Informe', updatedAt });
   });
 
-  it('no permite editar un borrador de otro usuario', async () => {
+  it('responde 404 cuando el borrador compartido no existe', async () => {
     prisma.reportDraft.findFirst.mockResolvedValue(null);
 
     const res = mockRes();
@@ -138,13 +145,88 @@ describe('updateDraft', () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
   });
+
+  it('conserva cada autoguardado de la misma persona como una versión inmutable', async () => {
+    const updatedAt = new Date();
+    prisma.reportDraft.findFirst.mockResolvedValue({ id: 1, title: 'Informe', contentHtml: '<p>Anterior</p>', contentText: 'Anterior' });
+    prisma.reportDraft.update.mockResolvedValue({ id: 1, title: 'Informe', contentHtml: '<p>Nuevo</p>', contentText: 'Nuevo', updatedAt });
+    prisma.reportDraftVersion.findFirst.mockResolvedValue({ id: 20, version: 2, createdById: 7, createdAt: updatedAt, updatedAt });
+
+    await updateDraft(req({ contentHtml: '<p>Nuevo</p>' }), mockRes());
+
+    expect(prisma.reportDraftVersion.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ draftId: 1, version: 3, contentHtml: '<p>Nuevo</p>', contentText: 'Nuevo', createdById: 7 }),
+    });
+    expect(prisma.reportDraftVersion.update).not.toHaveBeenCalled();
+  });
+
+  it('inicia otra versión cuando cambia la persona que edita', async () => {
+    const updatedAt = new Date();
+    prisma.reportDraft.findFirst.mockResolvedValue({ id: 1, title: 'Informe', contentHtml: '<p>Anterior</p>', contentText: 'Anterior' });
+    prisma.reportDraft.update.mockResolvedValue({ id: 1, title: 'Informe', contentHtml: '<p>Nuevo</p>', contentText: 'Nuevo', updatedAt });
+    prisma.reportDraftVersion.findFirst.mockResolvedValue({ id: 20, version: 2, createdById: 8, createdAt: updatedAt, updatedAt });
+
+    await updateDraft(req({ contentHtml: '<p>Nuevo</p>' }), mockRes());
+
+    expect(prisma.reportDraftVersion.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ draftId: 1, version: 3, contentHtml: '<p>Nuevo</p>', createdById: 7 }),
+    });
+  });
+});
+
+describe('updateDraftSection', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('incluye las secciones oficiales en la versión del borrador', async () => {
+    const draft = { id: 3, title: 'Informe', contentHtml: '', contentText: '' };
+    prisma.reportDraft.findFirst.mockResolvedValue(draft);
+    prisma.reportSection.findUnique.mockResolvedValue({ id: 5 });
+    prisma.reportDraftSection.upsert.mockResolvedValue({ id: 12, structureSectionId: 5, contentHtml: '<p>Sección</p>', updatedAt: new Date(), structureSection: { id: 5 } });
+    prisma.reportDraftSection.findMany.mockResolvedValue([{ structureSectionId: 5, contentHtml: '<p>Sección</p>', contentText: 'Sección' }]);
+
+    await updateDraftSection({ params: { id: '3', sectionId: '5' }, body: { contentHtml: '<p>Sección</p>' }, user: { id: 7 } }, mockRes());
+
+    expect(prisma.reportDraftVersion.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        draftId: 3,
+        createdById: 7,
+        sections: [{ structureSectionId: 5, contentHtml: '<p>Sección</p>', contentText: 'Sección' }],
+      }),
+    });
+  });
+});
+
+describe('listDrafts', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('lista la biblioteca completa e incluye al creador', async () => {
+    const author = { id: 4, name: 'Ana Soto', email: 'ana@qualitrack.cl' };
+    const createdAt = new Date('2026-08-12T10:00:00Z');
+    const updatedAt = new Date('2026-08-13T10:00:00Z');
+    prisma.reportDraft.findMany.mockResolvedValue([
+      { id: 9, title: 'Informe compartido', contentText: 'Contenido', createdAt, updatedAt, author },
+    ]);
+
+    const res = mockRes();
+    await listDrafts({ user: { id: 7 } }, res);
+
+    expect(prisma.reportDraft.findMany).toHaveBeenCalledWith({
+      orderBy: { updatedAt: 'desc' },
+      include: { author: { select: { id: true, name: true, email: true } } },
+    });
+    expect(res.json).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 9, title: 'Informe compartido', author }),
+    ]);
+  });
 });
 
 describe('createDraft', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('crea un borrador vacío con título por defecto', async () => {
-    prisma.reportDraft.create.mockResolvedValue({ id: 3 });
+    prisma.reportDraft.create.mockResolvedValue({ id: 3, title: 'Borrador sin título', contentHtml: '', contentText: '' });
+    prisma.reportDraftSection.findMany.mockResolvedValue([]);
+    prisma.reportDraftVersion.findFirst.mockResolvedValue(null);
 
     const res = mockRes();
     await createDraft({ body: {}, user: { id: 7 } }, res);
@@ -155,6 +237,17 @@ describe('createDraft', () => {
         contentHtml: '',
         contentText: '',
         authorId: 7,
+      },
+    });
+    expect(prisma.reportDraftVersion.create).toHaveBeenCalledWith({
+      data: {
+        draftId: 3,
+        version: 1,
+        title: 'Borrador sin título',
+        contentHtml: '',
+        contentText: '',
+        sections: [],
+        createdById: 7,
       },
     });
     expect(res.status).toHaveBeenCalledWith(201);
