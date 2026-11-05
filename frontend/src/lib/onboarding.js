@@ -13,7 +13,7 @@ const SECTION_BY_PATH = [
   [/^\/cloud\/?$/, 'cloud'],
   [/^\/trash\/?$/, 'trash'],
   [/^\/security-events\/?$/, 'security-events'],
-  [/^\/team\/?$/, 'team'],
+  [/^\/team(?:\/permissions)?\/?$/, 'team'],
 ];
 
 const SECTION_DESCRIPTIONS = {

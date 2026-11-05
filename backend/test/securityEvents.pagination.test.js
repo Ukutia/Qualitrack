@@ -35,3 +35,19 @@ it.each([['authentication', { in: expect.arrayContaining(['LOGIN_INVALID_PASSWOR
   expect(prisma.securityEvent.count).toHaveBeenCalledWith({ where: { action } });
   expect(prisma.securityEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { action }, skip: 10, take: 10 }));
 });
+
+it('busca en todo el registro sin perder los filtros ni la paginación', async () => {
+  prisma.securityEvent.count.mockResolvedValue(3);
+  const res = { json: vi.fn() };
+  await listSecurityEvents({ query: { q: 'inicio de sesión', actions: 'LOGIN,LOGIN_FAILED', result: 'DENIED', page: '1', pageSize: '10' } }, res);
+  const where = expect.objectContaining({
+    result: 'DENIED',
+    OR: expect.arrayContaining([
+      { actorEmail: { contains: 'inicio de sesión', mode: 'insensitive' } },
+      { action: { contains: 'inicio de sesión', mode: 'insensitive' } },
+      { action: { in: ['LOGIN', 'LOGIN_FAILED'] } },
+    ]),
+  });
+  expect(prisma.securityEvent.count).toHaveBeenCalledWith({ where });
+  expect(prisma.securityEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({ where, skip: 0, take: 10 }));
+});

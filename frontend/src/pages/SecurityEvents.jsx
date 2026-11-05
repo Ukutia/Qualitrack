@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { PageSizeSelect, PaginationFooter, TableSearch } from '../components/TableControls.jsx';
 import { api } from '../lib/api.js';
 
 const ACTION_LABELS = {
@@ -31,6 +32,16 @@ function actionLabel(action) {
   return action.replaceAll('_', ' ').toLocaleLowerCase('es-CL');
 }
 
+function normalized(value) {
+  return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-CL');
+}
+
+function matchingKeys(entries, search) {
+  const needle = normalized(search);
+  if (!needle) return [];
+  return entries.filter(([, label]) => normalized(label).includes(needle)).map(([key]) => key);
+}
+
 function ShieldIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 8 3v6c0 4-4 7-8 9-4-2-8-5-8-9V6l8-3Z" /><path d="m8.5 12 2.5 2.5 4.5-5" /></svg>;
 }
@@ -40,12 +51,16 @@ export default function SecurityEvents() {
   const [pageSize, setPageSize] = useState(10);
   const table = useRef(null);
   const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search.trim());
+  const matchingActions = matchingKeys(Object.entries(ACTION_LABELS), deferredSearch);
+  const matchingResources = matchingKeys(Object.entries(RESOURCES), deferredSearch);
+  const matchingResults = matchingKeys(Object.entries(RESULTS).map(([key, value]) => [key, value.label]), deferredSearch);
   const denied = filter === 'denied';
-  const query = useQuery({ queryKey: ['security-events', page, pageSize, filter], queryFn: async ({ signal }) => (await api.get('/security-events', { signal, params: { page, pageSize, ...(denied ? { result: 'DENIED' } : filter !== 'all' ? { category: filter } : {}) } })).data, refetchInterval: 30000 });
+  const query = useQuery({ queryKey: ['security-events', page, pageSize, filter, deferredSearch], queryFn: async ({ signal }) => (await api.get('/security-events', { signal, params: { page, pageSize, ...(deferredSearch ? { q: deferredSearch, ...(matchingActions.length ? { actions: matchingActions.join(',') } : {}), ...(matchingResources.length ? { resources: matchingResources.join(',') } : {}), ...(matchingResults.length ? { results: matchingResults.join(',') } : {}) } : {}), ...(denied ? { result: 'DENIED' } : filter !== 'all' ? { category: filter } : {}) } })).data, refetchInterval: 30000 });
   const total = query.data?.total ?? 0;
   const visibleItems = query.data?.items ?? [];
   const pages = query.data?.totalPages ?? Math.max(1, Math.ceil(total / pageSize));
-  const pageNumbers = [...new Set([1, ...Array.from({ length: 5 }, (_, i) => page - 2 + i), pages])].filter((value) => value >= 1 && value <= pages).sort((a, b) => a - b);
   useEffect(() => { if (query.data && query.data.page !== page) setPage(query.data.page); }, [query.data, page]);
   function goToPage(value) {
     setPage(value);
@@ -65,7 +80,11 @@ export default function SecurityEvents() {
     </div>
 
     <div ref={table} className="min-w-0 scroll-mt-4 overflow-hidden rounded-xl2 bg-white shadow-soft ring-1 ring-steel-200/60">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-steel-100 px-5 py-4"><p aria-live="polite" className="text-sm font-medium text-steel-700">{query.isPending ? 'Cargando eventos…' : query.isError ? 'Registro no disponible' : `Mostrando ${visibleItems.length} de ${total} eventos${denied ? ' denegados' : ''}`}</p><label className="flex items-center gap-2 text-xs text-steel-600">Filas por página<select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="rounded-lg border border-steel-200 bg-white px-2 py-1.5 text-steel-700">{[10, 25, 50].map((size) => <option key={size} value={size}>{size}</option>)}</select></label></div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-steel-100 px-5 py-4">
+        <TableSearch id="security-events-search" label="Buscar en el registro de seguridad" placeholder="Buscar por correo, acción, recurso o resultado…" value={search} onChange={(value) => { setSearch(value); setPage(1); }} />
+        <PageSizeSelect value={pageSize} onChange={(value) => { setPageSize(value); setPage(1); }} />
+        <p aria-live="polite" className="w-full text-sm font-medium text-steel-700">{query.isPending ? 'Cargando eventos…' : query.isError ? 'Registro no disponible' : `Mostrando ${visibleItems.length} de ${total} eventos${denied ? ' denegados' : ''}${deferredSearch ? ' encontrados' : ''}`}</p>
+      </div>
       {query.isError ? <div role="alert" className="px-6 py-12 text-center"><p className="text-sm text-rose-700">No se pudo cargar el registro.</p><button onClick={() => query.refetch()} className="mt-3 text-sm font-medium text-brand-700 underline">Reintentar</button></div> : <>
         <div role="region" aria-label="Tabla del registro de seguridad, desplazable horizontalmente" tabIndex={0} className="overflow-x-auto overscroll-x-contain">
           <table className="w-full min-w-[960px] table-fixed text-left text-sm">
@@ -89,9 +108,9 @@ export default function SecurityEvents() {
             </tbody>
           </table>
         </div>
-        {!query.isPending && !query.data?.items.length && <div className="px-6 py-12 text-center"><div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-brand-700"><ShieldIcon /></div><h2 className="font-display text-lg font-semibold text-ink-900">{denied ? 'Sin accesos denegados registrados' : 'Todavía no hay eventos'}</h2><p className="mt-2 text-sm text-steel-600">{denied ? 'Puedes consultar el resto de la actividad en Todos los eventos.' : 'Los accesos y operaciones aparecerán aquí a medida que se registren.'}</p></div>}
+        {!query.isPending && !query.data?.items.length && <div className="px-6 py-12 text-center"><div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-brand-700"><ShieldIcon /></div><h2 className="font-display text-lg font-semibold text-ink-900">{deferredSearch ? 'Sin coincidencias' : denied ? 'Sin accesos denegados registrados' : 'Todavía no hay eventos'}</h2><p className="mt-2 text-sm text-steel-600">{deferredSearch ? 'Prueba con otro correo, acción, recurso o resultado.' : denied ? 'Puedes consultar el resto de la actividad en Todos los eventos.' : 'Los accesos y operaciones aparecerán aquí a medida que se registren.'}</p></div>}
       </>}
-      {query.data && !query.isError && <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-steel-100 px-5 py-4 text-xs text-steel-600"><span aria-live="polite">{total ? `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} de ${total}` : '0 eventos'} · Página {page} de {pages}</span><nav aria-label="Paginación del registro de seguridad" className="flex flex-wrap items-center gap-1.5"><button disabled={page === 1 || query.isFetching} onClick={() => goToPage(page - 1)} className="rounded-lg border border-steel-200 px-3 py-2 font-medium text-steel-700 hover:bg-steel-50 disabled:cursor-not-allowed disabled:opacity-40">← Anterior</button>{pageNumbers.map((number, index) => <span key={number} className="inline-flex items-center gap-1.5">{index > 0 && number > pageNumbers[index - 1] + 1 && <span aria-hidden="true" className="px-1">…</span>}<button aria-label={`Ir a la página ${number}`} aria-current={number === page ? 'page' : undefined} disabled={query.isFetching} onClick={() => goToPage(number)} className={`min-w-8 rounded-lg border px-2 py-2 font-medium disabled:opacity-50 ${number === page ? 'border-brand-600 bg-brand-600 text-white' : 'border-steel-200 text-steel-700 hover:bg-steel-50'}`}>{number}</button></span>)}<button disabled={page >= pages || query.isFetching} onClick={() => goToPage(page + 1)} className="rounded-lg border border-steel-200 px-3 py-2 font-medium text-steel-700 hover:bg-steel-50 disabled:cursor-not-allowed disabled:opacity-40">Siguiente →</button></nav></footer>}
+      {query.data && !query.isError && <PaginationFooter page={page} pages={pages} pageSize={pageSize} total={total} itemLabel="eventos" ariaLabel="Paginación del registro de seguridad" onPageChange={goToPage} disabled={query.isFetching} />}
     </div>
   </section>;
 }

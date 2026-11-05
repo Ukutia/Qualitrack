@@ -32,6 +32,31 @@ export async function listSecurityEvents(req, res) {
   } else if (req.query.category === 'locks') {
     where.action = 'ACCOUNT_LOCKED';
   }
+  const search = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 200) : '';
+  if (search) {
+    where.OR = [
+      { actorEmail: { contains: search, mode: 'insensitive' } },
+      { action: { contains: search, mode: 'insensitive' } },
+      { resourceType: { contains: search, mode: 'insensitive' } },
+      { resourceId: { contains: search, mode: 'insensitive' } },
+      { result: { contains: search, mode: 'insensitive' } },
+    ];
+    if (/^\d+$/.test(search)) {
+      const id = Number(search);
+      if (Number.isSafeInteger(id)) where.OR.push({ id }, { actorId: id });
+    }
+    const aliasFilters = [
+      ['actions', 'action'],
+      ['resources', 'resourceType'],
+      ['results', 'result'],
+    ];
+    for (const [queryKey, field] of aliasFilters) {
+      const values = typeof req.query[queryKey] === 'string'
+        ? req.query[queryKey].split(',').slice(0, 50).filter((value) => /^[A-Za-z0-9_-]{1,100}$/.test(value))
+        : [];
+      if (values.length) where.OR.push({ [field]: { in: values } });
+    }
+  }
   const requestedSize = Number(req.query.pageSize);
   const pageSize = [10, 25, 50].includes(requestedSize) ? requestedSize : 50;
   const result = await prisma.$transaction(async (tx) => {
