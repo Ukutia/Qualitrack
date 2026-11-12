@@ -5,6 +5,9 @@
 // muestra o se habilita. El backend vuelve a validar cada petición.
 import { ROLES } from './roles.js';
 
+// Visibilidad temporal de la sección, independiente de los permisos guardados.
+export const THEMATIC_SEARCH_ENABLED = false;
+
 export const MODULES = {
   TABLERO: 'tablero',
   REPOSITORIO: 'repositorio',
@@ -68,7 +71,9 @@ export const SECTIONS = [
 
 /** Secciones visibles: se ocultan los módulos denegados. */
 export function navFor(user) {
-  return SECTIONS.filter((s) => (s.module ? can(user, s.module, s.level) : user?.role === ROLES.ADMIN));
+  return SECTIONS.filter((s) =>
+    (s.module !== MODULES.BUSQUEDA || THEMATIC_SEARCH_ENABLED) &&
+    (s.module ? can(user, s.module, s.level) : user?.role === ROLES.ADMIN));
 }
 
 /** Primera pantalla del usuario tras iniciar sesión. */

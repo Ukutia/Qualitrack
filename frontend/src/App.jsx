@@ -25,7 +25,7 @@ import AccessDenied from './pages/AccessDenied.jsx';
 import NotFound from './pages/NotFound.jsx';
 import PublicDocumentRequest from './pages/PublicDocumentRequest.jsx';
 import { ROLES } from './lib/roles.js';
-import { LEVELS, MODULES, can } from './lib/permissions.js';
+import { LEVELS, MODULES, can, THEMATIC_SEARCH_ENABLED } from './lib/permissions.js';
 
 // Módulo que exige cada ruta (HU19). El backend revalida cada petición: esto
 // solo evita que la pantalla llegue a montarse.
@@ -70,8 +70,8 @@ export default function App() {
         <Route path="/documents" element={guard(REPOSITORIO, <Documents />)} />
         <Route path="/requests" element={guard(SOLICITUDES, <DocumentRequests />)} />
         <Route path="/requests/new" element={guard(SOLICITUDES, <NewDocumentRequest />, LEVELS.ESCRITURA)} />
-        <Route path="/search" element={guard(BUSQUEDA, <SemanticSearch />)} />
-        <Route path="/network" element={<Navigate to="/search?view=network" replace />} />
+        <Route path="/search" element={THEMATIC_SEARCH_ENABLED ? guard(BUSQUEDA, <SemanticSearch />) : <Navigate to="/acceso-denegado" replace />} />
+        <Route path="/network" element={<Navigate to={THEMATIC_SEARCH_ENABLED ? '/search?view=network' : '/acceso-denegado'} replace />} />
         <Route path="/documents/:id" element={guard([REPOSITORIO, BUSQUEDA], <DocumentDetail />)} />
         <Route path="/documents/:id/pasajes/:chunkIndex" element={guard([REPOSITORIO, BUSQUEDA], <PassageViewer />)} />
         <Route path="/upload" element={guard(CARGA, <Upload />, LEVELS.ESCRITURA)} />

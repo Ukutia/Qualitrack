@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom';
 import { PageSizeSelect, PaginationFooter, TableSearch } from '../components/TableControls.jsx';
 import { useTeamMembers, useUpdateMemberPermission } from '../hooks/useApi.js';
 import { ROLES, roleLabel } from '../lib/roles.js';
-import { LEVELS, LEVEL_LABELS, MODULES, MODULE_LABELS } from '../lib/permissions.js';
+import { LEVELS, LEVEL_LABELS, MODULES, MODULE_LABELS, THEMATIC_SEARCH_ENABLED } from '../lib/permissions.js';
+
+const visibleModules = Object.values(MODULES).filter((module) =>
+  module !== MODULES.BUSQUEDA || THEMATIC_SEARCH_ENABLED);
 
 const LEVEL_OPTIONS = [LEVELS.LECTURA, LEVELS.ESCRITURA, LEVELS.DENEGADO];
 const LEVEL_STYLES = {
@@ -112,7 +115,7 @@ export default function TeamPermissions() {
               <thead className="border-b border-steel-200 text-xs uppercase tracking-wide text-steel-500">
                 <tr>
                   <th className="px-4 py-3 font-medium">Integrante</th>
-                  {Object.values(MODULES).map((module) => (
+                  {visibleModules.map((module) => (
                     <th key={module} className="px-2 py-3 font-medium">{MODULE_LABELS[module]}</th>
                   ))}
                 </tr>
@@ -124,7 +127,7 @@ export default function TeamPermissions() {
                       <p className="font-medium text-ink-900">{member.name}</p>
                       <p className="text-xs text-steel-500">{roleLabel(member.role)}</p>
                     </td>
-                    {member.permissions.map((permission) => {
+                    {member.permissions.filter((permission) => visibleModules.includes(permission.module)).map((permission) => {
                       const key = `${member.id}:${permission.module}`;
                       return (
                         <td key={permission.module} className="px-2 py-3 align-top">

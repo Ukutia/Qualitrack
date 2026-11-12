@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { usePassage, usePassageFocus, useDocumentFile } from '../hooks/useApi.js';
 import useDocumentMeta from '../lib/useDocumentMeta.js';
+import { THEMATIC_SEARCH_ENABLED } from '../lib/permissions.js';
 import PdfPassage from '../components/passage/PdfPassage.jsx';
 import DocxPassage from '../components/passage/DocxPassage.jsx';
 import SheetPassage from '../components/passage/SheetPassage.jsx';
@@ -18,7 +19,7 @@ function BackLink() {
       ← Volver a los resultados
     </button>
   ) : (
-    <Link to="/search" className="text-sm text-brand-600 hover:underline">← Ir a la búsqueda temática</Link>
+    <Link to={THEMATIC_SEARCH_ENABLED ? '/search' : '/documents'} className="text-sm text-brand-600 hover:underline">{THEMATIC_SEARCH_ENABLED ? '← Ir a la búsqueda temática' : '← Ir al repositorio'}</Link>
   );
 }
 
